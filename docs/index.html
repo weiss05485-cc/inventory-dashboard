@@ -230,6 +230,7 @@ th.sort-desc::after{content:' ↓'}
   <button class="nav-btn" onclick="showPage('departments')">📂 מחלקות</button>
   <button class="nav-btn" onclick="showPage('lowstock')">⚠️ חוסרים</button>
   <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
+  <button class="nav-btn" onclick="showPage('sales')">📈 מכירות</button>
 </nav>
 
 <div id="bottom-nav">
@@ -238,6 +239,7 @@ th.sort-desc::after{content:' ↓'}
   <button class="bnav-btn" onclick="showPage('departments')"><span class="bnav-icon">📂</span>מחלקות</button>
   <button class="bnav-btn" onclick="showPage('lowstock')"><span class="bnav-icon">⚠️</span>חוסרים</button>
   <button class="bnav-btn" onclick="showPage('reports')"><span class="bnav-icon">📋</span>דוחות</button>
+  <button class="bnav-btn" onclick="showPage('sales')"><span class="bnav-icon">📈</span>מכירות</button>
 </div>
 
 <div id="loading">
@@ -422,6 +424,97 @@ th.sort-desc::after{content:' ↓'}
           <tbody id="low-body"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- PAGE: SALES -->
+<div id="page-sales" class="page">
+<div class="container">
+
+  <div id="sales-loading" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+    <div class="spin"></div><br>טוען מכירות...
+  </div>
+
+  <!-- Department tabs -->
+  <div class="store-tabs" id="sales-dept-tabs" style="margin-bottom:12px"></div>
+
+  <!-- Item selector -->
+  <div id="sales-item-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">בחר פריט:</div>
+    <div class="dept-filter" id="sales-item-filter"></div>
+  </div>
+
+  <!-- Date range + model filter row -->
+  <div id="sales-filters-wrap" style="display:none;margin-bottom:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+
+      <!-- Date presets -->
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">תקופה:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="pill active" id="sp-1m"  onclick="setSalePeriod(1)">חודש</button>
+          <button class="pill" id="sp-3m"  onclick="setSalePeriod(3)">3 חודשים</button>
+          <button class="pill" id="sp-6m"  onclick="setSalePeriod(6)">6 חודשים</button>
+          <button class="pill" id="sp-12m" onclick="setSalePeriod(12)">שנה</button>
+          <button class="pill" id="sp-custom" onclick="setSalePeriod(0)">מותאם</button>
+        </div>
+        <div id="sales-custom-dates" style="display:none;margin-top:8px;display:flex;gap:8px;align-items:center">
+          <input type="date" id="sale-date-from" onchange="renderSaleTable()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
+          <span style="color:var(--muted)">עד</span>
+          <input type="date" id="sale-date-to" onchange="renderSaleTable()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
+        </div>
+      </div>
+
+      <!-- שורות filter -->
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">סוג:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="pill active" id="sh-all" onclick="setSaleShorot('all')">הכל</button>
+          <button class="pill" id="sh-2" onclick="setSaleShorot('2')">שתי שורות</button>
+          <button class="pill" id="sh-1" onclick="setSaleShorot('1')">שורה אחת</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Group filter -->
+  <div id="sales-group-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">קבוצה:</div>
+    <div class="dept-filter" id="sales-group-filter"></div>
+  </div>
+
+  <!-- Pivot table -->
+  <div class="section" id="sales-table-section" style="display:none;margin-bottom:16px">
+    <div class="section-header">
+      <h3 id="sales-table-title"></h3>
+      <div style="display:flex;gap:8px">
+        <span id="sales-period-label" style="font-size:12px;color:var(--muted);align-self:center"></span>
+        <button class="btn btn-export" onclick="exportSaleOrder()">⬇️ ייצוא להזמנה</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="sales-table">
+        <thead id="sales-thead"></thead>
+        <tbody id="sales-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Drill-down -->
+  <div class="section" id="sales-drill-wrap" style="display:none">
+    <div class="section-header">
+      <h3 id="sales-drill-title">פירוט סניפים</h3>
+      <button onclick="closeSaleDrill()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--muted);font-size:12px">✕ סגור</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>סניף</th><th>יח' נמכרו</th></tr></thead>
+        <tbody id="sales-drill-body"></tbody>
+      </table>
     </div>
   </div>
 
@@ -636,7 +729,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4};
+  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5};
   document.querySelectorAll('.nav-btn')[labels[id]].classList.add('active');
   document.querySelectorAll('.bnav-btn')[labels[id]].classList.add('active');
 
@@ -645,6 +738,7 @@ function showPage(id) {
   if (id === 'departments') renderDepartments();
   if (id === 'lowstock') renderLowStock();
   if (id === 'reports')  renderReports();
+  if (id === 'sales')    renderSales();
 }
 
 /* ========== OVERVIEW ========== */
@@ -1400,6 +1494,287 @@ function exportLow() {
                n.OnHand, n.ReorderPoint, shortage, n.Price]);
   });
   downloadCSV(rows, 'דוח_חוסרים.csv');
+}
+
+/* ========== SALES ========== */
+const SHOROT_2 = new Set(['01','05','23','24','63','64']); // שתי שורות
+const SHOROT_1 = new Set(['02','03','21','32','33','65']); // שורה אחת
+function getShorot(mc) {
+  if (SHOROT_2.has(mc)) return '2';
+  if (SHOROT_1.has(mc)) return '1';
+  return '?';
+}
+
+let SALES_DATA = null;
+let salesLoaded = false;
+let activeSaleDept = null;
+let activeSaleItem = null;
+let activeSaleGroups = new Set();
+let activeSaleShorot = 'all'; // 'all','1','2'
+let activeSalePeriod = 1;     // months, 0=custom
+let saleDateFrom = null, saleDateTo = null;
+let _saleDepts = [], _saleItems = [], _saleGroups = [], _saleSizes = [];
+let _activeSaleDrillSz = null, _activeSaleDrillG = null;
+
+function loadSalesData(cb) {
+  if (salesLoaded) { cb(); return; }
+  document.getElementById('sales-loading').style.display = 'block';
+  fetch('sales.json?t=' + Date.now())
+    .then(r => r.json())
+    .then(items => {
+      SALES_DATA = items;
+      salesLoaded = true;
+      document.getElementById('sales-loading').style.display = 'none';
+      cb();
+    })
+    .catch(() => {
+      document.getElementById('sales-loading').innerHTML = '❌ שגיאה בטעינת מכירות';
+    });
+}
+
+function renderSales() {
+  loadSalesData(() => {
+    buildSaleDeptTabs();
+    if (!activeSaleDept) {
+      if (_saleDepts.length) selectSaleDept(0);
+    } else {
+      buildSaleItemFilter();
+      buildSaleGroupFilter();
+      renderSaleTable();
+    }
+  });
+}
+
+function buildSaleDeptTabs() {
+  _saleDepts = [...new Set(SALES_DATA.map(i => i.dept))].sort();
+  document.getElementById('sales-dept-tabs').innerHTML = _saleDepts.map((d, idx) =>
+    `<button class="stab ${d===activeSaleDept?'active':''}" onclick="selectSaleDept(${idx})">${d}</button>`
+  ).join('');
+}
+
+function selectSaleDept(idx) {
+  activeSaleDept = _saleDepts[idx];
+  activeSaleItem = null;
+  activeSaleGroups = new Set();
+  closeSaleDrill();
+  buildSaleDeptTabs();
+  buildSaleItemFilter();
+  document.getElementById('sales-group-wrap').style.display = 'none';
+  document.getElementById('sales-table-section').style.display = 'none';
+  document.getElementById('sales-filters-wrap').style.display = 'none';
+  if (_saleItems.length) selectSaleItem(0);
+}
+
+function buildSaleItemFilter() {
+  _saleItems = [...new Set(SALES_DATA.filter(i => i.dept === activeSaleDept).map(i => i.n))].sort();
+  document.getElementById('sales-item-wrap').style.display = 'block';
+  document.getElementById('sales-item-filter').innerHTML = _saleItems.map((n, idx) =>
+    `<button class="pill ${n===activeSaleItem?'active':''}" onclick="selectSaleItem(${idx})">${n}</button>`
+  ).join('');
+}
+
+function selectSaleItem(idx) {
+  activeSaleItem = _saleItems[idx];
+  closeSaleDrill();
+  buildSaleItemFilter();
+  document.getElementById('sales-filters-wrap').style.display = 'block';
+  _saleGroups = [...new Set(SALES_DATA
+    .filter(i => i.dept === activeSaleDept && i.n === activeSaleItem)
+    .map(i => i.g))].sort();
+  activeSaleGroups = new Set(_saleGroups);
+  buildSaleGroupFilter();
+  renderSaleTable();
+}
+
+function buildSaleGroupFilter() {
+  _saleGroups = [...new Set(SALES_DATA
+    .filter(i => i.dept === activeSaleDept && i.n === activeSaleItem)
+    .map(i => i.g))].sort();
+  const wrap = document.getElementById('sales-group-wrap');
+  wrap.style.display = _saleGroups.length > 1 ? 'block' : 'none';
+  document.getElementById('sales-group-filter').innerHTML = _saleGroups.map((g, idx) =>
+    `<button class="pill ${activeSaleGroups.has(g)?'active':''}" onclick="toggleSaleGroup(${idx})">${g}</button>`
+  ).join('');
+}
+
+function toggleSaleGroup(idx) {
+  const g = _saleGroups[idx];
+  if (activeSaleGroups.has(g)) {
+    if (activeSaleGroups.size > 1) activeSaleGroups.delete(g);
+  } else { activeSaleGroups.add(g); }
+  closeSaleDrill();
+  buildSaleGroupFilter();
+  renderSaleTable();
+}
+
+function setSalePeriod(months) {
+  activeSalePeriod = months;
+  ['1m','3m','6m','12m','custom'].forEach(k => {
+    const btn = document.getElementById('sp-' + k);
+    if (btn) btn.classList.toggle('active', (months===1&&k==='1m')||(months===3&&k==='3m')||
+                                             (months===6&&k==='6m')||(months===12&&k==='12m')||
+                                             (months===0&&k==='custom'));
+  });
+  const customWrap = document.getElementById('sales-custom-dates');
+  if (customWrap) customWrap.style.display = months === 0 ? 'flex' : 'none';
+  if (months !== 0) renderSaleTable();
+}
+
+function setSaleShorot(val) {
+  activeSaleShorot = val;
+  ['all','1','2'].forEach(k => {
+    const btn = document.getElementById('sh-' + k);
+    if (btn) btn.classList.toggle('active', k === val);
+  });
+  closeSaleDrill();
+  renderSaleTable();
+}
+
+function getSaleDateRange() {
+  if (activeSalePeriod === 0) {
+    const from = document.getElementById('sale-date-from')?.value;
+    const to   = document.getElementById('sale-date-to')?.value;
+    return { from: from ? from.slice(0,7) : null, to: to ? to.slice(0,7) : null };
+  }
+  const now = new Date();
+  const toYM = now.toISOString().slice(0,7);
+  const fromDate = new Date(now.getFullYear(), now.getMonth() - activeSalePeriod + 1, 1);
+  const fromYM = fromDate.toISOString().slice(0,7);
+  return { from: fromYM, to: toYM };
+}
+
+function renderSaleTable() {
+  if (!activeSaleDept || !activeSaleItem) return;
+  const range = getSaleDateRange();
+
+  let items = SALES_DATA.filter(i =>
+    i.dept === activeSaleDept &&
+    i.n === activeSaleItem &&
+    activeSaleGroups.has(i.g) &&
+    (!range.from || i.ym >= range.from) &&
+    (!range.to   || i.ym <= range.to)
+  );
+
+  if (activeSaleShorot !== 'all')
+    items = items.filter(i => getShorot(i.mc) === activeSaleShorot);
+
+  document.getElementById('sales-table-section').style.display = 'block';
+  const shorotLabel = activeSaleShorot==='2' ? ' | שתי שורות' : activeSaleShorot==='1' ? ' | שורה אחת' : '';
+  document.getElementById('sales-table-title').textContent = '📈 ' + activeSaleItem + shorotLabel;
+
+  const months = range.from && range.to
+    ? `${range.from} — ${range.to}`
+    : `${activeSalePeriod} חודשים אחרונים`;
+  document.getElementById('sales-period-label').textContent = months;
+
+  if (!items.length) {
+    document.getElementById('sales-thead').innerHTML = '';
+    document.getElementById('sales-tbody').innerHTML =
+      '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--muted)">אין מכירות בתקופה זו</td></tr>';
+    return;
+  }
+
+  const groups = [...activeSaleGroups].sort();
+  _saleSizes = sortSizes([...new Set(items.map(i => i.sz || '—'))]);
+
+  // Pivot: size × group → total qty sold, per store
+  const pivot = {}, groupTotals = {}, sizeTotals = {}, pivotStores = {};
+  let grandTotal = 0;
+  items.forEach(i => {
+    const sz = i.sz || '—';
+    if (!pivot[sz]) { pivot[sz] = {}; pivotStores[sz] = {}; }
+    pivot[sz][i.g] = (pivot[sz][i.g] || 0) + i.q;
+    if (!pivotStores[sz][i.g]) pivotStores[sz][i.g] = {};
+    pivotStores[sz][i.g][i.st] = (pivotStores[sz][i.g][i.st] || 0) + i.q;
+    groupTotals[i.g] = (groupTotals[i.g] || 0) + i.q;
+    sizeTotals[sz]   = (sizeTotals[sz]   || 0) + i.q;
+    grandTotal += i.q;
+  });
+
+  document.getElementById('sales-thead').innerHTML = `<tr>
+    <th>מידה</th>
+    ${groups.map(g => `<th>${g}</th>`).join('')}
+    <th class="report-total-col">סה"כ</th>
+  </tr>`;
+
+  document.getElementById('sales-tbody').innerHTML = [
+    ..._saleSizes.map((sz, si) => `<tr>
+      <td><strong>${sz}</strong></td>
+      ${groups.map((g, gi) => {
+        const qty = pivot[sz]?.[g] || 0;
+        const isActive = _activeSaleDrillSz === si && _activeSaleDrillG === gi;
+        return `<td class="report-cell ${qty>0?'has-qty':''} ${isActive?'active-drill':''}"
+          onclick="showSaleDrill(${si},${gi})">${qty > 0 ? `<strong>${qty}</strong>` : '<span style="color:#cbd5e0">—</span>'}</td>`;
+      }).join('')}
+      <td class="report-total-col" style="text-align:center">${sizeTotals[sz]||0}</td>
+    </tr>`),
+    `<tr class="report-total-row">
+      <td>סה"כ</td>
+      ${groups.map(g => `<td style="text-align:center">${Math.round(groupTotals[g]||0)}</td>`).join('')}
+      <td style="text-align:center">${Math.round(grandTotal)}</td>
+    </tr>`
+  ].join('');
+}
+
+function showSaleDrill(si, gi) {
+  _activeSaleDrillSz = si; _activeSaleDrillG = gi;
+  const sz = _saleSizes[si];
+  const groups = [...activeSaleGroups].sort();
+  const g = groups[gi];
+  renderSaleTable(); // refresh highlight
+
+  const range = getSaleDateRange();
+  let items = SALES_DATA.filter(i =>
+    i.dept === activeSaleDept && i.n === activeSaleItem &&
+    (i.sz||'—') === sz && i.g === g &&
+    (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
+  );
+  if (activeSaleShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeSaleShorot);
+
+  const storeMap = {};
+  items.forEach(i => { storeMap[i.st] = (storeMap[i.st]||0) + i.q; });
+  const entries = Object.entries(storeMap).sort((a,b) => b[1]-a[1]);
+  const total = entries.reduce((s,[,q])=>s+q,0);
+
+  document.getElementById('sales-drill-wrap').style.display = 'block';
+  document.getElementById('sales-drill-title').textContent = `${activeSaleItem} | מידה ${sz} | ${g}`;
+  document.getElementById('sales-drill-body').innerHTML = [
+    ...entries.map(([store, qty]) => `<tr><td>${storeName(store)}</td><td><strong>${Math.round(qty)}</strong></td></tr>`),
+    `<tr style="font-weight:700;border-top:2px solid var(--border)"><td>סה"כ</td><td>${Math.round(total)}</td></tr>`
+  ].join('');
+  document.getElementById('sales-drill-wrap').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeSaleDrill() {
+  _activeSaleDrillSz = null; _activeSaleDrillG = null;
+  document.getElementById('sales-drill-wrap').style.display = 'none';
+}
+
+function exportSaleOrder() {
+  if (!activeSaleItem) return;
+  const range = getSaleDateRange();
+  let items = SALES_DATA.filter(i =>
+    i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g) &&
+    (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
+  );
+  if (activeSaleShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeSaleShorot);
+
+  const groups = [...activeSaleGroups].sort();
+  const sizes = sortSizes([...new Set(items.map(i => i.sz||'—'))]);
+  const pivot = {};
+  items.forEach(i => {
+    const sz = i.sz||'—';
+    if (!pivot[sz]) pivot[sz] = {};
+    pivot[sz][i.g] = (pivot[sz][i.g]||0) + i.q;
+  });
+
+  const rows = [['מידה', ...groups, 'סה"כ מכירות', 'כמות להזמנה']];
+  sizes.forEach(sz => {
+    const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
+    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0), '']);
+  });
+  rows.push(['סה"כ', ...groups.map(g => Math.round(items.filter(i=>(i.sz||'—')!=='סה"כ'&&i.g===g).reduce((s,i)=>s+i.q,0))), '', '']);
+  downloadCSV(rows, `הזמנה_${activeSaleItem}_${range.from||''}.csv`);
 }
 
 /* ========== REPORTS ========== */

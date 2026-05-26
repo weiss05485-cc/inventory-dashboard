@@ -237,6 +237,58 @@ def main():
 
     search_items = list(item_map.values())
 
+    print("  Sales by group/size/month...")
+    sales_raw = q(cur, f"""
+        {ONHAND_CTE}
+        SELECT
+            im.Name,
+            im.BarcodeNumber,
+            ISNULL(d.Name, N'ללא מחלקה') AS Department,
+            ISNULL(ig.ItemGroupName, N'ללא קבוצה') AS GroupName,
+            st.StoreName,
+            CONVERT(VARCHAR(7), t.SaleTime, 120) AS YearMonth,
+            SUM(te.Qty) AS QtySold
+        FROM TransactionEntry te
+        JOIN [Transaction] t ON te.TransactionID = t.TransactionID
+        JOIN ItemStore ist ON ist.ItemStoreID = te.ItemStoreID
+        JOIN ItemMain im ON im.ItemID = ist.ItemID AND im.Status = 1
+        JOIN Store st ON t.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
+        LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
+        LEFT JOIN (
+            SELECT ItemID, ItemGroupID,
+                   ROW_NUMBER() OVER (PARTITION BY ItemID ORDER BY CASE WHEN IsMainGroup=1 THEN 0 ELSE 1 END) AS rn
+            FROM ItemToGroup WHERE Status = 1
+        ) itg ON itg.ItemID = im.ItemID AND itg.rn = 1
+        LEFT JOIN ItemGroup ig ON ig.ItemGroupID = itg.ItemGroupID AND ig.Status = 1
+        WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
+          AND te.TransactionEntryType NOT IN (4, 10, 12, 16)
+          AND t.SaleTime >= DATEADD(MONTH, -13, GETDATE())
+          AND ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
+        GROUP BY im.Name, im.BarcodeNumber, d.Name, ig.ItemGroupName,
+                 st.StoreName, CONVERT(VARCHAR(7), t.SaleTime, 120)
+    """)
+
+    # Process sales: extract size & model code from barcode
+    sales_map = {}
+    for row in sales_raw:
+        bc = str(row['BarcodeNumber'] or '').strip()
+        m = BARCODE_RE.match(bc)
+        size = m.group(5) if m else ''
+        mc   = m.group(4) if m else ''
+        key = (row['YearMonth'], row['Department'], row['GroupName'],
+               row['Name'].strip(), mc, size, row['StoreName'])
+        if key not in sales_map:
+            sales_map[key] = 0.0
+        sales_map[key] += float(row['QtySold'] or 0)
+
+    sales_items = [
+        {'ym': ym, 'dept': dept, 'g': group, 'n': name,
+         'mc': mc, 'sz': size, 'st': store, 'q': round(qty)}
+        for (ym, dept, group, name, mc, size, store), qty in sales_map.items()
+        if qty > 0
+    ]
+
     print("  Reports by group/size...")
     report_raw = q(cur, f"""
         {ONHAND_CTE}
@@ -302,7 +354,10 @@ def main():
     with open("docs/reports.json", "w", encoding="utf-8") as f:
         json.dump(report_items, f, ensure_ascii=False, default=serial)
 
-    print(f"Done. {len(search_items)} search items | {len(report_items)} report rows | docs/data.json + search.json + reports.json")
+    with open("docs/sales.json", "w", encoding="utf-8") as f:
+        json.dump(sales_items, f, ensure_ascii=False, default=serial)
+
+    print(f"Done. {len(search_items)} search | {len(report_items)} report | {len(sales_items)} sales rows")
     for s in store_summary:
         print(f"  {s['StoreName']}: {s['InStock']} in stock / {int(s['TotalUnits'])} units / {int(s['StockValue']):,}")
 
