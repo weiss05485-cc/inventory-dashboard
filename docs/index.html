@@ -386,7 +386,6 @@ fetch('data.json?t=' + Date.now())
     storeList = DATA.store_summary.map(s => s.StoreName);
     document.getElementById('last-updated').textContent = 'עודכן: ' + data.last_updated;
     document.getElementById('loading').style.display = 'none';
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
     showPage('overview');
   })
   .catch(e => {
