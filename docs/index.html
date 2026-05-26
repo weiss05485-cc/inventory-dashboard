@@ -1405,8 +1405,7 @@ function renderReports() {
   loadReportsData(() => {
     buildReportDeptTabs();
     if (!activeReportDept) {
-      const depts = [...new Set(REPORT_DATA.map(i => i.dept))].sort();
-      if (depts.length) selectReportDept(depts[0]);
+      if (_reportDepts.length) selectReportDept(0);
     } else {
       buildReportItemFilter();
       buildReportGroupFilter();
