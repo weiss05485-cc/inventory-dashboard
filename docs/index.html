@@ -549,6 +549,16 @@ th.sort-desc::after{content:' ↓'}
     <div class="dept-filter" id="report-item-filter"></div>
   </div>
 
+  <!-- Shorot filter (חליפות only) -->
+  <div id="report-shorot-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">סוג:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="pill active" id="rsh-all" onclick="setReportShorot('all')">הכל</button>
+      <button class="pill" id="rsh-2" onclick="setReportShorot('2')">שתי שורות</button>
+      <button class="pill" id="rsh-1" onclick="setReportShorot('1')">שורה אחת</button>
+    </div>
+  </div>
+
   <!-- Group filter -->
   <div id="report-group-wrap" style="display:none;margin-bottom:12px">
     <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">סנן לפי קבוצה:</div>
@@ -1908,6 +1918,7 @@ let _reportItems = [];
 let _reportGroups = [];
 let _reportSizes = [];
 let _activeDrillSzIdx = null, _activeDrillGIdx = null;
+let activeReportShorot = 'all';
 
 function loadReportsData(cb) {
   if (reportLoaded) { cb(); return; }
@@ -1969,14 +1980,36 @@ function buildReportItemFilter() {
 
 function selectReportItem(idx) {
   activeReportItem = _reportItems[idx];
+  activeReportShorot = 'all';
   closeReportDrill();
   buildReportItemFilter();
-  // default: all groups selected
+  // show shorot filter only if item has model codes (בגדים with שורות)
+  const hasMC = REPORT_DATA.some(i =>
+    i.dept === activeReportDept && i.n === activeReportItem && (SHOROT_1.has(i.mc) || SHOROT_2.has(i.mc))
+  );
+  const shorotWrap = document.getElementById('report-shorot-wrap');
+  if (shorotWrap) {
+    shorotWrap.style.display = hasMC ? 'block' : 'none';
+    ['all','1','2'].forEach(k => {
+      const b = document.getElementById('rsh-' + k);
+      if (b) b.classList.toggle('active', k === 'all');
+    });
+  }
   _reportGroups = [...new Set(REPORT_DATA
     .filter(i => i.dept === activeReportDept && i.n === activeReportItem)
     .map(i => i.g))].sort();
   activeReportGroups = new Set(_reportGroups);
   buildReportGroupFilter();
+  renderReportTable();
+}
+
+function setReportShorot(val) {
+  activeReportShorot = val;
+  ['all','1','2'].forEach(k => {
+    const b = document.getElementById('rsh-' + k);
+    if (b) b.classList.toggle('active', k === val);
+  });
+  closeReportDrill();
   renderReportTable();
 }
 
@@ -2017,9 +2050,10 @@ function sortSizes(sizes) {
 function renderReportTable() {
   if (!activeReportDept || !activeReportItem) return;
 
-  const items = REPORT_DATA.filter(i =>
+  let items = REPORT_DATA.filter(i =>
     i.dept === activeReportDept && i.n === activeReportItem && activeReportGroups.has(i.g)
   );
+  if (activeReportShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeReportShorot);
 
   document.getElementById('report-table-section').style.display = 'block';
   document.getElementById('report-table-title').textContent = '📋 ' + activeReportItem;
@@ -2119,9 +2153,10 @@ function closeReportDrill() {
 
 function exportReport() {
   if (!activeReportItem) return;
-  const items = REPORT_DATA.filter(i =>
+  let items = REPORT_DATA.filter(i =>
     i.dept === activeReportDept && i.n === activeReportItem && activeReportGroups.has(i.g)
   );
+  if (activeReportShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeReportShorot);
   const groups = [...activeReportGroups].sort();
   const sizes = sortSizes([...new Set(items.map(i => i.sz||'—'))]);
   const pivot = {};

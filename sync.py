@@ -320,8 +320,11 @@ def main():
     # Aggregate by (dept, group, name, size) — combine multiple barcodes/years
     report_map = {}
     for row in report_raw:
-        size = extract_size(row['BarcodeNumber'])
-        key = (row['Department'], row['GroupName'], row['Name'].strip(), size)
+        bc = str(row['BarcodeNumber'] or '').strip()
+        m = BARCODE_RE.match(bc)
+        size = m.group(5) if m else ''
+        mc   = m.group(4) if m else ''
+        key = (row['Department'], row['GroupName'], row['Name'].strip(), mc, size)
         if key not in report_map:
             report_map[key] = {'stores': {}, 'total': 0.0}
         qty = float(row['Qty'] or 0)
@@ -330,9 +333,9 @@ def main():
         report_map[key]['total'] += qty
 
     report_items = [
-        {'dept': dept, 'g': group, 'n': name, 'sz': size,
+        {'dept': dept, 'g': group, 'n': name, 'mc': mc, 'sz': size,
          's': data['stores'], 'q': data['total']}
-        for (dept, group, name, size), data in report_map.items()
+        for (dept, group, name, mc, size), data in report_map.items()
     ]
 
     conn.close()
