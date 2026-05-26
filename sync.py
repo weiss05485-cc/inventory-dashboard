@@ -1,9 +1,16 @@
 import pyodbc
 import json
 import os
+import re
 from datetime import datetime
 from decimal import Decimal
 from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
+
+BARCODE_RE = re.compile(r'^(\d{2})([A-Za-z]+)(\d{2})([A-Za-z0-9]{2})(.+)$', re.IGNORECASE)
+
+def extract_size(barcode):
+    m = BARCODE_RE.match(str(barcode or '').strip())
+    return m.group(5) if m else ''
 
 CONN_STR = (
     f"DRIVER={{SQL Server}};"
@@ -230,6 +237,52 @@ def main():
 
     search_items = list(item_map.values())
 
+    print("  Reports by group/size...")
+    report_raw = q(cur, f"""
+        {ONHAND_CTE}
+        SELECT
+            im.Name,
+            im.BarcodeNumber,
+            ISNULL(d.Name, N'ללא מחלקה') AS Department,
+            ISNULL(ig.ItemGroupName, N'ללא קבוצה') AS GroupName,
+            st.StoreName,
+            CAST(SUM(oh.Qty) AS DECIMAL(18,1)) AS Qty
+        FROM OnHand oh
+        JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
+        JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
+        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
+        LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
+        LEFT JOIN (
+            SELECT ItemID, ItemGroupID,
+                   ROW_NUMBER() OVER (PARTITION BY ItemID ORDER BY CASE WHEN IsMainGroup=1 THEN 0 ELSE 1 END) AS rn
+            FROM ItemToGroup WHERE Status = 1
+        ) itg ON itg.ItemID = im.ItemID AND itg.rn = 1
+        LEFT JOIN ItemGroup ig ON ig.ItemGroupID = itg.ItemGroupID AND ig.Status = 1
+        WHERE oh.Qty > 0
+          AND ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
+        GROUP BY im.Name, im.BarcodeNumber, d.Name, ig.ItemGroupName, st.StoreName, st.Sort
+        ORDER BY st.Sort
+    """)
+
+    # Aggregate by (dept, group, name, size) — combine multiple barcodes/years
+    report_map = {}
+    for row in report_raw:
+        size = extract_size(row['BarcodeNumber'])
+        key = (row['Department'], row['GroupName'], row['Name'], size)
+        if key not in report_map:
+            report_map[key] = {'stores': {}, 'total': 0.0}
+        qty = float(row['Qty'] or 0)
+        store = row['StoreName']
+        report_map[key]['stores'][store] = report_map[key]['stores'].get(store, 0.0) + qty
+        report_map[key]['total'] += qty
+
+    report_items = [
+        {'dept': dept, 'g': group, 'n': name, 'sz': size,
+         's': data['stores'], 'q': data['total']}
+        for (dept, group, name, size), data in report_map.items()
+    ]
+
     conn.close()
 
     os.makedirs("docs", exist_ok=True)
@@ -246,7 +299,10 @@ def main():
     with open("docs/search.json", "w", encoding="utf-8") as f:
         json.dump(search_items, f, ensure_ascii=False, default=serial)
 
-    print(f"Done. {len(search_items)} search items | docs/data.json + search.json")
+    with open("docs/reports.json", "w", encoding="utf-8") as f:
+        json.dump(report_items, f, ensure_ascii=False, default=serial)
+
+    print(f"Done. {len(search_items)} search items | {len(report_items)} report rows | docs/data.json + search.json + reports.json")
     for s in store_summary:
         print(f"  {s['StoreName']}: {s['InStock']} in stock / {int(s['TotalUnits'])} units / {int(s['StockValue']):,}")
 

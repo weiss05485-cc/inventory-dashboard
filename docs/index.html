@@ -174,6 +174,14 @@ th.sort-desc::after{content:' ↓'}
   th,td{padding:7px 8px;font-size:12px}
 }
 
+/* REPORTS */
+.report-cell{text-align:center;padding:8px 10px;transition:background .12s}
+.report-cell.has-qty{background:var(--green-bg);cursor:pointer}
+.report-cell.has-qty:hover{background:#bbf7d0}
+.report-cell.active-drill{background:#bfdbfe!important;outline:2px solid var(--blue)}
+.report-total-row td{background:#f8fafc;font-weight:700;border-top:2px solid var(--border)}
+.report-total-col{background:#f8fafc;font-weight:700}
+
 /* PRINT */
 @media print{
   header,nav,#search-hero,.btn{display:none!important}
@@ -201,6 +209,7 @@ th.sort-desc::after{content:' ↓'}
   <button class="nav-btn" onclick="showPage('search')">🔍 חיפוש מוצרים</button>
   <button class="nav-btn" onclick="showPage('departments')">📂 מחלקות</button>
   <button class="nav-btn" onclick="showPage('lowstock')">⚠️ חוסרים</button>
+  <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
 </nav>
 
 <div id="loading">
@@ -391,6 +400,60 @@ th.sort-desc::after{content:' ↓'}
 </div>
 </div>
 
+<!-- PAGE: REPORTS -->
+<div id="page-reports" class="page">
+<div class="container">
+
+  <div id="report-loading" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+    <div class="spin"></div><br>טוען דוחות...
+  </div>
+
+  <!-- Department tabs -->
+  <div class="store-tabs" id="report-dept-tabs" style="margin-bottom:16px"></div>
+
+  <!-- Item selector -->
+  <div id="report-item-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">בחר פריט:</div>
+    <div class="dept-filter" id="report-item-filter"></div>
+  </div>
+
+  <!-- Group filter -->
+  <div id="report-group-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">סנן לפי קבוצה:</div>
+    <div class="dept-filter" id="report-group-filter"></div>
+  </div>
+
+  <!-- Pivot table -->
+  <div class="section" id="report-table-section" style="display:none;margin-bottom:16px">
+    <div class="section-header">
+      <h3 id="report-table-title"></h3>
+      <button class="btn btn-export" onclick="exportReport()">⬇️ ייצוא CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table id="report-table">
+        <thead id="report-thead"></thead>
+        <tbody id="report-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Drill-down: per-store breakdown -->
+  <div class="section" id="report-drill-wrap" style="display:none">
+    <div class="section-header">
+      <h3 id="report-drill-title">פירוט סניפים</h3>
+      <button onclick="closeReportDrill()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--muted);font-size:12px">✕ סגור</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>סניף</th><th>כמות</th></tr></thead>
+        <tbody id="report-drill-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
 <script>
 /* ========== STORE DISPLAY MAP ========== */
 const STORE_DISPLAY = {
@@ -545,13 +608,14 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   const btns = document.querySelectorAll('.nav-btn');
-  const labels = {overview:0, search:1, departments:2, lowstock:3};
+  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4};
   btns[labels[id]].classList.add('active');
 
   if (id === 'overview') renderOverview();
   if (id === 'search')   { loadSearchData(() => doSearch()); }
   if (id === 'departments') renderDepartments();
   if (id === 'lowstock') renderLowStock();
+  if (id === 'reports')  renderReports();
 }
 
 /* ========== OVERVIEW ========== */
@@ -1307,6 +1371,246 @@ function exportLow() {
                n.OnHand, n.ReorderPoint, shortage, n.Price]);
   });
   downloadCSV(rows, 'דוח_חוסרים.csv');
+}
+
+/* ========== REPORTS ========== */
+let REPORT_DATA = null;
+let reportLoaded = false;
+let activeReportDept = null;
+let activeReportItem = null;
+let activeReportGroups = new Set();
+let _reportItems = [];
+let _reportGroups = [];
+let _reportSizes = [];
+let _activeDrillSzIdx = null, _activeDrillGIdx = null;
+
+function loadReportsData(cb) {
+  if (reportLoaded) { cb(); return; }
+  document.getElementById('report-loading').style.display = 'block';
+  fetch('reports.json?t=' + Date.now())
+    .then(r => r.json())
+    .then(items => {
+      REPORT_DATA = items.filter(i => i.q > 0);
+      reportLoaded = true;
+      document.getElementById('report-loading').style.display = 'none';
+      cb();
+    })
+    .catch(() => {
+      document.getElementById('report-loading').innerHTML = '❌ שגיאה בטעינת דוחות';
+    });
+}
+
+function renderReports() {
+  loadReportsData(() => {
+    buildReportDeptTabs();
+    if (!activeReportDept) {
+      const depts = [...new Set(REPORT_DATA.map(i => i.dept))].sort();
+      if (depts.length) selectReportDept(depts[0]);
+    } else {
+      buildReportItemFilter();
+      buildReportGroupFilter();
+      renderReportTable();
+    }
+  });
+}
+
+function buildReportDeptTabs() {
+  const depts = [...new Set(REPORT_DATA.map(i => i.dept))].sort();
+  document.getElementById('report-dept-tabs').innerHTML = depts.map(d =>
+    `<button class="stab ${d===activeReportDept?'active':''}" onclick="selectReportDept(${JSON.stringify(d)})">${d}</button>`
+  ).join('');
+}
+
+function selectReportDept(dept) {
+  activeReportDept = dept;
+  activeReportItem = null;
+  activeReportGroups = new Set();
+  closeReportDrill();
+  buildReportDeptTabs();
+  buildReportItemFilter();
+  document.getElementById('report-group-wrap').style.display = 'none';
+  document.getElementById('report-table-section').style.display = 'none';
+  // auto-select first item
+  if (_reportItems.length) selectReportItem(0);
+}
+
+function buildReportItemFilter() {
+  _reportItems = [...new Set(REPORT_DATA.filter(i => i.dept === activeReportDept).map(i => i.n))].sort();
+  document.getElementById('report-item-wrap').style.display = 'block';
+  document.getElementById('report-item-filter').innerHTML = _reportItems.map((n, idx) =>
+    `<button class="pill ${n===activeReportItem?'active':''}" onclick="selectReportItem(${idx})">${n}</button>`
+  ).join('');
+}
+
+function selectReportItem(idx) {
+  activeReportItem = _reportItems[idx];
+  closeReportDrill();
+  buildReportItemFilter();
+  // default: all groups selected
+  _reportGroups = [...new Set(REPORT_DATA
+    .filter(i => i.dept === activeReportDept && i.n === activeReportItem)
+    .map(i => i.g))].sort();
+  activeReportGroups = new Set(_reportGroups);
+  buildReportGroupFilter();
+  renderReportTable();
+}
+
+function buildReportGroupFilter() {
+  _reportGroups = [...new Set(REPORT_DATA
+    .filter(i => i.dept === activeReportDept && i.n === activeReportItem)
+    .map(i => i.g))].sort();
+  const wrap = document.getElementById('report-group-wrap');
+  wrap.style.display = _reportGroups.length > 1 ? 'block' : 'none';
+  document.getElementById('report-group-filter').innerHTML = _reportGroups.map((g, idx) =>
+    `<button class="pill ${activeReportGroups.has(g)?'active':''}" onclick="toggleReportGroup(${idx})">${g}</button>`
+  ).join('');
+}
+
+function toggleReportGroup(idx) {
+  const g = _reportGroups[idx];
+  if (activeReportGroups.has(g)) {
+    if (activeReportGroups.size > 1) activeReportGroups.delete(g);
+  } else {
+    activeReportGroups.add(g);
+  }
+  closeReportDrill();
+  buildReportGroupFilter();
+  renderReportTable();
+}
+
+function sortSizes(sizes) {
+  return sizes.sort((a, b) => {
+    const na = parseInt(a), nb = parseInt(b);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    // extract numeric part for mixed like "L46"
+    const ma = a.match(/(\d+)/), mb = b.match(/(\d+)/);
+    if (ma && mb) return parseInt(ma[1]) - parseInt(mb[1]);
+    return String(a).localeCompare(String(b), 'he');
+  });
+}
+
+function renderReportTable() {
+  if (!activeReportDept || !activeReportItem) return;
+
+  const items = REPORT_DATA.filter(i =>
+    i.dept === activeReportDept && i.n === activeReportItem && activeReportGroups.has(i.g)
+  );
+
+  document.getElementById('report-table-section').style.display = 'block';
+  document.getElementById('report-table-title').textContent = '📋 ' + activeReportItem;
+
+  if (!items.length) {
+    document.getElementById('report-thead').innerHTML = '';
+    document.getElementById('report-tbody').innerHTML =
+      '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--muted)">אין נתונים</td></tr>';
+    return;
+  }
+
+  const groups = [...activeReportGroups].sort();
+  _reportSizes = sortSizes([...new Set(items.map(i => i.sz || '—'))]);
+
+  // Build pivot
+  const pivot = {}, groupTotals = {}, sizeTotals = {};
+  let grandTotal = 0;
+  items.forEach(i => {
+    const sz = i.sz || '—';
+    if (!pivot[sz]) pivot[sz] = {};
+    pivot[sz][i.g] = (pivot[sz][i.g] || 0) + i.q;
+    groupTotals[i.g] = (groupTotals[i.g] || 0) + i.q;
+    sizeTotals[sz]   = (sizeTotals[sz]   || 0) + i.q;
+    grandTotal += i.q;
+  });
+
+  document.getElementById('report-thead').innerHTML = `<tr>
+    <th>מידה</th>
+    ${groups.map(g => `<th>${g}</th>`).join('')}
+    <th class="report-total-col">סה"כ</th>
+  </tr>`;
+
+  document.getElementById('report-tbody').innerHTML = [
+    ..._reportSizes.map((sz, si) => `<tr>
+      <td><strong>${sz}</strong></td>
+      ${groups.map((g, gi) => {
+        const qty = pivot[sz]?.[g] || 0;
+        const isActive = _activeDrillSzIdx === si && _activeDrillGIdx === gi;
+        return `<td class="report-cell ${qty>0?'has-qty':''} ${isActive?'active-drill':''}"
+          onclick="showReportDrill(${si},${gi})">${qty > 0 ? `<strong>${qty}</strong>` : '<span style="color:#cbd5e0">—</span>'}</td>`;
+      }).join('')}
+      <td class="report-total-col" style="text-align:center">${sizeTotals[sz]||0}</td>
+    </tr>`),
+    `<tr class="report-total-row">
+      <td>סה"כ</td>
+      ${groups.map(g => `<td style="text-align:center">${Math.round(groupTotals[g]||0)}</td>`).join('')}
+      <td style="text-align:center">${Math.round(grandTotal)}</td>
+    </tr>`
+  ].join('');
+}
+
+function showReportDrill(si, gi) {
+  _activeDrillSzIdx = si; _activeDrillGIdx = gi;
+  const sz = _reportSizes[si];
+  const groups = [...activeReportGroups].sort();
+  const g = groups[gi];
+
+  // Re-render table to update active highlight
+  renderReportTable();
+
+  const cellItems = REPORT_DATA.filter(i =>
+    i.dept === activeReportDept && i.n === activeReportItem &&
+    (i.sz || '—') === sz && i.g === g
+  );
+
+  const storeMap = {};
+  cellItems.forEach(item => {
+    Object.entries(item.s).forEach(([store, qty]) => {
+      storeMap[store] = (storeMap[store] || 0) + qty;
+    });
+  });
+
+  const entries = Object.entries(storeMap).sort((a, b) => b[1] - a[1]);
+  const total = entries.reduce((s, [, q]) => s + q, 0);
+
+  document.getElementById('report-drill-wrap').style.display = 'block';
+  document.getElementById('report-drill-title').textContent =
+    `${activeReportItem} | מידה ${sz} | ${g}`;
+  document.getElementById('report-drill-body').innerHTML = [
+    ...entries.map(([store, qty]) => `<tr>
+      <td>${storeName(store)}</td>
+      <td><strong style="${qty===0?'color:var(--muted)':''}">${Math.round(qty)}</strong></td>
+    </tr>`),
+    `<tr style="font-weight:700;border-top:2px solid var(--border)">
+      <td>סה"כ</td><td>${Math.round(total)}</td>
+    </tr>`
+  ].join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted)">אין מלאי</td></tr>';
+
+  // Scroll to drill
+  document.getElementById('report-drill-wrap').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeReportDrill() {
+  _activeDrillSzIdx = null; _activeDrillGIdx = null;
+  document.getElementById('report-drill-wrap').style.display = 'none';
+}
+
+function exportReport() {
+  if (!activeReportItem) return;
+  const items = REPORT_DATA.filter(i =>
+    i.dept === activeReportDept && i.n === activeReportItem && activeReportGroups.has(i.g)
+  );
+  const groups = [...activeReportGroups].sort();
+  const sizes = sortSizes([...new Set(items.map(i => i.sz||'—'))]);
+  const pivot = {};
+  items.forEach(i => {
+    const sz = i.sz||'—';
+    if (!pivot[sz]) pivot[sz] = {};
+    pivot[sz][i.g] = (pivot[sz][i.g]||0) + i.q;
+  });
+  const rows = [['מידה', ...groups, 'סה"כ']];
+  sizes.forEach(sz => {
+    const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
+    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0)]);
+  });
+  downloadCSV(rows, `דוח_${activeReportItem}.csv`);
 }
 
 /* ========== CSV EXPORT ========== */
