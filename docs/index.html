@@ -1801,12 +1801,15 @@ function exportSaleOrder() {
       salesPivot[k] = (salesPivot[k]||0) + i.q;
     });
 
-    // Stock from REPORT_DATA: (sz, g) → total across all stores
+    // Stock from REPORT_DATA: (sz, g) → total across all stores (filtered by shorot)
     const stockPivot = {};
     if (REPORT_DATA) {
-      REPORT_DATA.filter(i =>
+      let stockItems = REPORT_DATA.filter(i =>
         i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g)
-      ).forEach(i => {
+      );
+      if (activeSaleShorot !== 'all')
+        stockItems = stockItems.filter(i => getShorot(i.mc) === activeSaleShorot);
+      stockItems.forEach(i => {
         const k = `${i.sz||'—'}|||${i.g}`;
         stockPivot[k] = (stockPivot[k]||0) + Object.values(i.s).reduce((a,b)=>a+b, 0);
       });
