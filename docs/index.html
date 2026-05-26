@@ -19,6 +19,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 header{position:fixed;top:0;right:0;left:0;z-index:100;background:var(--navy);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .hdr-title{font-size:18px;font-weight:700;letter-spacing:.3px}
 .hdr-sub{font-size:11px;opacity:.6;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px}
 #last-updated{font-size:11px;opacity:.7;white-space:nowrap}
 
 /* NAV */
@@ -123,12 +124,18 @@ tr:hover td{background:#f8fafc}
 .pill{padding:6px 14px;border-radius:20px;cursor:pointer;border:2px solid var(--border);background:var(--card);font-size:12px;font-weight:500;transition:all .15s}
 .pill.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .dept-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
-.dept-card{background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:default;transition:transform .1s,box-shadow .1s}
+.dept-card{background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .1s,box-shadow .1s}
 .dept-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.dept-card.selected{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
 .dc-name{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--navy)}
 .dc-val{font-size:20px;font-weight:800;color:var(--blue);margin-bottom:2px}
 .dc-sub{font-size:11px;color:var(--muted)}
 .dc-bar{height:4px;border-radius:2px;background:var(--blue);margin-top:10px;opacity:.6}
+
+/* DEPT DRILL-DOWN */
+#dept-drill{display:none;background:var(--card);border-radius:12px;border:2px solid var(--navy);margin-bottom:20px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+#dept-drill .drill-header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+#dept-drill .drill-header h3{font-size:15px;font-weight:700}
 
 /* EXPORT */
 .btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
@@ -136,6 +143,8 @@ tr:hover td{background:#f8fafc}
 .btn-export:hover{background:#bbf7d0}
 .btn-print{background:#eff6ff;color:var(--blue);border:1px solid #bfdbfe}
 .btn-print:hover{background:#bfdbfe}
+.btn-close{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);padding:5px 12px;font-size:12px}
+.btn-close:hover{background:rgba(255,255,255,.35)}
 
 /* LOADING */
 #loading{text-align:center;padding:80px 20px;color:var(--muted)}
@@ -145,6 +154,18 @@ tr:hover td{background:#f8fafc}
 /* SORT ARROW */
 th.sort-asc::after{content:' ↑'}
 th.sort-desc::after{content:' ↓'}
+
+/* SHORTAGE PAGE */
+.store-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.store-btn{padding:9px 20px;border-radius:24px;cursor:pointer;border:2px solid var(--border);background:var(--card);font-size:14px;font-weight:600;transition:all .15s}
+.store-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.store-btn:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.shortage-instructions{text-align:center;padding:40px 20px;color:var(--muted);font-size:15px}
+.avail-badge{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;margin:1px}
+.avail-badge.has{background:#bbf7d0;color:#15803d}
+.avail-badge.none{background:#f1f5f9;color:#94a3b8}
+.toggle-btn{padding:10px 18px;border-radius:8px;border:2px solid var(--border);background:var(--card);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;text-align:center;margin-bottom:12px}
+.toggle-btn:hover{border-color:var(--navy);color:var(--navy)}
 
 /* MOBILE */
 @media(max-width:600px){
@@ -169,7 +190,10 @@ th.sort-desc::after{content:' ↓'}
     <div class="hdr-title">חסידים סנטר</div>
     <div class="hdr-sub">דשבורד מלאי</div>
   </div>
-  <span id="last-updated">טוען...</span>
+  <div class="hdr-right">
+    <button onclick="triggerSync()" id="sync-btn" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;margin-right:10px">🔄 עדכן עכשיו</button>
+    <span id="last-updated">טוען...</span>
+  </div>
 </header>
 
 <nav>
@@ -248,6 +272,30 @@ th.sort-desc::after{content:' ↓'}
     </div>
   </div>
   <div class="dept-cards" id="dept-cards"></div>
+
+  <!-- DEPT DRILL-DOWN PANEL -->
+  <div id="dept-drill">
+    <div class="drill-header">
+      <h3 id="drill-title">פירוט מחלקה</h3>
+      <button class="btn btn-close" onclick="closeDrill()">✕ סגור</button>
+    </div>
+    <div id="drill-loading" style="text-align:center;padding:30px;color:var(--muted);display:none">
+      <div class="spin"></div><br>טוען נתוני מחלקה...
+    </div>
+    <div class="table-wrap">
+      <table id="drill-table" style="display:none">
+        <thead><tr>
+          <th>שם מוצר</th>
+          <th>ברקוד</th>
+          <th>פרטי ברקוד</th>
+          <th>כמות כוללת</th>
+          <th>לפי סניף</th>
+        </tr></thead>
+        <tbody id="drill-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="chart-card" style="margin-bottom:20px">
     <h3>ערך מלאי לפי מחלקה (₪)</h3>
     <div style="position:relative;height:340px"><canvas id="chart-dept-full"></canvas></div>
@@ -271,43 +319,82 @@ th.sort-desc::after{content:' ↓'}
 </div>
 </div>
 
-<!-- PAGE: LOW STOCK -->
+<!-- PAGE: LOW STOCK / SHORTAGES -->
 <div id="page-lowstock" class="page">
 <div class="container">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-    <div class="dept-filter" id="low-filter"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-export" onclick="exportLow()">⬇️ ייצוא CSV</button>
-      <button class="btn btn-print" onclick="window.print()">🖨️ הדפסה</button>
-    </div>
-  </div>
-  <div class="kpi-grid" id="low-kpi" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
-  <div class="section">
+
+  <!-- SECTION 1: Transfer shortages -->
+  <div class="section" style="margin-bottom:20px">
     <div class="section-header">
-      <h3>⚠️ פריטים בחוסר (מתחת לנקודת הזמנה)</h3>
-      <span id="low-badge" class="badge orange"></span>
+      <h3>🔄 מה חסר ואפשר להעביר</h3>
+      <button class="btn btn-export" onclick="exportTransfer()">⬇️ ייצוא CSV</button>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th onclick="sortLow('Name')">פריט</th>
-          <th>ברקוד</th>
-          <th onclick="sortLow('Department')">מחלקה</th>
-          <th onclick="sortLow('StoreName')">סניף</th>
-          <th onclick="sortLow('OnHand')">במלאי</th>
-          <th onclick="sortLow('ReorderPoint')">נקודת הזמנה</th>
-          <th onclick="sortLow('_shortage')">חוסר</th>
-          <th onclick="sortLow('Price')">מחיר ₪</th>
-          <th>מצב</th>
-        </tr></thead>
-        <tbody id="low-body"></tbody>
-      </table>
+    <div style="padding:16px 16px 8px">
+      <div class="store-selector" id="shortage-store-selector"></div>
+      <div id="shortage-instructions" class="shortage-instructions">בחר סניף לראות מה חסר ואפשר להעביר מסניף אחר</div>
+      <div id="shortage-table-wrap" style="display:none">
+        <div id="shortage-count" style="color:var(--muted);font-size:13px;margin-bottom:8px"></div>
+        <div class="table-wrap">
+          <table id="shortage-table">
+            <thead><tr>
+              <th>שם מוצר</th>
+              <th>ברקוד</th>
+              <th>חסר בסניף</th>
+              <th>זמין בסניפים אחרים</th>
+            </tr></thead>
+            <tbody id="shortage-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- SECTION 2: Reorder point shortages (collapsible) -->
+  <button class="toggle-btn" id="low-toggle-btn" onclick="toggleLowSection()">הצג חוסרים לפי נקודת הזמנה ▼</button>
+  <div id="low-section" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div class="dept-filter" id="low-filter"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-export" onclick="exportLow()">⬇️ ייצוא CSV</button>
+        <button class="btn btn-print" onclick="window.print()">🖨️ הדפסה</button>
+      </div>
+    </div>
+    <div class="kpi-grid" id="low-kpi" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
+    <div class="section">
+      <div class="section-header">
+        <h3>⚠️ פריטים בחוסר (מתחת לנקודת הזמנה)</h3>
+        <span id="low-badge" class="badge orange"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th onclick="sortLow('Name')">פריט</th>
+            <th>ברקוד</th>
+            <th onclick="sortLow('Department')">מחלקה</th>
+            <th onclick="sortLow('StoreName')">סניף</th>
+            <th onclick="sortLow('OnHand')">במלאי</th>
+            <th onclick="sortLow('ReorderPoint')">נקודת הזמנה</th>
+            <th onclick="sortLow('_shortage')">חוסר</th>
+            <th onclick="sortLow('Price')">מחיר ₪</th>
+            <th>מצב</th>
+          </tr></thead>
+          <tbody id="low-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 
 <script>
+/* ========== STORE DISPLAY MAP ========== */
+const STORE_DISPLAY = {
+  'חיפה': 'מחסן',
+  'בית שמש': 'מחסן עודפים'  // won't appear but just in case
+};
+function storeName(s) { return STORE_DISPLAY[s] || s; }
+
 /* ========== BARCODE TABLES (from run.py) ========== */
 const MODEL_TABLE = {
   '01':'חליפה 3 חלקים 2 שורות ב"מ','02':'חליפה 3 חלקים 1 שורה ב"מ אמריקאי',
@@ -339,6 +426,9 @@ const FABRIC_MODEL_TABLE = {
   '5320':'בעקיטשע חלק חצי ביטנה מבוגר','5420':'ריפס נוער','5326':'וועסט בעקיטשע',
 };
 
+/* ========== DEPARTMENT FILTER ========== */
+const ALLOWED_DEPTS = ['חליפות', 'פרחוני', 'חלק', 'מכנסיים', 'מעילים', 'ווסטים'];
+
 function parseBarcode(b) {
   b = String(b || '').trim().toUpperCase();
   const r = {year:'', season:'', product:'', size:''};
@@ -363,6 +453,23 @@ function bcChips(bc) {
   return html ? `<div class="bc-chips">${html}</div>` : '';
 }
 
+/* ========== SYNC BUTTON ========== */
+function triggerSync() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ מעדכן...';
+  btn.disabled = true;
+  // Opens local sync server in hidden iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = 'http://localhost:8765/sync';
+  document.body.appendChild(iframe);
+  setTimeout(() => {
+    btn.textContent = '🔄 עדכן עכשיו';
+    btn.disabled = false;
+    iframe.remove();
+  }, 15000);
+}
+
 /* ========== GLOBAL STATE ========== */
 let DATA = null;
 let SEARCH_DATA = null;   // lazy loaded
@@ -377,6 +484,10 @@ let chartStatus = null, chartDeptOv = null, chartDeptFull = null;
 let searchResults = [];
 let searchSortCol = null, searchSortDir = 1;
 let lowSortCol = null, lowSortDir = 1;
+
+let selectedShortageStore = null;
+let lowSectionOpen = false;
+let selectedDrillDept = null;
 
 /* ========== LOAD ========== */
 fetch('data.json?t=' + Date.now())
@@ -442,7 +553,7 @@ function buildStoreTabs() {
   const wrap = document.getElementById('store-tabs');
   wrap.innerHTML = ['all', ...storeList].map(s =>
     `<button class="stab ${s===activeOverviewStore?'active':''}" onclick="switchOvStore('${s}')">
-      ${s==='all'?'כל הסניפים':s}
+      ${s==='all'?'כל הסניפים':storeName(s)}
     </button>`
   ).join('');
 }
@@ -473,22 +584,24 @@ function renderKPIs(store) {
   const f = n => Number(n||0).toLocaleString('he-IL');
   document.getElementById('kpi-grid').innerHTML = `
     <div class="kpi green">
-      <div class="kpi-label">פריטים עם מלאי</div>
-      <div class="kpi-value">${f(s.InStock)}</div>
-      <div class="kpi-sub">${f(s.TotalUnits)} יחידות</div>
+      <div class="kpi-label">יחידות במלאי</div>
+      <div class="kpi-value">${f(Math.round(s.TotalUnits||0))}</div>
+      <div class="kpi-sub">סה"כ יחידות פיזיות</div>
     </div>
-    <div class="kpi red">
-      <div class="kpi-label">ללא מלאי</div>
-      <div class="kpi-value">${f(s.ZeroStock)}</div>
+    <div class="kpi blue">
+      <div class="kpi-label">פריטים פעילים</div>
+      <div class="kpi-value">${f(s.InStock)}</div>
+      <div class="kpi-sub">SKUs עם מלאי > 0</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-label">ערך מלאי</div>
+      <div class="kpi-value" style="font-size:${(s.StockValue||0)>9999999?'16px':'20px'}">₪${f(Math.round(s.StockValue||0))}</div>
+      <div class="kpi-sub">לפי עלות ממוצעת</div>
     </div>
     <div class="kpi orange">
       <div class="kpi-label">חוסרים</div>
       <div class="kpi-value">${f(s.LowStock)}</div>
       <div class="kpi-sub">מתחת לנקודת הזמנה</div>
-    </div>
-    <div class="kpi blue">
-      <div class="kpi-label">ערך מלאי</div>
-      <div class="kpi-value" style="font-size:${s.StockValue>9999999?'16px':'20px'}">₪${f(Math.round(s.StockValue))}</div>
     </div>
   `;
 }
@@ -501,7 +614,7 @@ function renderStatusChart(store) {
     chartStatus = new Chart(ctx, {
       type:'bar',
       data:{
-        labels: stores.map(s=>s.StoreName),
+        labels: stores.map(s=>storeName(s.StoreName)),
         datasets:[
           {label:'עם מלאי', data:stores.map(s=>s.InStock), backgroundColor:'#16a34a'},
           {label:'חוסרים', data:stores.map(s=>s.LowStock), backgroundColor:'#ea580c'},
@@ -529,6 +642,8 @@ function renderStatusChart(store) {
 function renderDeptOvChart(store) {
   let dept = DATA.by_department;
   if (store !== 'all') dept = dept.filter(d=>d.StoreName===store);
+  // Filter to allowed departments only
+  dept = dept.filter(d => ALLOWED_DEPTS.includes(d.Department));
   const grouped = {};
   dept.forEach(d => { grouped[d.Department] = (grouped[d.Department]||0) + d.Value; });
   const sorted = Object.entries(grouped).sort((a,b)=>b[1]-a[1]).slice(0,8);
@@ -603,7 +718,7 @@ function renderSearchResults() {
     const sqHtml = storeList.map(st => {
       const qty = item.s[st] || 0;
       const cls = qty > 5 ? 'has' : qty > 0 ? 'low' : 'zero';
-      return `<span class="sq ${cls}">${st.replace('מחסן עודפים','עודפים')}: ${qty}</span>`;
+      return `<span class="sq ${cls}">${storeName(st)}: ${qty}</span>`;
     }).join('');
 
     return `<tr>
@@ -633,7 +748,7 @@ function renderSearchResults() {
 
 function exportSearch() {
   const items = searchResults.length ? searchResults : (SEARCH_DATA || []);
-  const rows = [['ברקוד','שם מוצר','מוצר (ברקוד)','עונה','שנה','מידה','מחלקה',...storeList,'סה"כ','מחיר']];
+  const rows = [['ברקוד','שם מוצר','מוצר (ברקוד)','עונה','שנה','מידה','מחלקה',...storeList.map(storeName),'סה"כ','מחיר']];
   items.forEach(item => {
     const p = item._parsed || parseBarcode(item.b);
     rows.push([item.b, item.n, p.product, p.season, p.year, p.size, item.d,
@@ -654,7 +769,7 @@ function buildDeptFilter() {
   const wrap = document.getElementById('dept-filter');
   wrap.innerHTML = ['all', ...storeList].map(s =>
     `<button class="pill ${s===activeDeptStore?'active':''}" onclick="switchDeptStore('${s}')">
-      ${s==='all'?'כל הסניפים':s}
+      ${s==='all'?'כל הסניפים':storeName(s)}
     </button>`
   ).join('');
 }
@@ -665,6 +780,7 @@ function switchDeptStore(s) {
   renderDeptCards();
   renderDeptFullChart();
   renderDeptTable();
+  closeDrill();
 }
 
 function getDeptGrouped(store) {
@@ -686,7 +802,7 @@ function renderDeptCards() {
   const wrap = document.getElementById('dept-cards');
   const f = n => Number(n||0).toLocaleString('he-IL');
   wrap.innerHTML = entries.slice(0,12).map(([name, d]) => `
-    <div class="dept-card">
+    <div class="dept-card ${selectedDrillDept===name?'selected':''}" onclick="openDrill('${name.replace(/'/g,"\\'")}')">
       <div class="dc-name">${name}</div>
       <div class="dc-val">₪${f(Math.round(d.Value))}</div>
       <div class="dc-sub">${f(d.InStock)} פריטים · ${f(d.TotalUnits)} יחידות</div>
@@ -695,8 +811,66 @@ function renderDeptCards() {
   `).join('');
 }
 
+/* ========== DEPT DRILL-DOWN ========== */
+function openDrill(deptName) {
+  selectedDrillDept = deptName;
+  renderDeptCards(); // refresh selection highlight
+
+  const panel = document.getElementById('dept-drill');
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'start'});
+
+  document.getElementById('drill-table').style.display = 'none';
+  document.getElementById('drill-loading').style.display = 'block';
+  document.getElementById('drill-title').textContent = 'פירוט מחלקה: ' + deptName + ' — טוען...';
+
+  // Load search data if needed, then show items
+  loadSearchData(() => {
+    const items = SEARCH_DATA
+      .filter(item => item.d === deptName)
+      .sort((a,b) => b.q - a.q);
+
+    document.getElementById('drill-title').textContent =
+      `פירוט מחלקה: ${deptName} (${items.length.toLocaleString('he-IL')} פריטים)`;
+    document.getElementById('drill-loading').style.display = 'none';
+
+    const tbody = document.getElementById('drill-body');
+    tbody.innerHTML = items.slice(0, 300).map(item => {
+      const sqHtml = storeList.map(st => {
+        const qty = item.s[st] || 0;
+        const cls = qty > 5 ? 'has' : qty > 0 ? 'low' : 'zero';
+        return `<span class="sq ${cls}">${storeName(st)}: ${qty}</span>`;
+      }).join('');
+      return `<tr>
+        <td><strong>${item.n}</strong></td>
+        <td style="font-size:11px;color:var(--muted)">${item.b||'—'}</td>
+        <td>${bcChips(item.b)}</td>
+        <td><strong>${item.q}</strong></td>
+        <td><div class="sq-grid">${sqHtml}</div></td>
+      </tr>`;
+    }).join('');
+
+    if (items.length > 300) {
+      tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
+        מוצגים 300 ראשונים מתוך ${items.length}
+      </td></tr>`;
+    }
+
+    document.getElementById('drill-table').style.display = 'table';
+  });
+}
+
+function closeDrill() {
+  selectedDrillDept = null;
+  document.getElementById('dept-drill').style.display = 'none';
+  renderDeptCards();
+}
+
 function renderDeptFullChart() {
-  const entries = getDeptGrouped(activeDeptStore).slice(0,15);
+  // Filter to allowed departments only
+  const entries = getDeptGrouped(activeDeptStore)
+    .filter(([name]) => ALLOWED_DEPTS.includes(name))
+    .slice(0,15);
   const ctx = document.getElementById('chart-dept-full').getContext('2d');
   if (chartDeptFull) chartDeptFull.destroy();
   const colors = ['#2563eb','#7c3aed','#db2777','#ea580c','#16a34a','#0891b2',
@@ -733,7 +907,7 @@ function renderDeptTable() {
     const pct = Math.round(d.Value/totalVal*100);
     return `<tr>
       <td><strong>${d.Department}</strong></td>
-      <td>${d.StoreName}</td>
+      <td>${storeName(d.StoreName)}</td>
       <td>${f(d.InStock)}</td>
       <td>${f(d.TotalUnits)}</td>
       <td>₪${f(Math.round(d.Value))}</td>
@@ -753,22 +927,128 @@ function exportDept() {
   let dept = DATA.by_department;
   if (activeDeptStore !== 'all') dept = dept.filter(d=>d.StoreName===activeDeptStore);
   const rows = [['מחלקה','סניף','פריטים','יחידות','ערך ₪']];
-  dept.forEach(d => rows.push([d.Department, d.StoreName, d.InStock, d.TotalUnits, Math.round(d.Value)]));
+  dept.forEach(d => rows.push([d.Department, storeName(d.StoreName), d.InStock, d.TotalUnits, Math.round(d.Value)]));
   downloadCSV(rows, 'דוח_מחלקות.csv');
 }
 
-/* ========== LOW STOCK ========== */
+/* ========== LOW STOCK / SHORTAGES ========== */
 function renderLowStock() {
+  buildShortageStoreSelector();
   buildLowFilter();
   renderLowKPIs();
   renderLowTable();
+}
+
+/* --- Transfer section --- */
+function buildShortageStoreSelector() {
+  const wrap = document.getElementById('shortage-store-selector');
+  wrap.innerHTML = storeList.map(s =>
+    `<button class="store-btn ${s===selectedShortageStore?'active':''}" onclick="selectShortageStore('${s}')">
+      ${storeName(s)}
+    </button>`
+  ).join('');
+}
+
+function selectShortageStore(store) {
+  selectedShortageStore = store;
+  buildShortageStoreSelector();
+  renderShortageTable();
+}
+
+function renderShortageTable() {
+  if (!selectedShortageStore) {
+    document.getElementById('shortage-instructions').style.display = 'block';
+    document.getElementById('shortage-table-wrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('shortage-instructions').style.display = 'none';
+  document.getElementById('shortage-table-wrap').style.display = 'block';
+
+  const store = selectedShortageStore;
+  const otherStores = storeList.filter(s => s !== store);
+
+  // Need search data — trigger load
+  if (!searchLoaded) {
+    document.getElementById('shortage-count').textContent = 'טוען נתונים...';
+    document.getElementById('shortage-body').innerHTML = '';
+    loadSearchData(() => renderShortageTable());
+    return;
+  }
+
+  // Items where selected store has 0 or < 2 AND another store has > 0
+  const items = SEARCH_DATA
+    .filter(item => {
+      const myQty = item.s[store] || 0;
+      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
+      return myQty < 2 && otherAvail > 0;
+    })
+    .map(item => {
+      const myQty = item.s[store] || 0;
+      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
+      return {...item, _myQty: myQty, _otherAvail: otherAvail};
+    })
+    .sort((a,b) => b._otherAvail - a._otherAvail);
+
+  document.getElementById('shortage-count').textContent =
+    `${items.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
+
+  const tbody = document.getElementById('shortage-body');
+  tbody.innerHTML = items.slice(0, 300).map(item => {
+    const availBadges = otherStores.map(s => {
+      const qty = item.s[s] || 0;
+      const cls = qty > 0 ? 'has' : 'none';
+      return `<span class="avail-badge ${cls}">${storeName(s)}: ${qty}</span>`;
+    }).join('');
+    return `<tr>
+      <td><strong>${item.n}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${item.b||'—'}</td>
+      <td><span class="tag ${item._myQty===0?'red':'orange'}">${item._myQty===0?'אפס':''+item._myQty}</span></td>
+      <td>${availBadges}</td>
+    </tr>`;
+  }).join('');
+
+  if (items.length > 300) {
+    tbody.innerHTML += `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
+      מוצגים 300 ראשונים מתוך ${items.length}
+    </td></tr>`;
+  }
+}
+
+function exportTransfer() {
+  if (!selectedShortageStore || !searchLoaded) return;
+  const store = selectedShortageStore;
+  const otherStores = storeList.filter(s => s !== store);
+  const items = SEARCH_DATA
+    .filter(item => {
+      const myQty = item.s[store] || 0;
+      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
+      return myQty < 2 && otherAvail > 0;
+    })
+    .sort((a,b) => {
+      const aOther = otherStores.reduce((sum,s) => sum+(a.s[s]||0), 0);
+      const bOther = otherStores.reduce((sum,s) => sum+(b.s[s]||0), 0);
+      return bOther - aOther;
+    });
+  const rows = [['שם מוצר','ברקוד','מחלקה','חסר בסניף', ...otherStores.map(storeName)]];
+  items.forEach(item => {
+    rows.push([item.n, item.b, item.d, item.s[store]||0, ...otherStores.map(s=>item.s[s]||0)]);
+  });
+  downloadCSV(rows, `העברות_${storeName(store)}.csv`);
+}
+
+/* --- Toggle low section --- */
+function toggleLowSection() {
+  lowSectionOpen = !lowSectionOpen;
+  document.getElementById('low-section').style.display = lowSectionOpen ? 'block' : 'none';
+  document.getElementById('low-toggle-btn').textContent =
+    lowSectionOpen ? 'הסתר חוסרים לפי נקודת הזמנה ▲' : 'הצג חוסרים לפי נקודת הזמנה ▼';
 }
 
 function buildLowFilter() {
   const wrap = document.getElementById('low-filter');
   wrap.innerHTML = ['all', ...storeList].map(s =>
     `<button class="pill ${s===activeLowStore?'active':''}" onclick="switchLowStore('${s}')">
-      ${s==='all'?'כל הסניפים':s}
+      ${s==='all'?'כל הסניפים':storeName(s)}
     </button>`
   ).join('');
 }
@@ -844,7 +1124,7 @@ function renderLowTable() {
         ${bcChips(n.BarcodeNumber)}
       </td>
       <td>${n.Department||''}</td>
-      <td>${n.StoreName}</td>
+      <td>${storeName(n.StoreName)}</td>
       <td><strong>${n.OnHand}</strong></td>
       <td>${n.ReorderPoint}</td>
       <td><span class="tag ${statusCls}">${shortage}</span></td>
@@ -867,7 +1147,7 @@ function exportLow() {
   items.forEach(n => {
     const p = parseBarcode(n.BarcodeNumber);
     const shortage = Math.max(0,(n.ReorderPoint||0)-(n.OnHand||0));
-    rows.push([n.Name, n.BarcodeNumber, p.product, p.size, p.season, n.Department, n.StoreName,
+    rows.push([n.Name, n.BarcodeNumber, p.product, p.size, p.season, n.Department, storeName(n.StoreName),
                n.OnHand, n.ReorderPoint, shortage, n.Price]);
   });
   downloadCSV(rows, 'דוח_חוסרים.csv');

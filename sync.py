@@ -134,7 +134,7 @@ def main():
             CAST(SUM(CASE WHEN oh.Qty > 0 THEN oh.Qty * ISNULL(ist.AVGCost, 0) ELSE 0 END)
                  AS DECIMAL(18,0)) AS StockValue
         FROM OnHand oh
-        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1
+        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
         GROUP BY st.StoreID, st.StoreName, st.Code, st.Sort
@@ -154,7 +154,7 @@ def main():
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
-        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1
+        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE ist.ReorderPoint IS NOT NULL AND ist.ReorderPoint > 0
           AND oh.Qty >= 0 AND oh.Qty <= ist.ReorderPoint
@@ -174,7 +174,7 @@ def main():
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
-        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1
+        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE oh.Qty > 0
         GROUP BY d.Name, st.StoreName, st.Sort
@@ -196,7 +196,7 @@ def main():
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
-        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1
+        JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE oh.Qty > 0
     """)
