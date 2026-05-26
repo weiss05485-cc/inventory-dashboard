@@ -1379,6 +1379,7 @@ let reportLoaded = false;
 let activeReportDept = null;
 let activeReportItem = null;
 let activeReportGroups = new Set();
+let _reportDepts = [];
 let _reportItems = [];
 let _reportGroups = [];
 let _reportSizes = [];
@@ -1415,13 +1416,14 @@ function renderReports() {
 }
 
 function buildReportDeptTabs() {
-  const depts = [...new Set(REPORT_DATA.map(i => i.dept))].sort();
-  document.getElementById('report-dept-tabs').innerHTML = depts.map(d =>
-    `<button class="stab ${d===activeReportDept?'active':''}" onclick="selectReportDept(${JSON.stringify(d)})">${d}</button>`
+  _reportDepts = [...new Set(REPORT_DATA.map(i => i.dept))].sort();
+  document.getElementById('report-dept-tabs').innerHTML = _reportDepts.map((d, idx) =>
+    `<button class="stab ${d===activeReportDept?'active':''}" onclick="selectReportDept(${idx})">${d}</button>`
   ).join('');
 }
 
-function selectReportDept(dept) {
+function selectReportDept(idx) {
+  const dept = _reportDepts[idx];
   activeReportDept = dept;
   activeReportItem = null;
   activeReportGroups = new Set();
