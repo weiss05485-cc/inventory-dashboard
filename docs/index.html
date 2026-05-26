@@ -442,6 +442,11 @@ th.sort-desc::after{content:' ↓'}
   <!-- Department tabs -->
   <div class="store-tabs" id="sales-dept-tabs" style="margin-bottom:12px"></div>
 
+  <!-- Aggregate dept-level order export -->
+  <div id="sales-dept-order-wrap" style="display:none;margin-bottom:10px">
+    <button class="btn btn-export" onclick="exportDeptOrder()">📦 ייצוא הזמנה מצרפת (כל הפריטים)</button>
+  </div>
+
   <!-- Item selector -->
   <div id="sales-item-wrap" style="display:none;margin-bottom:12px">
     <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">בחר פריט:</div>
@@ -1583,6 +1588,7 @@ function selectSaleDept(idx) {
   document.getElementById('sales-group-wrap').style.display = 'none';
   document.getElementById('sales-table-section').style.display = 'none';
   document.getElementById('sales-filters-wrap').style.display = 'none';
+  document.getElementById('sales-dept-order-wrap').style.display = 'block';
   if (_saleItems.length) selectSaleItem(0);
 }
 
@@ -1777,6 +1783,118 @@ function calcSaleMonths(range) {
   const [fy, fm] = range.from.split('-').map(Number);
   const [ty, tm] = range.to.split('-').map(Number);
   return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
+}
+
+function exportDeptOrder() {
+  if (!activeSaleDept) return;
+  const doExport = () => {
+    const range = getSaleDateRange();
+    let salesItems = SALES_DATA.filter(i =>
+      i.dept === activeSaleDept &&
+      (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
+    );
+    if (activeSaleShorot !== 'all')
+      salesItems = salesItems.filter(i => getShorot(i.mc) === activeSaleShorot);
+    if (!salesItems.length) { alert('אין נתוני מכירות'); return; }
+
+    const months = calcSaleMonths(range);
+    const shorotLabel = activeSaleShorot==='2'?' – שתי שורות':activeSaleShorot==='1'?' – שורה אחת':'';
+    const periodLabel = `תקופת מכר: ${months} חודשים (${range.from||''}–${range.to||''})`;
+    const getNum = sz => { const m = String(sz).match(/(\d+)/); return m ? parseInt(m[1]) : 0; };
+
+    // Aggregate sales: item → size → total
+    const byItem = {};
+    salesItems.forEach(i => {
+      if (!byItem[i.n]) byItem[i.n] = {};
+      const sz = i.sz || '—';
+      byItem[i.n][sz] = (byItem[i.n][sz] || 0) + i.q;
+    });
+
+    // Aggregate stock: item → size → total (across all groups/stores, filtered by shorot)
+    const stockByItem = {};
+    if (REPORT_DATA) {
+      let stockItems = REPORT_DATA.filter(i => i.dept === activeSaleDept);
+      if (activeSaleShorot !== 'all')
+        stockItems = stockItems.filter(i => getShorot(i.mc) === activeSaleShorot);
+      stockItems.forEach(i => {
+        if (!stockByItem[i.n]) stockByItem[i.n] = {};
+        const sz = i.sz || '—';
+        const q = Object.values(i.s).reduce((a,b) => a+b, 0);
+        stockByItem[i.n][sz] = (stockByItem[i.n][sz] || 0) + q;
+      });
+    }
+
+    const wb = XLSX.utils.book_new();
+    const itemNames = Object.keys(byItem).sort();
+
+    // ── Summary sheet ──────────────────────────────────────────────────────
+    const sumRows = [
+      [`סיכום הזמנה – ${activeSaleDept}${shorotLabel}`],
+      [periodLabel],
+      [],
+      ['מוצר', 'נמכר בתקופה', 'להזמין (מלא ידנית)']
+    ];
+    let grandTotalSold = 0;
+    itemNames.forEach(name => {
+      const total = Object.values(byItem[name]).reduce((a,b) => a+b, 0);
+      grandTotalSold += total;
+      sumRows.push([name, total, null]);
+    });
+    sumRows.push(['סה"כ', grandTotalSold, null]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumRows), 'סיכום');
+
+    // ── Per-item sheets ────────────────────────────────────────────────────
+    itemNames.forEach(name => {
+      const szSales = byItem[name] || {};
+      const szStock = stockByItem[name] || {};
+      const allSz = sortSizes([...new Set([...Object.keys(szSales), ...Object.keys(szStock)])]);
+      const grandTotal = Object.values(szSales).reduce((a,b) => a+b, 0);
+      const mevugar = allSz.filter(sz => getNum(sz) >= 30);
+      const noar    = allSz.filter(sz => getNum(sz) < 30 && getNum(sz) > 0);
+      const budgetCell = 'B3';
+      const header = ['מידה', 'מכר בתקופה', '% מהסה"כ', 'הצעה (חישוב)', 'במלאי', '⬅ להזמין'];
+
+      const rows = [];
+      rows.push([`${name}${shorotLabel}`, null, null, null, null, null]);
+      rows.push([periodLabel, null, null, null, null, null]);
+      rows.push(['סה"כ להזמין:', null, null, null, null, null]); // Cell B3 — user fills budget here
+      rows.push([]);
+
+      const pushSection = (sizes, label) => {
+        if (!sizes.length) return;
+        const secSold  = sizes.reduce((s,sz) => s + (szSales[sz]||0), 0);
+        const secStock = sizes.reduce((s,sz) => s + (szStock[sz]||0), 0);
+        rows.push([`── ${label} ──   נמכר: ${secSold}`, null, null, null, null, null]);
+        rows.push(header);
+        sizes.forEach(sz => {
+          const sold  = szSales[sz] || 0;
+          const stock = Math.round(szStock[sz] || 0);
+          const pct   = grandTotal > 0 ? sold / grandTotal : 0;
+          const pctStr = `${(pct*100).toFixed(1)}%`;
+          rows.push([
+            sz, sold, pctStr,
+            { f: `ROUND($${budgetCell}*${pct.toFixed(6)},0)` },
+            stock,
+            { f: `ROUND($${budgetCell}*${pct.toFixed(6)},0)` }
+          ]);
+        });
+        const pctSec = grandTotal > 0 ? (secSold/grandTotal*100).toFixed(1) : '0.0';
+        rows.push([`סה"כ ${label}`, secSold, `${pctSec}%`, null, Math.round(secStock), null]);
+        rows.push([]);
+      };
+
+      pushSection(mevugar, 'מבוגר');
+      pushSection(noar, 'נוער');
+
+      const sheetName = name.length > 31 ? name.substring(0, 31) : name;
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+    });
+
+    const fnShorot = activeSaleShorot !== 'all' ? `_${activeSaleShorot === '2' ? 'שתי_שורות' : 'שורה_אחת'}` : '';
+    XLSX.writeFile(wb, `הזמנה_מצרפת_${activeSaleDept.replace(/["*/:<>?\\|]/g,'_')}${fnShorot}_${range.from||'כלל'}.xlsx`);
+  };
+
+  if (!reportLoaded) { loadReportsData(doExport); } else { doExport(); }
 }
 
 function exportSaleOrder() {
