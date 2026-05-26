@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>דשבורד מלאי</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5; --card: #fff; --border: #e2e8f0;
+    --text: #1a202c; --muted: #718096;
+    --green: #38a169; --red: #e53e3e; --orange: #dd6b20; --blue: #3182ce;
+    --green-bg: #f0fff4; --red-bg: #fff5f5; --orange-bg: #fffaf0; --blue-bg: #ebf8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  header { background: #1a365d; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  #last-updated { font-size: 12px; opacity: .7; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Store tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { padding: 8px 18px; border-radius: 20px; cursor: pointer; border: 2px solid var(--border);
+         background: var(--card); font-size: 14px; font-weight: 500; transition: all .15s; }
+  .tab.active { background: #1a365d; color: #fff; border-color: #1a365d; }
+  .tab:hover:not(.active) { border-color: #1a365d; color: #1a365d; }
+
+  /* KPI cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--card); border-radius: 10px; padding: 16px; border-right: 4px solid transparent; }
+  .kpi.green  { border-color: var(--green);  background: var(--green-bg); }
+  .kpi.red    { border-color: var(--red);    background: var(--red-bg); }
+  .kpi.orange { border-color: var(--orange); background: var(--orange-bg); }
+  .kpi.blue   { border-color: var(--blue);   background: var(--blue-bg); }
+  .kpi-label  { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .kpi-value  { font-size: 28px; font-weight: 700; line-height: 1; }
+  .kpi.green  .kpi-value { color: var(--green); }
+  .kpi.red    .kpi-value { color: var(--red); }
+  .kpi.orange .kpi-value { color: var(--orange); }
+  .kpi.blue   .kpi-value { color: var(--blue); }
+  .kpi-sub    { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--card); border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+  .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--muted); }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* Tables */
+  .section { background: var(--card); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
+  .section-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .section-header h3 { font-size: 14px; font-weight: 600; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .badge.red    { background: #fed7d7; color: var(--red); }
+  .badge.orange { background: #feebc8; color: var(--orange); }
+  .badge.blue   { background: #bee3f8; color: var(--blue); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 12px; background: #f7fafc; font-size: 12px; font-weight: 600; color: var(--muted); text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f7fafc; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .tag.red    { background: #fed7d7; color: var(--red); }
+  .tag.orange { background: #feebc8; color: var(--orange); }
+  .tag.green  { background: #c6f6d5; color: var(--green); }
+
+  .progress-bar { height: 6px; background: #edf2f7; border-radius: 3px; overflow: hidden; min-width: 60px; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--orange); }
+  .progress-fill.empty { background: var(--red); }
+
+  #loading { text-align: center; padding: 60px; color: var(--muted); font-size: 16px; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>דשבורד מלאי</h1>
+  <span id="last-updated">טוען...</span>
+</header>
+
+<div id="loading">טוען נתונים...</div>
+<div id="app" class="container">
+
+  <div class="tabs" id="store-tabs"></div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>פילוח מלאי</h3>
+      <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>ערך מלאי לפי מחלקה (₪)</h3>
+      <div class="chart-wrap"><canvas id="chart-dept"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h3>⚠️ פריטים בחוסר (מתחת לנקודת הזמנה)</h3>
+      <span class="badge orange" id="low-badge"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="low-table">
+        <thead><tr>
+          <th>פריט</th><th>ברקוד</th><th>מחלקה</th><th>סניף</th>
+          <th>במלאי</th><th>נקודת הזמנה</th><th>חוסר</th><th>מחיר ₪</th>
+        </tr></thead>
+        <tbody id="low-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h3>🔴 מלאי שלילי</h3>
+      <span class="badge red" id="neg-badge"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="neg-table">
+        <thead><tr>
+          <th>פריט</th><th>ברקוד</th><th>מחלקה</th><th>סניף</th>
+          <th>כמות</th><th>מחיר ₪</th>
+        </tr></thead>
+        <tbody id="neg-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let DATA = null;
+let activeStore = 'all';
+let chartStatus = null, chartDept = null;
+
+fetch('data.json?t=' + Date.now())
+  .then(r => r.json())
+  .then(data => {
+    DATA = data;
+    document.getElementById('last-updated').textContent = 'עודכן: ' + data.last_updated;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    buildTabs();
+    render('all');
+  })
+  .catch(e => {
+    document.getElementById('loading').textContent = 'שגיאה בטעינת הנתונים: ' + e.message;
+  });
+
+function buildTabs() {
+  const wrap = document.getElementById('store-tabs');
+  const stores = ['all', ...DATA.store_summary.map(s => s.StoreName)];
+  const labels = { all: 'כל הסניפים' };
+  wrap.innerHTML = stores.map(s =>
+    `<button class="tab ${s === 'all' ? 'active' : ''}" onclick="switchTab('${s}')">${labels[s] || s}</button>`
+  ).join('');
+}
+
+function switchTab(store) {
+  activeStore = store;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.textContent === (store === 'all' ? 'כל הסניפים' : store)));
+  render(store);
+}
+
+function render(store) {
+  const summary = store === 'all'
+    ? DATA.store_summary.reduce((acc, s) => ({
+        TotalSKUs: s.TotalSKUs,
+        InStock: (acc.InStock || 0) + s.InStock,
+        ZeroStock: (acc.ZeroStock || 0) + s.ZeroStock,
+        NegativeStock: (acc.NegativeStock || 0) + s.NegativeStock,
+        LowStock: (acc.LowStock || 0) + s.LowStock,
+        TotalUnits: (acc.TotalUnits || 0) + s.TotalUnits,
+        StockValue: (acc.StockValue || 0) + s.StockValue,
+      }), {})
+    : DATA.store_summary.find(s => s.StoreName === store);
+
+  renderKPIs(summary);
+  renderStatusChart(store);
+  renderDeptChart(store);
+  renderLowTable(store);
+  renderNegTable(store);
+}
+
+function renderKPIs(s) {
+  const fmt = n => Number(n).toLocaleString('he-IL');
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi green">
+      <div class="kpi-label">פריטים עם מלאי</div>
+      <div class="kpi-value">${fmt(s.InStock)}</div>
+      <div class="kpi-sub">${fmt(s.TotalUnits)} יחידות סה"כ</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">ללא מלאי (0)</div>
+      <div class="kpi-value">${fmt(s.ZeroStock)}</div>
+    </div>
+    <div class="kpi orange">
+      <div class="kpi-label">חוסרים (מתחת להזמנה)</div>
+      <div class="kpi-value">${fmt(s.LowStock)}</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">מלאי שלילי</div>
+      <div class="kpi-value">${fmt(s.NegativeStock)}</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">ערך מלאי</div>
+      <div class="kpi-value" style="font-size:20px">₪${fmt(Math.round(s.StockValue))}</div>
+    </div>
+  `;
+}
+
+function renderStatusChart(store) {
+  const stores = store === 'all' ? DATA.store_summary : DATA.store_summary.filter(s => s.StoreName === store);
+  const ctx = document.getElementById('chart-status').getContext('2d');
+  if (chartStatus) chartStatus.destroy();
+
+  if (store === 'all') {
+    chartStatus = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: stores.map(s => s.StoreName),
+        datasets: [
+          { label: 'עם מלאי', data: stores.map(s => s.InStock), backgroundColor: '#38a169' },
+          { label: 'חוסרים', data: stores.map(s => s.LowStock), backgroundColor: '#dd6b20' },
+          { label: 'שלילי', data: stores.map(s => s.NegativeStock), backgroundColor: '#e53e3e' },
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
+                 scales: { x: { stacked: false }, y: { stacked: false } } }
+    });
+  } else {
+    const s = stores[0];
+    chartStatus = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['עם מלאי', 'ללא מלאי', 'חוסרים', 'שלילי'],
+        datasets: [{ data: [s.InStock, s.ZeroStock, s.LowStock, s.NegativeStock],
+          backgroundColor: ['#38a169', '#cbd5e0', '#dd6b20', '#e53e3e'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+}
+
+function renderDeptChart(store) {
+  let dept = DATA.by_department;
+  if (store !== 'all') dept = dept.filter(d => d.StoreName === store);
+
+  const grouped = {};
+  dept.forEach(d => {
+    grouped[d.Department] = (grouped[d.Department] || 0) + d.Value;
+  });
+  const sorted = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  const ctx = document.getElementById('chart-dept').getContext('2d');
+  if (chartDept) chartDept.destroy();
+  chartDept = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{ label: 'ערך ₪', data: sorted.map(e => Math.round(e[1])),
+        backgroundColor: '#3182ce', borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { callback: v => '₪' + v.toLocaleString('he-IL') } } }
+    }
+  });
+}
+
+function renderLowTable(store) {
+  let items = DATA.low_stock;
+  if (store !== 'all') items = items.filter(i => i.StoreName === store);
+  document.getElementById('low-badge').textContent = items.length + ' פריטים';
+
+  const shortage = n => Math.max(0, (n.ReorderPoint || 0) - (n.OnHand || 0));
+  const pct = n => n.ReorderPoint > 0 ? Math.round((n.OnHand / n.ReorderPoint) * 100) : 0;
+
+  document.getElementById('low-body').innerHTML = items.map(n => `
+    <tr>
+      <td><strong>${n.Name}</strong></td>
+      <td style="color:var(--muted);font-size:12px">${n.BarcodeNumber || ''}</td>
+      <td>${n.Department || ''}</td>
+      <td>${n.StoreName}</td>
+      <td>${n.OnHand}</td>
+      <td>${n.ReorderPoint}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="tag ${shortage(n) > 0 ? 'red' : 'orange'}">${shortage(n)}</span>
+          <div class="progress-bar"><div class="progress-fill ${n.OnHand == 0 ? 'empty' : ''}" style="width:${Math.min(pct(n),100)}%"></div></div>
+        </div>
+      </td>
+      <td>₪${Number(n.Price).toLocaleString('he-IL')}</td>
+    </tr>
+  `).join('');
+}
+
+function renderNegTable(store) {
+  let items = DATA.negative_stock;
+  if (store !== 'all') items = items.filter(i => i.StoreName === store);
+  document.getElementById('neg-badge').textContent = items.length + ' פריטים';
+
+  document.getElementById('neg-body').innerHTML = items.map(n => `
+    <tr>
+      <td><strong>${n.Name}</strong></td>
+      <td style="color:var(--muted);font-size:12px">${n.BarcodeNumber || ''}</td>
+      <td>${n.Department || ''}</td>
+      <td>${n.StoreName}</td>
+      <td><span class="tag red">${n.OnHand}</span></td>
+      <td>₪${Number(n.Price).toLocaleString('he-IL')}</td>
+    </tr>
+  `).join('');
+}
+</script>
+</body>
+</html>

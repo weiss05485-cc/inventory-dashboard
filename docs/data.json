@@ -1,0 +1,2974 @@
+{
+  "last_updated": "26/05/2026 11:01",
+  "store_summary": [
+    {
+      "StoreName": "בני ברק",
+      "StoreCode": "1",
+      "TotalSKUs": 22177,
+      "InStock": 485,
+      "ZeroStock": 21639,
+      "NegativeStock": 56,
+      "LowStock": 11369,
+      "TotalUnits": 15973.0,
+      "StockValue": 267014.0
+    },
+    {
+      "StoreName": "ירושלים",
+      "StoreCode": "2",
+      "TotalSKUs": 22177,
+      "InStock": 412,
+      "ZeroStock": 21696,
+      "NegativeStock": 72,
+      "LowStock": 11342,
+      "TotalUnits": 15760.0,
+      "StockValue": 257169.0
+    },
+    {
+      "StoreName": "מחסן עודפים",
+      "StoreCode": "3",
+      "TotalSKUs": 22177,
+      "InStock": 10,
+      "ZeroStock": 22121,
+      "NegativeStock": 49,
+      "LowStock": 2301,
+      "TotalUnits": 14390.0,
+      "StockValue": 274255.0
+    },
+    {
+      "StoreName": "מחסן",
+      "StoreCode": "4",
+      "TotalSKUs": 22177,
+      "InStock": 809,
+      "ZeroStock": 21371,
+      "NegativeStock": 0,
+      "LowStock": 2275,
+      "TotalUnits": 26190.0,
+      "StockValue": 979150.0
+    }
+  ],
+  "low_stock": [
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813046",
+      "ModelNumber": "G34",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 12.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813046",
+      "ModelNumber": "G34",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 12.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813046",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 12.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813046",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 12.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823046",
+      "ModelNumber": "G34",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 11.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823046",
+      "ModelNumber": "G34",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 11.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823046",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 11.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823046",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 11.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814440",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452646",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823020",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824444",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452640",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813040",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824442",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823038",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813042",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452638",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823036",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823040",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824436",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813020",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823042",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22W532642",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813036",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824438",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452644",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814438",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814442",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339X18",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339X18",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813044",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814444",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824446",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452642",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824440",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813038",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S814446",
+      "ModelNumber": "G34",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823044",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22F532636",
+      "ModelNumber": "G33",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813044",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452644",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824444",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823038",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814444",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824442",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823036",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813020",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824436",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824440",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452646",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22W532642",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22F532636",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813038",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814440",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824446",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823044",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452640",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452642",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339X18",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S814446",
+      "ModelNumber": "G34",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823042",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814442",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823040",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813040",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813042",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824438",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814438",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339X18",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823020",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813036",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452638",
+      "ModelNumber": "G33",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823040",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824438",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452644",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823042",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814440",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813038",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452640",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823044",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814444",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813020",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824440",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813036",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813040",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824446",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823020",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824442",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814438",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813042",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824444",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824436",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823036",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814442",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813044",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452638",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S814446",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452642",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22F532636",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452646",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823038",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22W532642",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן עודפים",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824444",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813040",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813038",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452646",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452640",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813036",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813042",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824446",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452642",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824440",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452638",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813044",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824436",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814442",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "23I452644",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 200.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22W532642",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814438",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824442",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823042",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814440",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S813020",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S814444",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S814446",
+      "ModelNumber": "G34",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "24S824438",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט שבת",
+      "BarcodeNumber": "22F532636",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 250.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823044",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823040",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823038",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823036",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "ווסט לבן",
+      "BarcodeNumber": "24S823020",
+      "ModelNumber": "G33",
+      "StoreName": "מחסן",
+      "OnHand": 0.0,
+      "ReorderPoint": 10.0,
+      "Price": 320.0,
+      "Department": "ווסטים"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5311X18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22F5311L20",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339X16",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5311L20",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23Y5320L44",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23Y5320L40",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320L38",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M42",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339X20",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339L18",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320L44",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5311X20",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M38",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22W5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23W5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M36",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23W5311X18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339X16",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320L36",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22Y5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23S5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339X20",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23F5311L20",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23Y5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22F5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23Y5320L38",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339L18",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339L20",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339L20",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339L16",
+      "ModelNumber": "G04",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320L42",
+      "ModelNumber": "G03",
+      "StoreName": "בני ברק",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339X20",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320L38",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339L20",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5311X18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22F5311L20",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22W5320L42",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23Y5320L42",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320M36",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22W5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23W5339X16",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M38",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22Y5320M42",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22F5320L44",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22Y5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22F5320L38",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22F5320M44",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M44",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339L20",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23Y5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320M40",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320L40",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23S5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22Y5320L44",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5320M42",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23W5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320L36",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "22F5311L18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23W5311X18",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23F5320L42",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23Y5320M36",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5311L20",
+      "ModelNumber": "G02",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 1150.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23U5339L18",
+      "ModelNumber": "G04",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "22Y5320M44",
+      "ModelNumber": "G03",
+      "StoreName": "ירושלים",
+      "OnHand": 0.0,
+      "ReorderPoint": 8.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    }
+  ],
+  "negative_stock": [
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5339L16",
+      "StoreName": "ירושלים",
+      "OnHand": -38.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5339L16",
+      "StoreName": "בני ברק",
+      "OnHand": -15.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע חלק ביטנה מלאה ",
+      "BarcodeNumber": "23U5339L16",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -5.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23U5322L36",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -5.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S36",
+      "StoreName": "בני ברק",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M44",
+      "StoreName": "ירושלים",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M36",
+      "StoreName": "ירושלים",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S40",
+      "StoreName": "בני ברק",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22W5322L42",
+      "StoreName": "ירושלים",
+      "OnHand": -4.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S42",
+      "StoreName": "ירושלים",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M38",
+      "StoreName": "ירושלים",
+      "OnHand": -4.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M46",
+      "StoreName": "בני ברק",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M36",
+      "StoreName": "בני ברק",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23W5351L20",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3X16",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322M42",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -3.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L48",
+      "StoreName": "בני ברק",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M42",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L42",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M34",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S40",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322M36",
+      "StoreName": "בני ברק",
+      "OnHand": -3.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S36",
+      "StoreName": "ירושלים",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L38",
+      "StoreName": "בני ברק",
+      "OnHand": -3.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L36",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322L34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3M16",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני ביטנה מלאה",
+      "BarcodeNumber": "22W5312L34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 1150.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3L20",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3L16",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3M42",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3L38",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M42",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L46",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012L40",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "בעקיטשע חלק חצי ביטנה ",
+      "BarcodeNumber": "23S5320S34",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 890.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3X46",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3S38",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L40",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "חליפה רבני חצי ביטנה ",
+      "BarcodeNumber": "23W4431L36",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 730.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M34",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S85B5X20",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מכנס שבת",
+      "BarcodeNumber": "25S452534",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 200.0,
+      "Department": "מכנסיים"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3M20",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86B3L20",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L42",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87A3M38",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S85B5X18",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322M36",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322L40",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3M44",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87A3S36",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23Y5322L40",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": null,
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88B3X18",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322M38",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S86B5L18",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23W5322L50",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87A3M40",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322X38",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M40",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23U5322L36",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012L34",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3L40",
+      "StoreName": "בני ברק",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22W5322M44",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -2.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "23S85A3L42",
+      "StoreName": "ירושלים",
+      "OnHand": -2.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S86B5L18",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M40",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87A3X48",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S86B5X20",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מכנס שבת",
+      "BarcodeNumber": "25S452534",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 200.0,
+      "Department": "מכנסיים"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": null,
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23Y5322L38",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22W5322L42",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "22I9212M38",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "23S85A3S38",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23Y5322L38",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "23S85A3M48",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322S34",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322L44",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3L40",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012X36",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23U5322M36",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22F5322L40",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87B3X20",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322M36",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22Y5322M40",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "22W5322X40",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "22S85A3M44",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W88A3M38",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012X44",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "21W5322M52",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y86A3M46",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "23S85A3X50",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24Y85A3M44",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "בעקיטשע פרחוני מלכותי ",
+      "BarcodeNumber": "25S84B4X18",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1300.0,
+      "Department": "פרחוני"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012L48",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "מעיל חורף רבני",
+      "BarcodeNumber": "24W9012M36",
+      "StoreName": "ירושלים",
+      "OnHand": -1.0,
+      "Price": 1050.0,
+      "Department": "מעילים"
+    },
+    {
+      "Name": "ראז'וואלקע חצי ביטנה ",
+      "BarcodeNumber": "23W5322L48",
+      "StoreName": "מחסן עודפים",
+      "OnHand": -1.0,
+      "Price": 900.0,
+      "Department": "חלק"
+    },
+    {
+      "Name": "בעקיטשע פרחוני משי",
+      "BarcodeNumber": "24W87B3X18",
+      "StoreName": "בני ברק",
+      "OnHand": -1.0,
+      "Price": 1390.0,
+      "Department": "פרחוני"
+    }
+  ],
+  "by_department": [
+    {
+      "Department": "פרחוני",
+      "StoreName": "מחסן",
+      "InStock": 368,
+      "TotalUnits": 3277.0,
+      "Value": 338444.0
+    },
+    {
+      "Department": "ווסטים",
+      "StoreName": "בני ברק",
+      "InStock": 1,
+      "TotalUnits": 3371.0,
+      "Value": 276085.0
+    },
+    {
+      "Department": "ווסטים",
+      "StoreName": "ירושלים",
+      "InStock": 1,
+      "TotalUnits": 3371.0,
+      "Value": 276085.0
+    },
+    {
+      "Department": "ווסטים",
+      "StoreName": "מחסן",
+      "InStock": 1,
+      "TotalUnits": 3371.0,
+      "Value": 276085.0
+    },
+    {
+      "Department": "ווסטים",
+      "StoreName": "מחסן עודפים",
+      "InStock": 1,
+      "TotalUnits": 3371.0,
+      "Value": 276085.0
+    },
+    {
+      "Department": "מכנסיים",
+      "StoreName": "מחסן",
+      "InStock": 31,
+      "TotalUnits": 2974.0,
+      "Value": 263199.0
+    },
+    {
+      "Department": "חלק",
+      "StoreName": "מחסן",
+      "InStock": 382,
+      "TotalUnits": 16254.0,
+      "Value": 63540.0
+    },
+    {
+      "Department": "מעילים",
+      "StoreName": "מחסן",
+      "InStock": 26,
+      "TotalUnits": 164.0,
+      "Value": 24607.0
+    },
+    {
+      "Department": "חלק",
+      "StoreName": "ירושלים",
+      "InStock": 231,
+      "TotalUnits": 10154.0,
+      "Value": 3483.0
+    },
+    {
+      "Department": "מעילים",
+      "StoreName": "ירושלים",
+      "InStock": 20,
+      "TotalUnits": 139.0,
+      "Value": 391.0
+    },
+    {
+      "Department": "פרחוני",
+      "StoreName": "מחסן עודפים",
+      "InStock": 2,
+      "TotalUnits": 1881.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "מעילים",
+      "StoreName": "מחסן עודפים",
+      "InStock": 1,
+      "TotalUnits": 99.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "פרחוני",
+      "StoreName": "בני ברק",
+      "InStock": 221,
+      "TotalUnits": 2420.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "פרחוני",
+      "StoreName": "ירושלים",
+      "InStock": 160,
+      "TotalUnits": 2254.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "חלק",
+      "StoreName": "מחסן עודפים",
+      "InStock": 6,
+      "TotalUnits": 9106.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "מעילים",
+      "StoreName": "בני ברק",
+      "InStock": 7,
+      "TotalUnits": 112.0,
+      "Value": 0.0
+    },
+    {
+      "Department": "חלק",
+      "StoreName": "בני ברק",
+      "InStock": 256,
+      "TotalUnits": 10170.0,
+      "Value": 0.0
+    }
+  ]
+}
