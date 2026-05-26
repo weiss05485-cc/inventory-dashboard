@@ -27,10 +27,63 @@ def serial(obj):
     return str(obj)
 
 ONHAND_CTE = """
-    WITH OnHand AS (
-        SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
-        FROM ItemMovementForQuickOnHandView v
-        GROUP BY v.ItemID, v.StoreID
+    WITH PhysInv AS (
+        SELECT ItemID, StoreID,
+               ISNULL(PhysicalInventoryQty, 0) AS BaseQty,
+               PhysicalInventoryDate
+        FROM ItemStore WITH(NOLOCK) WHERE Status > -1
+    ),
+    OnHand AS (
+        SELECT ItemID, StoreID, BaseQty AS Qty FROM PhysInv
+
+        UNION ALL
+
+        SELECT ist.ItemID, t.StoreID, te.Qty * -1
+        FROM TransactionEntry te WITH(NOLOCK)
+        JOIN [Transaction] t WITH(NOLOCK) ON te.TransactionID = t.TransactionID
+        JOIN ItemStore ist WITH(NOLOCK) ON te.ItemStoreID = ist.ItemStoreID
+        WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
+          AND te.TransactionEntryType NOT IN (4,10,12,16)
+          AND (ist.PhysicalInventoryDate IS NULL
+               OR CAST(t.SaleTime AS DATE) > CAST(ist.PhysicalInventoryDate AS DATE))
+
+        UNION ALL
+
+        SELECT sde.ItemID, sd.StoreID,
+               CASE WHEN sd.Type=2 THEN sde.Qty*-1
+                    WHEN sd.Type=3 THEN sde.SentQty*-1
+                    ELSE sde.Qty END
+        FROM SuppliersDocsEntry sde WITH(NOLOCK)
+        JOIN SuppliersDocs sd WITH(NOLOCK) ON sd.ID = sde.ID
+        JOIN PhysInv pi ON pi.ItemID = sde.ItemID AND pi.StoreID = sd.StoreID
+        WHERE sde.Status > 0 AND sd.Status > 0
+          AND sde.Type <> 2 AND sd.Type NOT IN (5,6)
+          AND (sd.DocStatus IN (7,8,9,10) OR sd.Type = 3)
+          AND (pi.PhysicalInventoryDate IS NULL
+               OR CAST(sd.DateT AS DATE) > CAST(pi.PhysicalInventoryDate AS DATE))
+
+        UNION ALL
+
+        SELECT sde.ItemID, sd.ToStoreID, sde.Qty
+        FROM SuppliersDocsEntry sde WITH(NOLOCK)
+        JOIN SuppliersDocs sd WITH(NOLOCK) ON sd.ID = sde.ID
+        JOIN PhysInv pi ON pi.ItemID = sde.ItemID AND pi.StoreID = sd.ToStoreID
+        WHERE sde.Status > 0 AND sd.Status > 0
+          AND sde.Type <> 2 AND sde.Type = 5
+          AND (pi.PhysicalInventoryDate IS NULL
+               OR CAST(sd.DateT AS DATE) > CAST(pi.PhysicalInventoryDate AS DATE))
+
+        UNION ALL
+
+        SELECT dpl.ItemID, dd.StoreID,
+               dpl.Quantity * CASE WHEN dd.DocType = 7 THEN 1 ELSE -1 END
+        FROM DocumentPLULine dpl WITH(NOLOCK)
+        JOIN DataDocument dd WITH(NOLOCK)
+            ON dpl.DocNumber = dd.Number AND dpl.DocType = dd.DocType AND dpl.DocStatus = dd.Status
+        JOIN PhysInv pi ON pi.ItemID = dpl.ItemID AND pi.StoreID = dd.StoreID
+        WHERE dd.DocType IN (5,7,3) AND dd.Status = 1
+          AND (pi.PhysicalInventoryDate IS NULL
+               OR CAST(dd.DocDate AS DATE) > CAST(pi.PhysicalInventoryDate AS DATE))
     )
 """
 
