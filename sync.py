@@ -258,7 +258,7 @@ def main():
             FROM ItemToGroup WHERE Status = 1
         ) itg ON itg.ItemID = im.ItemID AND itg.rn = 1
         LEFT JOIN ItemGroup ig ON ig.ItemGroupID = itg.ItemGroupID AND ig.Status = 1
-        WHERE oh.Qty > 0
+        WHERE oh.Qty >= 0
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
         GROUP BY im.Name, im.BarcodeNumber, d.Name, ig.ItemGroupName, st.StoreName, st.Sort
@@ -269,7 +269,7 @@ def main():
     report_map = {}
     for row in report_raw:
         size = extract_size(row['BarcodeNumber'])
-        key = (row['Department'], row['GroupName'], row['Name'], size)
+        key = (row['Department'], row['GroupName'], row['Name'].strip(), size)
         if key not in report_map:
             report_map[key] = {'stores': {}, 'total': 0.0}
         qty = float(row['Qty'] or 0)
