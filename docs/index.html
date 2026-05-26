@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>חסידים סנטר | דשבורד מלאי</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --navy:#1a365d; --navy2:#2c4a7c; --bg:#f0f2f5; --card:#fff;
@@ -478,6 +479,16 @@ th.sort-desc::after{content:' ↓'}
         </div>
       </div>
 
+      <!-- יעד הזמנה -->
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">יעד הזמנה:</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="sale-target-months" value="3" min="1" max="24"
+            style="width:60px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;text-align:center">
+          <span style="font-size:12px;color:var(--muted)">חודשים קדימה</span>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -493,7 +504,7 @@ th.sort-desc::after{content:' ↓'}
       <h3 id="sales-table-title"></h3>
       <div style="display:flex;gap:8px">
         <span id="sales-period-label" style="font-size:12px;color:var(--muted);align-self:center"></span>
-        <button class="btn btn-export" onclick="exportSaleOrder()">⬇️ ייצוא להזמנה</button>
+        <button class="btn btn-export" onclick="exportSaleOrder()">📊 ייצוא הזמנה Excel</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -1773,8 +1784,117 @@ function exportSaleOrder() {
     const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
     rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0), '']);
   });
-  rows.push(['סה"כ', ...groups.map(g => Math.round(items.filter(i=>(i.sz||'—')!=='סה"כ'&&i.g===g).reduce((s,i)=>s+i.q,0))), '', '']);
+    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0), '']);
+  });
   downloadCSV(rows, `הזמנה_${activeSaleItem}_${range.from||''}.csv`);
+}
+
+function calcSaleMonths(range) {
+  if (activeSalePeriod !== 0) return activeSalePeriod;
+  if (!range.from || !range.to) return 1;
+  const [fy, fm] = range.from.split('-').map(Number);
+  const [ty, tm] = range.to.split('-').map(Number);
+  return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
+}
+
+function exportSaleOrder() {
+  if (!activeSaleItem) return;
+  const doExport = () => {
+    const range = getSaleDateRange();
+    let salesItems = SALES_DATA.filter(i =>
+      i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g) &&
+      (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
+    );
+    if (activeSaleShorot !== 'all') salesItems = salesItems.filter(i => getShorot(i.mc) === activeSaleShorot);
+
+    const months = calcSaleMonths(range);
+    const targetMonths = parseFloat(document.getElementById('sale-target-months')?.value || '3');
+    const groups = [...activeSaleGroups].sort();
+    const sizes = sortSizes([...new Set(salesItems.map(i => i.sz||'—'))]);
+
+    // Sales: (sz, g) → total sold
+    const salesPivot = {};
+    salesItems.forEach(i => {
+      const k = `${i.sz||'—'}|||${i.g}`;
+      salesPivot[k] = (salesPivot[k]||0) + i.q;
+    });
+
+    // Stock from REPORT_DATA: (sz, g) → total across all stores
+    const stockPivot = {};
+    if (REPORT_DATA) {
+      REPORT_DATA.filter(i =>
+        i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g)
+      ).forEach(i => {
+        const k = `${i.sz||'—'}|||${i.g}`;
+        stockPivot[k] = (stockPivot[k]||0) + Object.values(i.s).reduce((a,b)=>a+b, 0);
+      });
+    }
+
+    // Build detail rows (same logic as הזמנה_שחור_חלק.py)
+    const detail = [];
+    sizes.forEach(sz => {
+      groups.forEach(g => {
+        const k = `${sz}|||${g}`;
+        const sold  = Math.round(salesPivot[k]||0);
+        const stock = Math.round(stockPivot[k]||0);
+        if (sold === 0 && stock === 0) return;
+        const rate    = Math.round((sold / months) * 10) / 10;
+        const target  = Math.round(rate * targetMonths);
+        const toOrder = Math.max(0, target - stock);
+        detail.push({ sz, g, sold, stock, rate, target, toOrder });
+      });
+    });
+    if (!detail.length) { alert('אין נתונים לייצוא'); return; }
+
+    const shorotLabel = activeSaleShorot==='2'?' – שתי שורות':activeSaleShorot==='1'?' – שורה אחת':'';
+    const title       = `${activeSaleItem}${shorotLabel}`;
+    const periodLabel = `תקופת מכר: ${months} חודשים (${range.from}–${range.to})  |  יעד: ${targetMonths} חודשים קדימה`;
+
+    const wb = XLSX.utils.book_new();
+
+    // ── גיליון 1: סיכום לפי קבוצה ─────────────────────────────────────────
+    const sum1 = [
+      [title], [periodLabel], [],
+      ['קבוצה','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין']
+    ];
+    groups.forEach(g => {
+      const gr = detail.filter(r => r.g === g);
+      const sold  = gr.reduce((s,r)=>s+r.sold,0);
+      const stock = gr.reduce((s,r)=>s+r.stock,0);
+      const rate  = Math.round((sold/months)*10)/10;
+      const target = Math.round(rate*targetMonths);
+      sum1.push([g, sold, stock, rate, target, Math.max(0, target-stock)]);
+    });
+    const totSold  = detail.reduce((s,r)=>s+r.sold,0);
+    const totStock = detail.reduce((s,r)=>s+r.stock,0);
+    const totOrder = detail.reduce((s,r)=>s+r.toOrder,0);
+    sum1.push(['סה"כ', totSold, totStock, Math.round((totSold/months)*10)/10, '', totOrder]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum1), 'סיכום לפי קבוצה');
+
+    // ── גיליון 2: פירוט מידות ──────────────────────────────────────────────
+    const det2 = [
+      [title], [periodLabel], [],
+      ['מידה','קבוצה','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין'],
+      ...detail.map(r => [r.sz, r.g, r.sold, r.stock, r.rate, r.target, r.toOrder])
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(det2), 'פירוט מידות');
+
+    // ── גיליון 3: טופס הזמנה (ניתן לעריכה) ──────────────────────────────
+    const orderOnly = detail.filter(r => r.toOrder > 0).sort((a,b)=>b.toOrder-a.toOrder);
+    const ord3 = [
+      [title],
+      [`${periodLabel}  |  ניתן לשנות עמודת "כמות להזמנה"`],
+      [],
+      ['מוצר','מידה','קבוצה','נמכר','במלאי','המלצה','כמות להזמנה'],
+      ...orderOnly.map(r => [title, r.sz, r.g, r.sold, r.stock, r.toOrder, r.toOrder])
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ord3), 'טופס הזמנה');
+
+    XLSX.writeFile(wb, `הזמנה_${activeSaleItem.replace(/["*/:<>?\\|]/g,'_')}_${range.from||'כלל'}.xlsx`);
+  };
+
+  // REPORT_DATA נדרש לנתוני מלאי — טוענים אם עוד לא
+  if (!reportLoaded) { loadReportsData(doExport); } else { doExport(); }
 }
 
 /* ========== REPORTS ========== */
