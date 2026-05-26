@@ -1771,34 +1771,6 @@ function closeSaleDrill() {
   document.getElementById('sales-drill-wrap').style.display = 'none';
 }
 
-function exportSaleOrder() {
-  if (!activeSaleItem) return;
-  const range = getSaleDateRange();
-  let items = SALES_DATA.filter(i =>
-    i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g) &&
-    (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
-  );
-  if (activeSaleShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeSaleShorot);
-
-  const groups = [...activeSaleGroups].sort();
-  const sizes = sortSizes([...new Set(items.map(i => i.sz||'—'))]);
-  const pivot = {};
-  items.forEach(i => {
-    const sz = i.sz||'—';
-    if (!pivot[sz]) pivot[sz] = {};
-    pivot[sz][i.g] = (pivot[sz][i.g]||0) + i.q;
-  });
-
-  const rows = [['מידה', ...groups, 'סה"כ מכירות', 'כמות להזמנה']];
-  sizes.forEach(sz => {
-    const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
-    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0), '']);
-  });
-    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0), '']);
-  });
-  downloadCSV(rows, `הזמנה_${activeSaleItem}_${range.from||''}.csv`);
-}
-
 function calcSaleMonths(range) {
   if (activeSalePeriod !== 0) return activeSalePeriod;
   if (!range.from || !range.to) return 1;
