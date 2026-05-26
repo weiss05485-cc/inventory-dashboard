@@ -27,10 +27,69 @@ def serial(obj):
     return str(obj)
 
 ONHAND_CTE = """
-    WITH OnHand AS (
-        SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
-        FROM ItemMovementForQuickOnHandView v
-        GROUP BY v.ItemID, v.StoreID
+    WITH Dec31Inv AS (
+        -- Latest completed physical inventory per store on 31/12/2025
+        SELECT pi.StoreID, pi.PhysicalInventoryID,
+               ROW_NUMBER() OVER (PARTITION BY pi.StoreID ORDER BY pi.OpenTime DESC) AS rn
+        FROM PhysicalInventory pi
+        WHERE CAST(pi.OpenTime AS DATE) = CAST(N'2025-12-31' AS DATE) AND pi.Status = 2
+    ),
+    RawMov AS (
+        -- Baseline: Dec 31 physical count per item per store
+        SELECT pie.ItemID, pie.StoreID, pie.QuantityCounted AS Qty
+        FROM PhysicalInventoryEntry pie
+        JOIN Dec31Inv d ON d.PhysicalInventoryID = pie.PhysicalInventoryID AND d.rn = 1
+
+        UNION ALL
+
+        -- Sales / transactions from 01/01/2026
+        SELECT ist.ItemID, t.StoreID, te.Qty * -1
+        FROM TransactionEntry te
+        JOIN [Transaction] t ON te.TransactionID = t.TransactionID
+        JOIN ItemStore ist ON ist.ItemStoreID = te.ItemStoreID
+        WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
+          AND te.TransactionEntryType NOT IN (4, 10, 12, 16)
+          AND t.SaleTime >= CAST(N'2025-12-31' AS DATE)
+
+        UNION ALL
+
+        -- Supplier receipts / returns from 31/12/2025
+        SELECT sde.ItemID, sd.StoreID,
+               (CASE WHEN sd.Type = 2 THEN sde.Qty * -1
+                     WHEN sd.Type = 3 THEN sde.SentQty * -1
+                     ELSE sde.Qty END)
+        FROM SuppliersDocsEntry sde
+        JOIN SuppliersDocs sd ON sd.ID = sde.ID
+        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
+          AND sd.Type NOT IN (5, 6)
+          AND sd.DocStatus IN (7, 8, 9, 10)
+          AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
+
+        UNION ALL
+
+        -- Transfer receipts from 31/12/2025
+        SELECT sde.ItemID, sd.ToStoreID, sde.Qty
+        FROM SuppliersDocsEntry sde
+        JOIN SuppliersDocs sd ON sd.ID = sde.ID
+        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 5
+          AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
+
+        UNION ALL
+
+        -- Deliveries / invoice returns from 31/12/2025
+        SELECT dpl.ItemID, dd.StoreID,
+               dpl.Quantity * (CASE WHEN dd.DocType = 7 THEN 1 ELSE -1 END)
+        FROM DocumentPLULine dpl
+        JOIN DataDocument dd ON dpl.DocNumber = dd.Number
+                             AND dpl.DocType = dd.DocType
+                             AND dpl.DocStatus = dd.Status
+        WHERE dd.DocType IN (5, 7, 3) AND dd.Status = 1
+          AND dd.DocDate >= CAST(N'2025-12-31' AS DATE)
+    ),
+    OnHand AS (
+        SELECT ItemID, StoreID, SUM(Qty) AS Qty
+        FROM RawMov
+        GROUP BY ItemID, StoreID
     )
 """
 
