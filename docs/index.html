@@ -1792,16 +1792,17 @@ function exportSaleOrder() {
     const months = calcSaleMonths(range);
     const targetMonths = parseFloat(document.getElementById('sale-target-months')?.value || '3');
     const groups = [...activeSaleGroups].sort();
-    const sizes = sortSizes([...new Set(salesItems.map(i => i.sz||'—'))]);
+    const shorotName = sh => sh==='2'?'שתי שורות':sh==='1'?'שורה אחת':'אחר';
 
-    // Sales: (sz, g) → total sold
+    // Sales: (sz, g, shorot) → total sold
     const salesPivot = {};
     salesItems.forEach(i => {
-      const k = `${i.sz||'—'}|||${i.g}`;
+      const sh = getShorot(i.mc);
+      const k = `${i.sz||'—'}|||${i.g}|||${sh}`;
       salesPivot[k] = (salesPivot[k]||0) + i.q;
     });
 
-    // Stock from REPORT_DATA: (sz, g) → total across all stores (filtered by shorot)
+    // Stock from REPORT_DATA: (sz, g, shorot) → total across all stores (filtered by shorot)
     const stockPivot = {};
     if (REPORT_DATA) {
       let stockItems = REPORT_DATA.filter(i =>
@@ -1810,23 +1811,33 @@ function exportSaleOrder() {
       if (activeSaleShorot !== 'all')
         stockItems = stockItems.filter(i => getShorot(i.mc) === activeSaleShorot);
       stockItems.forEach(i => {
-        const k = `${i.sz||'—'}|||${i.g}`;
+        const sh = getShorot(i.mc);
+        const k = `${i.sz||'—'}|||${i.g}|||${sh}`;
         stockPivot[k] = (stockPivot[k]||0) + Object.values(i.s).reduce((a,b)=>a+b, 0);
       });
     }
 
-    // Build detail rows (same logic as הזמנה_שחור_חלק.py)
+    // Determine shorot types present in data
+    const allKeys = [...Object.keys(salesPivot), ...Object.keys(stockPivot)];
+    const shorotTypes = activeSaleShorot !== 'all'
+      ? [activeSaleShorot]
+      : [...new Set(allKeys.map(k => k.split('|||')[2]))].sort();
+    const allSizes = sortSizes([...new Set(allKeys.map(k => k.split('|||')[0]))]);
+
+    // Build detail rows (sz, g, sh) – separate row per shorot type
     const detail = [];
-    sizes.forEach(sz => {
+    allSizes.forEach(sz => {
       groups.forEach(g => {
-        const k = `${sz}|||${g}`;
-        const sold  = Math.round(salesPivot[k]||0);
-        const stock = Math.round(stockPivot[k]||0);
-        if (sold === 0 && stock === 0) return;
-        const rate    = Math.round((sold / months) * 10) / 10;
-        const target  = Math.round(rate * targetMonths);
-        const toOrder = Math.max(0, target - stock);
-        detail.push({ sz, g, sold, stock, rate, target, toOrder });
+        shorotTypes.forEach(sh => {
+          const k = `${sz}|||${g}|||${sh}`;
+          const sold  = Math.round(salesPivot[k]||0);
+          const stock = Math.round(stockPivot[k]||0);
+          if (sold === 0 && stock === 0) return;
+          const rate    = Math.round((sold / months) * 10) / 10;
+          const target  = Math.round(rate * targetMonths);
+          const toOrder = Math.max(0, target - stock);
+          detail.push({ sz, g, sh, sold, stock, rate, target, toOrder });
+        });
       });
     });
     if (!detail.length) { alert('אין נתונים לייצוא'); return; }
@@ -1837,30 +1848,33 @@ function exportSaleOrder() {
 
     const wb = XLSX.utils.book_new();
 
-    // ── גיליון 1: סיכום לפי קבוצה ─────────────────────────────────────────
+    // ── גיליון 1: סיכום לפי קבוצה + שורות ──────────────────────────────────
     const sum1 = [
       [title], [periodLabel], [],
-      ['קבוצה','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין']
+      ['קבוצה','שורות','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין']
     ];
     groups.forEach(g => {
-      const gr = detail.filter(r => r.g === g);
-      const sold  = gr.reduce((s,r)=>s+r.sold,0);
-      const stock = gr.reduce((s,r)=>s+r.stock,0);
-      const rate  = Math.round((sold/months)*10)/10;
-      const target = Math.round(rate*targetMonths);
-      sum1.push([g, sold, stock, rate, target, Math.max(0, target-stock)]);
+      shorotTypes.forEach(sh => {
+        const gr = detail.filter(r => r.g === g && r.sh === sh);
+        if (!gr.length) return;
+        const sold  = gr.reduce((s,r)=>s+r.sold,0);
+        const stock = gr.reduce((s,r)=>s+r.stock,0);
+        const rate  = Math.round((sold/months)*10)/10;
+        const target = Math.round(rate*targetMonths);
+        sum1.push([g, shorotName(sh), sold, stock, rate, target, Math.max(0, target-stock)]);
+      });
     });
     const totSold  = detail.reduce((s,r)=>s+r.sold,0);
     const totStock = detail.reduce((s,r)=>s+r.stock,0);
     const totOrder = detail.reduce((s,r)=>s+r.toOrder,0);
-    sum1.push(['סה"כ', totSold, totStock, Math.round((totSold/months)*10)/10, '', totOrder]);
+    sum1.push(['סה"כ', '', totSold, totStock, Math.round((totSold/months)*10)/10, '', totOrder]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum1), 'סיכום לפי קבוצה');
 
     // ── גיליון 2: פירוט מידות ──────────────────────────────────────────────
     const det2 = [
       [title], [periodLabel], [],
-      ['מידה','קבוצה','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין'],
-      ...detail.map(r => [r.sz, r.g, r.sold, r.stock, r.rate, r.target, r.toOrder])
+      ['מידה','קבוצה','שורות','נמכר','במלאי','קצב חודשי','יעד מלאי','להזמין'],
+      ...detail.map(r => [r.sz, r.g, shorotName(r.sh), r.sold, r.stock, r.rate, r.target, r.toOrder])
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(det2), 'פירוט מידות');
 
@@ -1870,8 +1884,8 @@ function exportSaleOrder() {
       [title],
       [`${periodLabel}  |  ניתן לשנות עמודת "כמות להזמנה"`],
       [],
-      ['מוצר','מידה','קבוצה','נמכר','במלאי','המלצה','כמות להזמנה'],
-      ...orderOnly.map(r => [title, r.sz, r.g, r.sold, r.stock, r.toOrder, r.toOrder])
+      ['מוצר','מידה','קבוצה','שורות','נמכר','במלאי','המלצה','כמות להזמנה'],
+      ...orderOnly.map(r => [title, r.sz, r.g, shorotName(r.sh), r.sold, r.stock, r.toOrder, r.toOrder])
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ord3), 'טופס הזמנה');
 
