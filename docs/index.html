@@ -331,6 +331,10 @@ th.sort-desc::after{content:' ↓'}
     </div>
     <div style="padding:16px 16px 8px">
       <div class="store-selector" id="shortage-store-selector"></div>
+      <div id="shortage-model-filter-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔍 סנן לפי דגם:</div>
+        <div id="shortage-model-filter" class="dept-filter" style="margin-bottom:0"></div>
+      </div>
       <div id="shortage-instructions" class="shortage-instructions">בחר סניף לראות מה חסר ואפשר להעביר מסניף אחר</div>
       <div id="shortage-table-wrap" style="display:none">
         <div id="shortage-count" style="color:var(--muted);font-size:13px;margin-bottom:8px"></div>
@@ -434,12 +438,13 @@ const ALLOWED_DEPTS = ['חליפות', 'פרחוני', 'חלק', 'מכנסיים
 
 function parseBarcode(b) {
   b = String(b || '').trim().toUpperCase();
-  const r = {year:'', season:'', product:'', size:''};
+  const r = {year:'', season:'', modelCode:'', product:'', size:''};
   if (b.length < 5) return r;
   const m = b.match(/^(\d{2})([A-Z]+)(\d{2})([A-Z0-9]{2})(.*)$/);
   if (m) {
     r.year = '20' + m[1];
     r.season = SEASON_MAP[m[2]] || m[2];
+    r.modelCode = m[4];
     r.product = FABRIC_MODEL_TABLE[m[3] + m[4]] || MODEL_TABLE[m[4]] || '';
     r.size = m[5];
   }
@@ -489,8 +494,11 @@ let searchSortCol = null, searchSortDir = 1;
 let lowSortCol = null, lowSortDir = 1;
 
 let selectedShortageStore = null;
+let selectedShortageModel = null;   // model code filter on shortage page
+let allShortageItems = [];          // computed shortage list (for model re-filter)
 let lowSectionOpen = false;
 let selectedDrillDept = null;
+const MODEL_SHORTAGE_THRESHOLD = 5; // חליפות/פרחוני: store needs < this many of a model to be flagged
 
 /* ========== LOAD ========== */
 fetch('data.json?t=' + Date.now())
@@ -945,10 +953,16 @@ function renderLowStock() {
 }
 
 /* --- Transfer section --- */
+
+// Departments grouped at MODEL level (ignore year/season/size — count total per model)
+const MODEL_LEVEL_DEPTS = ['חליפות', 'פרחוני'];
+// Departments grouped at STRIPPED-BARCODE level (strip year+season, keep size)
+const CHALK_DEPTS      = ['חלק'];
+
 function buildShortageStoreSelector() {
   const wrap = document.getElementById('shortage-store-selector');
-  // מחסן (חיפה) is a warehouse — not in selector
-  const stores = storeList.filter(s => s !== MACHAZAN_RAW);
+  // Show only stores that are NOT the warehouse (מחסן)
+  const stores = storeList.filter(s => storeName(s) !== 'מחסן');
   wrap.innerHTML = stores.map(s =>
     `<button class="store-btn ${s===selectedShortageStore?'active':''}" onclick="selectShortageStore('${s}')">
       ${storeName(s)}
@@ -958,40 +972,192 @@ function buildShortageStoreSelector() {
 
 function selectShortageStore(store) {
   selectedShortageStore = store;
+  selectedShortageModel = null;
   buildShortageStoreSelector();
   renderShortageTable();
 }
 
-/* Strip year+season prefix (e.g. "24i", "25S", "26W") from barcode.
-   Returns the base part: "5320L46" from "24i5320L46" */
+/* Strip year+season prefix ("24i", "25S", "26W"…) → "5320L46" from "24i5320L46" */
 function stripYearSeason(bc) {
   const m = String(bc || '').match(/^(\d{2}[A-Za-z]+)(.+)$/i);
   return m ? m[2].toUpperCase() : String(bc || '').toUpperCase();
 }
 
-/* Parse a stripped barcode like "5320L46" → {product, size} */
+/* Parse stripped barcode "5320L46" → {modelCode, product, size} */
 function parseStrippedBC(stripped) {
   const m = String(stripped || '').toUpperCase().match(/^(\d{2})([A-Za-z0-9]{2})(.*)$/);
-  if (!m) return {product: '', size: stripped};
-  const fabricModel = m[1] + m[2];
-  const product = FABRIC_MODEL_TABLE[fabricModel] || MODEL_TABLE[m[2]] || '';
-  return {product, size: m[3]};
+  if (!m) return {modelCode:'', product:'', size: stripped};
+  const product = FABRIC_MODEL_TABLE[m[1]+m[2]] || MODEL_TABLE[m[2]] || '';
+  return {modelCode: m[2], product, size: m[3]};
 }
 
+/* ---- Build the complete shortage item list ---- */
+function buildShortageItems(store, otherStores) {
+  const items = [];
+
+  /* A) חליפות + פרחוני — group by MODEL CODE across all year/season/size.
+        If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a model, skip it. */
+  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.includes(item.d));
+  const modelGroups = {};
+  modelRaw.forEach(item => {
+    const p = parseBarcode(item.b);
+    if (!p.modelCode) return;
+    const key = item.d + ':' + p.modelCode;
+    if (!modelGroups[key]) {
+      modelGroups[key] = {
+        _type:'model', dept: item.d, modelCode: p.modelCode,
+        modelName: p.product || MODEL_TABLE[p.modelCode] || `דגם ${p.modelCode}`,
+        storeQty: {}
+      };
+      storeList.forEach(s => { modelGroups[key].storeQty[s] = 0; });
+    }
+    storeList.forEach(s => { modelGroups[key].storeQty[s] += (item.s[s] || 0); });
+  });
+  Object.values(modelGroups).forEach(g => {
+    const myQty = g.storeQty[store] || 0;
+    const otherAvail = otherStores.reduce((sum,s) => sum+(g.storeQty[s]||0), 0);
+    if (myQty < MODEL_SHORTAGE_THRESHOLD && otherAvail > 0) {
+      items.push({...g, _modelCode:g.modelCode,
+        _myQty: myQty, _otherAvail: otherAvail});
+    }
+  });
+
+  /* B) חלק — group by stripped barcode (strip year+season, keep size) */
+  const chalkRaw = SEARCH_DATA.filter(item => CHALK_DEPTS.includes(item.d));
+  const chalkGroups = {};
+  chalkRaw.forEach(item => {
+    const base = stripYearSeason(item.b);
+    if (!chalkGroups[base]) {
+      const parsed = parseStrippedBC(base);
+      chalkGroups[base] = {
+        _type:'chalk', base, name: item.n, dept:'חלק',
+        modelCode: parsed.modelCode, modelName: parsed.product,
+        product: parsed.product, size: parsed.size, storeQty: {}
+      };
+      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
+    }
+    storeList.forEach(s => { chalkGroups[base].storeQty[s] += (item.s[s]||0); });
+  });
+  Object.values(chalkGroups).forEach(g => {
+    const myQty = g.storeQty[store] || 0;
+    const otherAvail = otherStores.reduce((sum,s) => sum+(g.storeQty[s]||0), 0);
+    if (myQty < 2 && otherAvail > 0) {
+      items.push({...g, _modelCode: g.modelCode,
+        _myQty: myQty, _otherAvail: otherAvail});
+    }
+  });
+
+  /* C) All other departments — exact barcode */
+  const skipDepts = [...MODEL_LEVEL_DEPTS, ...CHALK_DEPTS];
+  SEARCH_DATA.filter(item => !skipDepts.includes(item.d)).forEach(item => {
+    const myQty = item.s[store] || 0;
+    const otherAvail = otherStores.reduce((sum,s) => sum+(item.s[s]||0), 0);
+    if (myQty < 2 && otherAvail > 0) {
+      items.push({
+        ...item, _type:'regular',
+        _modelCode: item._parsed?.modelCode || '',
+        _myQty: myQty, _otherAvail: otherAvail
+      });
+    }
+  });
+
+  return items.sort((a,b) => b._otherAvail - a._otherAvail);
+}
+
+/* ---- Model filter chips ---- */
+function buildShortageModelFilter(items) {
+  const wrap   = document.getElementById('shortage-model-filter-wrap');
+  const filter = document.getElementById('shortage-model-filter');
+  const models = {};
+  items.forEach(item => {
+    if (item._modelCode && !models[item._modelCode]) {
+      models[item._modelCode] = item.modelName || MODEL_TABLE[item._modelCode] || `דגם ${item._modelCode}`;
+    }
+  });
+  const list = Object.entries(models).sort((a,b) => a[0].localeCompare(b[0]));
+  if (!list.length) { wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  filter.innerHTML = [
+    `<button class="pill ${!selectedShortageModel?'active':''}" onclick="selectShortageModelFilter(null)">כל הדגמים</button>`,
+    ...list.map(([code, name]) =>
+      `<button class="pill ${selectedShortageModel===code?'active':''}" onclick="selectShortageModelFilter('${code}')">
+        ${name || 'דגם '+code}
+      </button>`)
+  ].join('');
+}
+
+function selectShortageModelFilter(code) {
+  selectedShortageModel = code;
+  buildShortageModelFilter(allShortageItems);
+  const store = selectedShortageStore;
+  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
+  renderShortageRows(allShortageItems, store, otherStores);
+}
+
+/* ---- Render shortage table rows ---- */
+function renderShortageRows(items, store, otherStores) {
+  const filtered = selectedShortageModel
+    ? items.filter(i => i._modelCode === selectedShortageModel)
+    : items;
+
+  document.getElementById('shortage-count').textContent =
+    `${filtered.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
+
+  const tbody = document.getElementById('shortage-body');
+  tbody.innerHTML = filtered.slice(0, 300).map(item => {
+    const availBadges = otherStores.map(s => {
+      const qty = (item._type==='regular') ? (item.s[s]||0) : (item.storeQty[s]||0);
+      return `<span class="avail-badge ${qty>0?'has':'none'}">${storeName(s)}: ${qty}</span>`;
+    }).join('');
+
+    let nameCell, bcCell;
+    if (item._type === 'model') {
+      nameCell = `<strong>${item.modelName}</strong><br>
+                  <span class="tag blue" style="font-size:10px;margin-top:3px">${item.dept} · דגם ${item.modelCode}</span>`;
+      bcCell   = `<span style="color:var(--muted);font-size:11px">סה"כ יחידות</span>`;
+    } else if (item._type === 'chalk') {
+      const descr = [item.product, item.size ? 'מידה '+item.size : ''].filter(Boolean).join(' | ');
+      nameCell = `<strong>${item.name}</strong>
+                  ${descr?`<br><span style="font-size:11px;color:var(--muted)">${descr}</span>`:''}`;
+      bcCell   = `<span style="font-size:11px;color:var(--muted)">${item.base}</span>`;
+    } else {
+      nameCell = `<strong>${item.n}</strong>`;
+      bcCell   = `<span style="font-size:11px;color:var(--muted)">${item.b||'—'}</span>${bcChips(item.b)}`;
+    }
+
+    const myTag = item._myQty === 0
+      ? `<span class="tag red">אפס</span>`
+      : `<span class="tag orange">${item._myQty}</span>`;
+
+    return `<tr>
+      <td>${nameCell}</td>
+      <td>${bcCell}</td>
+      <td>${myTag}</td>
+      <td>${availBadges}</td>
+    </tr>`;
+  }).join('');
+
+  if (filtered.length > 300) {
+    tbody.innerHTML += `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
+      מוצגים 300 ראשונים מתוך ${filtered.length} — השתמש בסינון דגם לצמצום
+    </td></tr>`;
+  }
+}
+
+/* ---- Main entry point ---- */
 function renderShortageTable() {
   if (!selectedShortageStore) {
     document.getElementById('shortage-instructions').style.display = 'block';
-    document.getElementById('shortage-table-wrap').style.display = 'none';
+    document.getElementById('shortage-table-wrap').style.display   = 'none';
+    document.getElementById('shortage-model-filter-wrap').style.display = 'none';
     return;
   }
   document.getElementById('shortage-instructions').style.display = 'none';
-  document.getElementById('shortage-table-wrap').style.display = 'block';
+  document.getElementById('shortage-table-wrap').style.display   = 'block';
 
   const store = selectedShortageStore;
-  // מחסן is NOT a transfer source — exclude it from other stores
-  const otherStores = storeList.filter(s => s !== store && s !== MACHAZAN_RAW);
+  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
 
-  // Need search data — trigger load
   if (!searchLoaded) {
     document.getElementById('shortage-count').textContent = 'טוען נתונים...';
     document.getElementById('shortage-body').innerHTML = '';
@@ -999,132 +1165,29 @@ function renderShortageTable() {
     return;
   }
 
-  /* ---- Part A: חלק department — group by stripped barcode ---- */
-  // Strip year+season so "24i5320L46" and "25S5320L46" are treated as the SAME item "5320L46"
-  const chalkRaw = SEARCH_DATA.filter(item => item.d === 'חלק');
-  const chalkGroups = {};
-  chalkRaw.forEach(item => {
-    const base = stripYearSeason(item.b);
-    if (!chalkGroups[base]) {
-      chalkGroups[base] = {base, name: item.n, storeQty: {}};
-      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
-    }
-    storeList.forEach(s => {
-      chalkGroups[base].storeQty[s] += (item.s[s] || 0);
-    });
-  });
-
-  const chalkItems = Object.values(chalkGroups)
-    .filter(g => {
-      const myQty = g.storeQty[store] || 0;
-      const otherAvail = otherStores.reduce((sum, s) => sum + (g.storeQty[s] || 0), 0);
-      return myQty < 2 && otherAvail > 0;
-    })
-    .map(g => {
-      const parsed = parseStrippedBC(g.base);
-      return {
-        ...g,
-        _isChalk: true,
-        _myQty: g.storeQty[store] || 0,
-        _otherAvail: otherStores.reduce((sum, s) => sum + (g.storeQty[s] || 0), 0),
-        _product: parsed.product,
-        _size: parsed.size,
-      };
-    });
-
-  /* ---- Part B: all other departments — exact barcode match ---- */
-  const regularItems = SEARCH_DATA
-    .filter(item => item.d !== 'חלק')
-    .filter(item => {
-      const myQty = item.s[store] || 0;
-      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
-      return myQty < 2 && otherAvail > 0;
-    })
-    .map(item => ({
-      ...item,
-      _isChalk: false,
-      _myQty: item.s[store] || 0,
-      _otherAvail: otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0),
-    }));
-
-  /* ---- Combine & sort by availability descending ---- */
-  const allItems = [...chalkItems, ...regularItems]
-    .sort((a, b) => b._otherAvail - a._otherAvail);
-
-  document.getElementById('shortage-count').textContent =
-    `${allItems.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
-
-  const tbody = document.getElementById('shortage-body');
-  tbody.innerHTML = allItems.slice(0, 300).map(item => {
-    const availBadges = otherStores.map(s => {
-      const qty = item._isChalk ? (item.storeQty[s] || 0) : (item.s[s] || 0);
-      const cls = qty > 0 ? 'has' : 'none';
-      return `<span class="avail-badge ${cls}">${storeName(s)}: ${qty}</span>`;
-    }).join('');
-
-    let nameCell, bcCell;
-    if (item._isChalk) {
-      // חלק: show model name + size + stripped barcode
-      const descr = [item._product, item._size ? 'מידה ' + item._size : ''].filter(Boolean).join(' | ');
-      nameCell = `<strong>${item.name}</strong>${descr ? `<br><span style="font-size:11px;color:var(--muted)">${descr}</span>` : ''}`;
-      bcCell = `<span style="font-size:11px;color:var(--muted)">${item.base}</span>`;
-    } else {
-      nameCell = `<strong>${item.n}</strong>`;
-      bcCell = `<span style="font-size:11px;color:var(--muted)">${item.b||'—'}</span>
-                ${bcChips(item.b)}`;
-    }
-
-    return `<tr>
-      <td>${nameCell}</td>
-      <td>${bcCell}</td>
-      <td><span class="tag ${item._myQty===0?'red':'orange'}">${item._myQty===0?'אפס':''+item._myQty}</span></td>
-      <td>${availBadges}</td>
-    </tr>`;
-  }).join('');
-
-  if (allItems.length > 300) {
-    tbody.innerHTML += `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
-      מוצגים 300 ראשונים מתוך ${allItems.length}
-    </td></tr>`;
-  }
+  allShortageItems = buildShortageItems(store, otherStores);
+  buildShortageModelFilter(allShortageItems);
+  renderShortageRows(allShortageItems, store, otherStores);
 }
 
 function exportTransfer() {
   if (!selectedShortageStore || !searchLoaded) return;
-  const store = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store && s !== MACHAZAN_RAW);
+  const store      = selectedShortageStore;
+  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
+  const items = selectedShortageModel
+    ? allShortageItems.filter(i => i._modelCode === selectedShortageModel)
+    : allShortageItems;
 
-  // חלק: grouped by stripped barcode
-  const chalkRaw = SEARCH_DATA.filter(item => item.d === 'חלק');
-  const chalkGroups = {};
-  chalkRaw.forEach(item => {
-    const base = stripYearSeason(item.b);
-    if (!chalkGroups[base]) {
-      chalkGroups[base] = {base, name: item.n, d: 'חלק', storeQty: {}};
-      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
-    }
-    storeList.forEach(s => { chalkGroups[base].storeQty[s] += (item.s[s] || 0); });
-  });
-  const chalkRows = Object.values(chalkGroups)
-    .filter(g => {
-      const myQty = g.storeQty[store] || 0;
-      return myQty < 2 && otherStores.some(s => (g.storeQty[s] || 0) > 0);
-    });
-
-  // Regular items (non-חלק)
-  const regularRows = SEARCH_DATA
-    .filter(item => item.d !== 'חלק')
-    .filter(item => {
-      const myQty = item.s[store] || 0;
-      return myQty < 2 && otherStores.some(s => (item.s[s] || 0) > 0);
-    });
-
-  const rows = [['שם מוצר','ברקוד/בסיס','מחלקה','חסר בסניף', ...otherStores.map(storeName)]];
-  chalkRows.forEach(g => {
-    rows.push([g.name, g.base, 'חלק', g.storeQty[store]||0, ...otherStores.map(s=>g.storeQty[s]||0)]);
-  });
-  regularRows.forEach(item => {
-    rows.push([item.n, item.b, item.d, item.s[store]||0, ...otherStores.map(s=>item.s[s]||0)]);
+  const rows = [['סוג','שם/דגם','מזהה','מחלקה','חסר בסניף',...otherStores.map(storeName)]];
+  items.forEach(item => {
+    const id   = item._type==='model' ? `דגם ${item.modelCode}` :
+                 item._type==='chalk' ? item.base : (item.b||'');
+    const name = item._type==='model' ? item.modelName :
+                 item._type==='chalk' ? item.name : (item.n||'');
+    const dept = item.dept || item.d || '';
+    const myQ  = item._myQty;
+    const others = otherStores.map(s => item._type==='regular'?(item.s[s]||0):(item.storeQty[s]||0));
+    rows.push([item._type, name, id, dept, myQ, ...others]);
   });
   downloadCSV(rows, `העברות_${storeName(store)}.csv`);
 }
