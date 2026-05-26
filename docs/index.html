@@ -252,7 +252,7 @@ th.sort-desc::after{content:' ↓'}
           <th onclick="sortSearch('d')">מחלקה</th>
           <th id="th-stores">מלאי לפי סניף</th>
           <th onclick="sortSearch('q')">סה"כ</th>
-          <th onclick="sortSearch('p')">מחיר ₪</th>
+          <th onclick="sortSearch('p')">עלות ₪</th>
         </tr></thead>
         <tbody id="search-body"></tbody>
       </table>
@@ -375,7 +375,7 @@ th.sort-desc::after{content:' ↓'}
             <th onclick="sortLow('OnHand')">במלאי</th>
             <th onclick="sortLow('ReorderPoint')">נקודת הזמנה</th>
             <th onclick="sortLow('_shortage')">חוסר</th>
-            <th onclick="sortLow('Price')">מחיר ₪</th>
+            <th onclick="sortLow('Price')">עלות ₪</th>
             <th>מצב</th>
           </tr></thead>
           <tbody id="low-body"></tbody>
@@ -394,6 +394,9 @@ const STORE_DISPLAY = {
   'בית שמש': 'מחסן עודפים'  // won't appear but just in case
 };
 function storeName(s) { return STORE_DISPLAY[s] || s; }
+
+// מחסן (חיפה) is a warehouse — not a transfer source, not in shortage selector
+const MACHAZAN_RAW = 'חיפה';
 
 /* ========== BARCODE TABLES (from run.py) ========== */
 const MODEL_TABLE = {
@@ -509,7 +512,9 @@ function loadSearchData(cb) {
   fetch('search.json?t=' + Date.now())
     .then(r => r.json())
     .then(items => {
-      SEARCH_DATA = items.map(item => {
+      SEARCH_DATA = items
+        .filter(item => item.d !== 'כללי' && !String(item.n||'').includes('כללי'))
+        .map(item => {
         const p = parseBarcode(item.b);
         return {...item, _parsed: p,
           _idx: [item.n, item.b, item.mn, item.d, p.product, p.season, p.year, p.size]
@@ -942,7 +947,9 @@ function renderLowStock() {
 /* --- Transfer section --- */
 function buildShortageStoreSelector() {
   const wrap = document.getElementById('shortage-store-selector');
-  wrap.innerHTML = storeList.map(s =>
+  // מחסן (חיפה) is a warehouse — not in selector
+  const stores = storeList.filter(s => s !== MACHAZAN_RAW);
+  wrap.innerHTML = stores.map(s =>
     `<button class="store-btn ${s===selectedShortageStore?'active':''}" onclick="selectShortageStore('${s}')">
       ${storeName(s)}
     </button>`
@@ -955,6 +962,22 @@ function selectShortageStore(store) {
   renderShortageTable();
 }
 
+/* Strip year+season prefix (e.g. "24i", "25S", "26W") from barcode.
+   Returns the base part: "5320L46" from "24i5320L46" */
+function stripYearSeason(bc) {
+  const m = String(bc || '').match(/^(\d{2}[A-Za-z]+)(.+)$/i);
+  return m ? m[2].toUpperCase() : String(bc || '').toUpperCase();
+}
+
+/* Parse a stripped barcode like "5320L46" → {product, size} */
+function parseStrippedBC(stripped) {
+  const m = String(stripped || '').toUpperCase().match(/^(\d{2})([A-Za-z0-9]{2})(.*)$/);
+  if (!m) return {product: '', size: stripped};
+  const fabricModel = m[1] + m[2];
+  const product = FABRIC_MODEL_TABLE[fabricModel] || MODEL_TABLE[m[2]] || '';
+  return {product, size: m[3]};
+}
+
 function renderShortageTable() {
   if (!selectedShortageStore) {
     document.getElementById('shortage-instructions').style.display = 'block';
@@ -965,7 +988,8 @@ function renderShortageTable() {
   document.getElementById('shortage-table-wrap').style.display = 'block';
 
   const store = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store);
+  // מחסן is NOT a transfer source — exclude it from other stores
+  const otherStores = storeList.filter(s => s !== store && s !== MACHAZAN_RAW);
 
   // Need search data — trigger load
   if (!searchLoaded) {
@@ -975,41 +999,92 @@ function renderShortageTable() {
     return;
   }
 
-  // Items where selected store has 0 or < 2 AND another store has > 0
-  const items = SEARCH_DATA
+  /* ---- Part A: חלק department — group by stripped barcode ---- */
+  // Strip year+season so "24i5320L46" and "25S5320L46" are treated as the SAME item "5320L46"
+  const chalkRaw = SEARCH_DATA.filter(item => item.d === 'חלק');
+  const chalkGroups = {};
+  chalkRaw.forEach(item => {
+    const base = stripYearSeason(item.b);
+    if (!chalkGroups[base]) {
+      chalkGroups[base] = {base, name: item.n, storeQty: {}};
+      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
+    }
+    storeList.forEach(s => {
+      chalkGroups[base].storeQty[s] += (item.s[s] || 0);
+    });
+  });
+
+  const chalkItems = Object.values(chalkGroups)
+    .filter(g => {
+      const myQty = g.storeQty[store] || 0;
+      const otherAvail = otherStores.reduce((sum, s) => sum + (g.storeQty[s] || 0), 0);
+      return myQty < 2 && otherAvail > 0;
+    })
+    .map(g => {
+      const parsed = parseStrippedBC(g.base);
+      return {
+        ...g,
+        _isChalk: true,
+        _myQty: g.storeQty[store] || 0,
+        _otherAvail: otherStores.reduce((sum, s) => sum + (g.storeQty[s] || 0), 0),
+        _product: parsed.product,
+        _size: parsed.size,
+      };
+    });
+
+  /* ---- Part B: all other departments — exact barcode match ---- */
+  const regularItems = SEARCH_DATA
+    .filter(item => item.d !== 'חלק')
     .filter(item => {
       const myQty = item.s[store] || 0;
       const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
       return myQty < 2 && otherAvail > 0;
     })
-    .map(item => {
-      const myQty = item.s[store] || 0;
-      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
-      return {...item, _myQty: myQty, _otherAvail: otherAvail};
-    })
-    .sort((a,b) => b._otherAvail - a._otherAvail);
+    .map(item => ({
+      ...item,
+      _isChalk: false,
+      _myQty: item.s[store] || 0,
+      _otherAvail: otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0),
+    }));
+
+  /* ---- Combine & sort by availability descending ---- */
+  const allItems = [...chalkItems, ...regularItems]
+    .sort((a, b) => b._otherAvail - a._otherAvail);
 
   document.getElementById('shortage-count').textContent =
-    `${items.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
+    `${allItems.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
 
   const tbody = document.getElementById('shortage-body');
-  tbody.innerHTML = items.slice(0, 300).map(item => {
+  tbody.innerHTML = allItems.slice(0, 300).map(item => {
     const availBadges = otherStores.map(s => {
-      const qty = item.s[s] || 0;
+      const qty = item._isChalk ? (item.storeQty[s] || 0) : (item.s[s] || 0);
       const cls = qty > 0 ? 'has' : 'none';
       return `<span class="avail-badge ${cls}">${storeName(s)}: ${qty}</span>`;
     }).join('');
+
+    let nameCell, bcCell;
+    if (item._isChalk) {
+      // חלק: show model name + size + stripped barcode
+      const descr = [item._product, item._size ? 'מידה ' + item._size : ''].filter(Boolean).join(' | ');
+      nameCell = `<strong>${item.name}</strong>${descr ? `<br><span style="font-size:11px;color:var(--muted)">${descr}</span>` : ''}`;
+      bcCell = `<span style="font-size:11px;color:var(--muted)">${item.base}</span>`;
+    } else {
+      nameCell = `<strong>${item.n}</strong>`;
+      bcCell = `<span style="font-size:11px;color:var(--muted)">${item.b||'—'}</span>
+                ${bcChips(item.b)}`;
+    }
+
     return `<tr>
-      <td><strong>${item.n}</strong></td>
-      <td style="font-size:11px;color:var(--muted)">${item.b||'—'}</td>
+      <td>${nameCell}</td>
+      <td>${bcCell}</td>
       <td><span class="tag ${item._myQty===0?'red':'orange'}">${item._myQty===0?'אפס':''+item._myQty}</span></td>
       <td>${availBadges}</td>
     </tr>`;
   }).join('');
 
-  if (items.length > 300) {
+  if (allItems.length > 300) {
     tbody.innerHTML += `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
-      מוצגים 300 ראשונים מתוך ${items.length}
+      מוצגים 300 ראשונים מתוך ${allItems.length}
     </td></tr>`;
   }
 }
@@ -1017,20 +1092,38 @@ function renderShortageTable() {
 function exportTransfer() {
   if (!selectedShortageStore || !searchLoaded) return;
   const store = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store);
-  const items = SEARCH_DATA
+  const otherStores = storeList.filter(s => s !== store && s !== MACHAZAN_RAW);
+
+  // חלק: grouped by stripped barcode
+  const chalkRaw = SEARCH_DATA.filter(item => item.d === 'חלק');
+  const chalkGroups = {};
+  chalkRaw.forEach(item => {
+    const base = stripYearSeason(item.b);
+    if (!chalkGroups[base]) {
+      chalkGroups[base] = {base, name: item.n, d: 'חלק', storeQty: {}};
+      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
+    }
+    storeList.forEach(s => { chalkGroups[base].storeQty[s] += (item.s[s] || 0); });
+  });
+  const chalkRows = Object.values(chalkGroups)
+    .filter(g => {
+      const myQty = g.storeQty[store] || 0;
+      return myQty < 2 && otherStores.some(s => (g.storeQty[s] || 0) > 0);
+    });
+
+  // Regular items (non-חלק)
+  const regularRows = SEARCH_DATA
+    .filter(item => item.d !== 'חלק')
     .filter(item => {
       const myQty = item.s[store] || 0;
-      const otherAvail = otherStores.reduce((sum, s) => sum + (item.s[s] || 0), 0);
-      return myQty < 2 && otherAvail > 0;
-    })
-    .sort((a,b) => {
-      const aOther = otherStores.reduce((sum,s) => sum+(a.s[s]||0), 0);
-      const bOther = otherStores.reduce((sum,s) => sum+(b.s[s]||0), 0);
-      return bOther - aOther;
+      return myQty < 2 && otherStores.some(s => (item.s[s] || 0) > 0);
     });
-  const rows = [['שם מוצר','ברקוד','מחלקה','חסר בסניף', ...otherStores.map(storeName)]];
-  items.forEach(item => {
+
+  const rows = [['שם מוצר','ברקוד/בסיס','מחלקה','חסר בסניף', ...otherStores.map(storeName)]];
+  chalkRows.forEach(g => {
+    rows.push([g.name, g.base, 'חלק', g.storeQty[store]||0, ...otherStores.map(s=>g.storeQty[s]||0)]);
+  });
+  regularRows.forEach(item => {
     rows.push([item.n, item.b, item.d, item.s[store]||0, ...otherStores.map(s=>item.s[s]||0)]);
   });
   downloadCSV(rows, `העברות_${storeName(store)}.csv`);

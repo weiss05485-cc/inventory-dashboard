@@ -137,6 +137,9 @@ def main():
         JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
+        LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
+        WHERE ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
         GROUP BY st.StoreID, st.StoreName, st.Code, st.Sort
         ORDER BY st.Sort
     """)
@@ -149,7 +152,7 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS OnHand,
             CAST(ist.ReorderPoint AS DECIMAL(18,1)) AS ReorderPoint,
-            CAST(ist.Price AS DECIMAL(18,2)) AS Price,
+            CAST(ISNULL(ist.AVGCost, 0) AS DECIMAL(18,2)) AS Price,
             d.Name AS Department
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
@@ -158,6 +161,8 @@ def main():
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE ist.ReorderPoint IS NOT NULL AND ist.ReorderPoint > 0
           AND oh.Qty >= 0 AND oh.Qty <= ist.ReorderPoint
+          AND ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
         ORDER BY (oh.Qty - ist.ReorderPoint) ASC, st.Sort
     """)
 
@@ -177,6 +182,8 @@ def main():
         JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE oh.Qty > 0
+          AND ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
         GROUP BY d.Name, st.StoreName, st.Sort
         HAVING SUM(oh.Qty) > 0
         ORDER BY SUM(oh.Qty * ISNULL(ist.AVGCost, 0)) DESC
@@ -192,13 +199,15 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS Qty,
             d.Name AS Department,
-            CAST(ISNULL(ist.Price, 0) AS DECIMAL(18,2)) AS Price
+            CAST(ISNULL(ist.AVGCost, 0) AS DECIMAL(18,2)) AS Price
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
         JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE oh.Qty > 0
+          AND ISNULL(d.Name, '') NOT IN (N'כללי')
+          AND im.Name NOT LIKE N'%כללי%'
     """)
 
     # Group by barcode → one item with per-store quantities
