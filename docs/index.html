@@ -172,6 +172,26 @@ th.sort-desc::after{content:' ↓'}
   .kpi-value{font-size:22px}
   .dept-cards{grid-template-columns:1fr 1fr}
   th,td{padding:7px 8px;font-size:12px}
+  nav{display:none}
+  body{padding-top:56px;padding-bottom:64px}
+}
+
+/* BOTTOM NAV (mobile only) */
+#bottom-nav{display:none}
+@media(max-width:600px){
+  #bottom-nav{
+    display:flex;position:fixed;bottom:0;right:0;left:0;z-index:200;
+    background:#fff;border-top:1px solid var(--border);
+    box-shadow:0 -2px 8px rgba(0,0,0,.08);
+  }
+  .bnav-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:8px 4px 10px;border:none;background:none;cursor:pointer;
+    color:var(--muted);font-size:10px;font-weight:500;gap:3px;transition:color .15s;
+    border-top:2px solid transparent;
+  }
+  .bnav-btn .bnav-icon{font-size:20px;line-height:1}
+  .bnav-btn.active{color:var(--navy);border-color:var(--navy)}
 }
 
 /* REPORTS */
@@ -211,6 +231,14 @@ th.sort-desc::after{content:' ↓'}
   <button class="nav-btn" onclick="showPage('lowstock')">⚠️ חוסרים</button>
   <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
 </nav>
+
+<div id="bottom-nav">
+  <button class="bnav-btn active" onclick="showPage('overview')"><span class="bnav-icon">📊</span>סקירה</button>
+  <button class="bnav-btn" onclick="showPage('search')"><span class="bnav-icon">🔍</span>חיפוש</button>
+  <button class="bnav-btn" onclick="showPage('departments')"><span class="bnav-icon">📂</span>מחלקות</button>
+  <button class="bnav-btn" onclick="showPage('lowstock')"><span class="bnav-icon">⚠️</span>חוסרים</button>
+  <button class="bnav-btn" onclick="showPage('reports')"><span class="bnav-icon">📋</span>דוחות</button>
+</div>
 
 <div id="loading">
   <div class="spin"></div><br>טוען נתונים...
@@ -606,10 +634,11 @@ function loadSearchData(cb) {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const btns = document.querySelectorAll('.nav-btn');
   const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4};
-  btns[labels[id]].classList.add('active');
+  document.querySelectorAll('.nav-btn')[labels[id]].classList.add('active');
+  document.querySelectorAll('.bnav-btn')[labels[id]].classList.add('active');
 
   if (id === 'overview') renderOverview();
   if (id === 'search')   { loadSearchData(() => doSearch()); }
