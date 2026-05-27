@@ -18,6 +18,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
+      AND t.TransactionType NOT IN (14, 21)
       AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), st.StoreID, st.StoreName
     ORDER BY SaleDate, st.StoreName
@@ -60,6 +61,7 @@ cur.execute("""
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     LEFT JOIN Users u ON u.UserId = t.SellerID AND u.Status=1
     WHERE t.Status > -1
+      AND t.TransactionType NOT IN (14, 21)
       AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), u.UserFName, u.UserLName
     ORDER BY SaleDate, TotalSales DESC
@@ -79,6 +81,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
+      AND t.TransactionType NOT IN (14, 21)
       AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
     ORDER BY SaleDate
