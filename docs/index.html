@@ -648,7 +648,13 @@ th.sort-desc::after{content:' ↓'}
         <div id="today-date-label" style="font-size:18px;font-weight:700;color:var(--navy)"></div>
         <div id="today-synced-label" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
       </div>
-      <button class="btn" onclick="reloadToday()" style="font-size:12px;padding:6px 14px">🔄 רענן נתונים</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn" onclick="todayNavDay(-1)" style="font-size:16px;padding:4px 12px">‹</button>
+        <input type="date" id="today-date-picker" onchange="todayPickDate(this.value)"
+          style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">
+        <button class="btn" onclick="todayNavDay(1)" style="font-size:16px;padding:4px 12px">›</button>
+        <button class="btn" onclick="reloadToday()" style="font-size:12px;padding:6px 14px">🔄 רענן</button>
+      </div>
     </div>
     <!-- Store cards -->
     <div class="kpi-grid" id="today-store-cards" style="margin-bottom:20px"></div>
@@ -823,6 +829,7 @@ function loadSearchData(cb) {
 /* ========== TODAY / קופות ========== */
 let TODAY_DATA = null;
 let _todayChart = null;
+let _todaySelectedDate = null;
 
 function renderToday() {
   document.getElementById('today-loading').style.display = 'block';
@@ -832,6 +839,7 @@ function renderToday() {
     .then(r => { if (!r.ok) throw new Error('404'); return r.json(); })
     .then(data => {
       TODAY_DATA = data;
+      _todaySelectedDate = data.today; // ברירת מחדל: היום
       document.getElementById('today-loading').style.display = 'none';
       document.getElementById('today-content').style.display = 'block';
       _renderTodayContent();
@@ -842,23 +850,49 @@ function renderToday() {
     });
 }
 
-function reloadToday() {
-  TODAY_DATA = null;
-  renderToday();
+function reloadToday() { TODAY_DATA = null; renderToday(); }
+
+function todayNavDay(delta) {
+  if (!TODAY_DATA) return;
+  const dates = TODAY_DATA.daily.map(d => d.SaleDate).sort();
+  const idx = dates.indexOf(_todaySelectedDate);
+  const newIdx = Math.max(0, Math.min(dates.length - 1, idx + delta));
+  _todaySelectedDate = dates[newIdx];
+  _renderTodayContent();
+}
+
+function todayPickDate(val) {
+  if (!TODAY_DATA || !val) return;
+  _todaySelectedDate = val;
+  _renderTodayContent();
 }
 
 function _renderTodayContent() {
-  const d = TODAY_DATA;
+  const data = TODAY_DATA;
+  const selDate = _todaySelectedDate || data.today;
   const fmt = n => '₪' + parseFloat(n).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  const now = new Date();
-  document.getElementById('today-date-label').textContent =
-    'יום ' + days[now.getDay()] + ' — ' + now.toLocaleDateString('he-IL');
-  document.getElementById('today-synced-label').textContent = 'עודכן: ' + d.synced;
 
-  // Store cards
+  // עדכון picker
+  const picker = document.getElementById('today-date-picker');
+  picker.value = selDate;
+  const allDates = data.daily.map(d => d.SaleDate).sort();
+  picker.min = allDates[0] || selDate;
+  picker.max = data.today;
+
+  // כותרת
+  const selDt = new Date(selDate + 'T12:00:00');
+  const isToday = selDate === data.today;
+  const dateStr = selDt.toLocaleDateString('he-IL') + (isToday ? ' (היום)' : '');
+  document.getElementById('today-date-label').textContent = 'יום ' + days[selDt.getDay()] + ' — ' + dateStr;
+  document.getElementById('today-synced-label').textContent = 'עודכן: ' + data.synced;
+
+  // נתוני התאריך הנבחר
+  const dayData = data.by_date[selDate] || {stores:[], depts:[], sellers:[]};
+
+  // כרטיסי סניף
   let totSales = 0, totTrans = 0;
-  const storeHtml = d.today.map(s => {
+  const storeHtml = dayData.stores.map(s => {
     totSales += s.TotalSales; totTrans += s.Transactions;
     const col = s.TotalSales > 0 ? 'var(--green)' : 'var(--muted)';
     return `<div class="kpi-card">
@@ -867,51 +901,55 @@ function _renderTodayContent() {
       <div class="kpi-sub">${s.Transactions} עסקאות</div>
     </div>`;
   }).join('');
-  document.getElementById('today-store-cards').innerHTML = storeHtml +
-    `<div class="kpi-card" style="border:2px solid var(--navy)">
+  document.getElementById('today-store-cards').innerHTML = (storeHtml || '<div style="color:var(--muted);padding:12px">אין נתונים לתאריך זה</div>') +
+    (totSales > 0 ? `<div class="kpi-card" style="border:2px solid var(--navy)">
       <div class="kpi-label" style="font-weight:700">סה"כ מכירות</div>
       <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(totSales)}</div>
       <div class="kpi-sub">${totTrans} עסקאות</div>
-    </div>`;
+    </div>` : '');
 
-  // Dept list
-  const deptTotal = d.depts.reduce((s,r) => s + r.TotalSales, 0);
-  document.getElementById('today-dept-list').innerHTML = d.depts.map(r => {
-    const pct = deptTotal > 0 ? (r.TotalSales / deptTotal * 100).toFixed(1) : 0;
-    const col = r.TotalSales < 0 ? 'var(--red)' : 'var(--text)';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-      <span>${r.Dept}</span>
-      <span style="color:${col};font-weight:600;font-size:13px">${fmt(r.TotalSales)} <span style="color:var(--muted);font-size:11px">${pct}%</span></span>
-    </div>`;
-  }).join('');
+  // מחלקות
+  const deptTotal = dayData.depts.reduce((s,r) => s + r.TotalSales, 0);
+  document.getElementById('today-dept-list').innerHTML = dayData.depts.length
+    ? dayData.depts.map(r => {
+        const pct = deptTotal > 0 ? (r.TotalSales / deptTotal * 100).toFixed(1) : 0;
+        const col = r.TotalSales < 0 ? 'var(--red)' : 'var(--text)';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span>${r.Dept}</span>
+          <span style="color:${col};font-weight:600;font-size:13px">${fmt(r.TotalSales)} <span style="color:var(--muted);font-size:11px">${pct}%</span></span>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // Seller list
-  document.getElementById('today-seller-list').innerHTML = d.sellers.map(r =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-      <span>${r.SellerName}</span>
-      <span style="font-weight:600;font-size:13px">${fmt(r.TotalSales)} <span style="color:var(--muted);font-size:11px">${r.Transactions} עסק'</span></span>
-    </div>`
-  ).join('');
+  // מוכרים
+  document.getElementById('today-seller-list').innerHTML = dayData.sellers.length
+    ? dayData.sellers.map(r =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span>${r.SellerName}</span>
+          <span style="font-weight:600;font-size:13px">${fmt(r.TotalSales)} <span style="color:var(--muted);font-size:11px">${r.Transactions} עסק'</span></span>
+        </div>`).join('')
+    : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // 30-day bar chart
+  // גרף 30 יום — מסמן את התאריך הנבחר
   if (_todayChart) _todayChart.destroy();
-  const todayStr = now.toISOString().slice(0,10);
   _todayChart = new Chart(document.getElementById('today-chart').getContext('2d'), {
     type: 'bar',
     data: {
-      labels: d.daily.map(x => x.SaleDate.slice(5).replace('-','/')),
+      labels: data.daily.map(x => x.SaleDate.slice(5).replace('-','/')),
       datasets: [{
-        data: d.daily.map(x => x.TotalSales),
-        backgroundColor: d.daily.map(x => x.SaleDate === todayStr ? 'rgba(22,163,74,.85)' : 'rgba(37,99,235,.6)'),
+        data: data.daily.map(x => x.TotalSales),
+        backgroundColor: data.daily.map(x =>
+          x.SaleDate === selDate ? 'rgba(22,163,74,.9)' : 'rgba(37,99,235,.55)'),
         borderRadius: 4
       }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false },
-        tooltip: { callbacks: { label: c => '₪' + c.parsed.y.toLocaleString() } }
+      onClick: (_,els) => {
+        if (els.length) { _todaySelectedDate = data.daily[els[0].index].SaleDate; _renderTodayContent(); }
       },
-      scales: { y: { ticks: { callback: v => '₪' + (v/1000).toFixed(0) + 'K' } } }
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label: c=>'₪'+c.parsed.y.toLocaleString()}} },
+      scales: { y: { ticks: { callback: v => '₪'+(v/1000).toFixed(0)+'K' } } }
     }
   });
 }
