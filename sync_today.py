@@ -1,5 +1,6 @@
 import pyodbc, json, sys
 from datetime import datetime
+from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8')
 from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
 
@@ -8,7 +9,8 @@ CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
 conn = pyodbc.connect(CONN_STR, timeout=15)
 cur = conn.cursor()
 
-# ── 1. לפי סניף × יום (30 ימים) ──────────────────────────────────────────
+# ── 1. לפי סניף × יום (כל ההיסטוריה) ────────────────────────────────────
+print("שולף נתוני סניף...")
 cur.execute("""
     SELECT
         CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
@@ -19,7 +21,6 @@ cur.execute("""
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
       AND t.TransactionType NOT IN (14, 21)
-      AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), st.StoreID, st.StoreName
     ORDER BY SaleDate, st.StoreName
 """)
@@ -28,8 +29,10 @@ stores_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
 for r in stores_raw:
     r['TotalSales'] = round(float(r['TotalSales']), 2)
     r['Transactions'] = int(r['Transactions'])
+print(f"  {len(stores_raw)} שורות סניף")
 
-# ── 2. לפי מחלקה × יום (30 ימים) ─────────────────────────────────────────
+# ── 2. לפי מחלקה × יום (כל ההיסטוריה) ──────────────────────────────────
+print("שולף נתוני מחלקה...")
 cur.execute("""
     SELECT
         CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
@@ -41,7 +44,7 @@ cur.execute("""
     LEFT JOIN Department d ON te.DepartmentID = d.DepartmentID
     WHERE t.Status > -1 AND te.Status > -1
       AND te.TransactionEntryType NOT IN (4,10,12,16)
-      AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
+      AND t.TransactionType NOT IN (14, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), d.Name
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -49,20 +52,21 @@ cols = [d[0] for d in cur.description]
 depts_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
 for r in depts_raw:
     r['TotalSales'] = round(float(r['TotalSales']), 2)
+print(f"  {len(depts_raw)} שורות מחלקה")
 
-# ── 3. לפי מוכר × יום (30 ימים) ──────────────────────────────────────────
+# ── 3. לפי מוכר × יום (כל ההיסטוריה) ───────────────────────────────────
+print("שולף נתוני מוכרים...")
 cur.execute("""
     SELECT
-        CONVERT(VARCHAR(10), t.SaleTime, 23)                          AS SaleDate,
+        CONVERT(VARCHAR(10), t.SaleTime, 23)                           AS SaleDate,
         ISNULL(RTRIM(u.UserFName)+' '+RTRIM(u.UserLName), N'לא ידוע') AS SellerName,
-        SUM(t.Total)                                                   AS TotalSales,
-        COUNT(DISTINCT t.TransactionID)                                AS Transactions
+        SUM(t.Total)                                                    AS TotalSales,
+        COUNT(DISTINCT t.TransactionID)                                 AS Transactions
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     LEFT JOIN Users u ON u.UserId = t.SellerID AND u.Status=1
     WHERE t.Status > -1
       AND t.TransactionType NOT IN (14, 21)
-      AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), u.UserFName, u.UserLName
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -71,8 +75,10 @@ sellers_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
 for r in sellers_raw:
     r['TotalSales'] = round(float(r['TotalSales']), 2)
     r['Transactions'] = int(r['Transactions'])
+print(f"  {len(sellers_raw)} שורות מוכרים")
 
 # ── 4. סיכום יומי (לגרף) ─────────────────────────────────────────────────
+print("שולף סיכום יומי...")
 cur.execute("""
     SELECT
         CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
@@ -82,7 +88,6 @@ cur.execute("""
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
       AND t.TransactionType NOT IN (14, 21)
-      AND t.SaleTime >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
     ORDER BY SaleDate
 """)
@@ -93,11 +98,11 @@ for r in cur.fetchall():
     d['TotalSales'] = round(float(d['TotalSales']), 2)
     d['Transactions'] = int(d['Transactions'])
     daily.append(d)
+print(f"  {len(daily)} ימים")
 
 conn.close()
 
 # ── ארגון לפי תאריך ───────────────────────────────────────────────────────
-from collections import defaultdict
 by_date = defaultdict(lambda: {'stores': [], 'depts': [], 'sellers': []})
 for r in stores_raw:
     dt = r.pop('SaleDate')
@@ -116,6 +121,7 @@ out = {
     'daily':   daily,
     'by_date': dict(by_date)
 }
+print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False)
 
