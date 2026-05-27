@@ -100,10 +100,35 @@ for r in cur.fetchall():
     daily.append(d)
 print(f"  {len(daily)} ימים")
 
+# ── 5. אמצעי תשלום × יום (כל ההיסטוריה) ─────────────────────────────────
+print("שולף נתוני אמצעי תשלום...")
+cur.execute("""
+    SELECT
+        CONVERT(VARCHAR(10), t.SaleTime, 23)                         AS SaleDate,
+        ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))   AS PayMethod,
+        SUM(te.Amount)                                                AS TotalAmount,
+        COUNT(*)                                                      AS Cnt
+    FROM TenderEntry te
+    JOIN [Transaction] t  ON te.TransactionID = t.TransactionID
+    JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+    LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
+    WHERE t.Status > -1
+      AND t.TransactionType NOT IN (14, 21)
+      AND te.Status = 1
+    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), te.TenderID, tn.TenderNameHe
+    ORDER BY SaleDate, TotalAmount DESC
+""")
+cols = [d[0] for d in cur.description]
+payments_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
+for r in payments_raw:
+    r['TotalAmount'] = round(float(r['TotalAmount']), 2)
+    r['Cnt'] = int(r['Cnt'])
+print(f"  {len(payments_raw)} שורות תשלומים")
+
 conn.close()
 
 # ── ארגון לפי תאריך ───────────────────────────────────────────────────────
-by_date = defaultdict(lambda: {'stores': [], 'depts': [], 'sellers': []})
+by_date = defaultdict(lambda: {'stores': [], 'depts': [], 'sellers': [], 'payments': []})
 for r in stores_raw:
     dt = r.pop('SaleDate')
     by_date[dt]['stores'].append(r)
@@ -113,6 +138,9 @@ for r in depts_raw:
 for r in sellers_raw:
     dt = r.pop('SaleDate')
     by_date[dt]['sellers'].append(r)
+for r in payments_raw:
+    dt = r.pop('SaleDate')
+    by_date[dt]['payments'].append(r)
 
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {

@@ -672,8 +672,8 @@ th.sort-desc::after{content:' ↓'}
       </div>
       <!-- Store cards -->
       <div class="kpi-grid" id="today-store-cards" style="margin-bottom:20px"></div>
-      <!-- Dept + Seller -->
-      <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <!-- Dept + Seller + Payments -->
+      <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="section">
           <div class="section-header"><h3>לפי מחלקה</h3></div>
           <div id="today-dept-list" style="padding:4px 0"></div>
@@ -681,6 +681,10 @@ th.sort-desc::after{content:' ↓'}
         <div class="section">
           <div class="section-header"><h3>לפי מוכר</h3></div>
           <div id="today-seller-list" style="padding:4px 0"></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h3>💳 אמצעי תשלום</h3></div>
+          <div id="today-payment-list" style="padding:4px 0"></div>
         </div>
       </div>
       <!-- Chart -->
@@ -1026,6 +1030,31 @@ function _renderTodayContent() {
         </div>`).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
+  // אמצעי תשלום
+  const pays = dayData.payments || [];
+  const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
+  document.getElementById('today-payment-list').innerHTML = pays.length
+    ? pays.map(r => {
+        const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
+        const icon = r.PayMethod.includes('אשראי') || r.PayMethod.includes('כארד') || r.PayMethod.includes('קרדיט') ? '💳'
+                   : r.PayMethod.includes('מזומן') ? '💵'
+                   : r.PayMethod.includes('צ\'ק') || r.PayMethod.includes('צק') ? '📄'
+                   : r.PayMethod.includes('ביט') ? '📱'
+                   : r.PayMethod.includes('העברה') ? '🏦'
+                   : '💰';
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>${icon} ${r.PayMethod}</span>
+            <span style="font-weight:600;font-size:13px">${fmt(r.TotalAmount)}</span>
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:4px;margin-top:4px">
+            <div style="background:var(--navy);border-radius:4px;height:4px;width:${pct}%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${pct}%</div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
+
   // גרף
   _renderTodayChart();
 }
@@ -1086,7 +1115,7 @@ function compPreset(period, preset) {
 function _aggregatePeriod(fromDate, toDate) {
   const data = TODAY_DATA;
   const dates = Object.keys(data.by_date).filter(d => d >= fromDate && d <= toDate).sort();
-  const stores = {}, depts = {}, sellers = {};
+  const stores = {}, depts = {}, sellers = {}, payments = {};
   let totalSales = 0, totalTrans = 0;
   dates.forEach(date => {
     const day = data.by_date[date] || {};
@@ -1105,13 +1134,18 @@ function _aggregatePeriod(fromDate, toDate) {
       sellers[s.SellerName].sales += s.TotalSales;
       sellers[s.SellerName].trans += s.Transactions;
     });
+    (day.payments || []).forEach(p => {
+      if (!payments[p.PayMethod]) payments[p.PayMethod] = 0;
+      payments[p.PayMethod] += p.TotalAmount;
+    });
   });
   return {
     days: dates.length,
     totalSales, totalTrans,
-    stores: Object.entries(stores).map(([k,v]) => ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
-    depts:  Object.entries(depts).map(([k,v])  => ({name:k,sales:v})).sort((a,b)=>b.sales-a.sales),
-    sellers:Object.entries(sellers).map(([k,v])=> ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
+    stores:   Object.entries(stores).map(([k,v])   => ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
+    depts:    Object.entries(depts).map(([k,v])    => ({name:k,sales:v})).sort((a,b)=>b.sales-a.sales),
+    sellers:  Object.entries(sellers).map(([k,v])  => ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
+    payments: Object.entries(payments).map(([k,v]) => ({name:k,sales:v})).sort((a,b)=>b.sales-a.sales),
   };
 }
 
@@ -1190,6 +1224,7 @@ function renderComparison() {
       </div>
     </div>
     ${sectionHtml('לפי סניף', mkRows(A.stores, B.stores))}
+    ${sectionHtml('💳 אמצעי תשלום', mkRows(A.payments, B.payments))}
     ${sectionHtml('לפי מחלקה', mkRows(A.depts, B.depts))}
     ${sectionHtml('לפי מוכר', mkRows(A.sellers, B.sellers))}
   `;
