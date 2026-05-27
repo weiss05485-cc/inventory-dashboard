@@ -642,37 +642,105 @@ th.sort-desc::after{content:' ↓'}
     <div style="font-size:13px">הרץ את <strong>sync_today.bat</strong> כדי לטעון את נתוני המכירות</div>
   </div>
   <div id="today-content" style="display:none">
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>
-        <div id="today-date-label" style="font-size:18px;font-weight:700;color:var(--navy)"></div>
-        <div id="today-synced-label" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:0">
+      <button id="tab-single" onclick="switchTodayMode('single')"
+        style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:700;color:var(--navy);border-bottom:3px solid var(--navy);margin-bottom:-2px">
+        📅 יום בודד
+      </button>
+      <button id="tab-compare" onclick="switchTodayMode('compare')"
+        style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px">
+        📊 השוואה בין תקופות
+      </button>
+    </div>
+
+    <!-- ── SINGLE DAY PANEL ── -->
+    <div id="today-single-panel">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div id="today-date-label" style="font-size:18px;font-weight:700;color:var(--navy)"></div>
+          <div id="today-synced-label" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" onclick="todayNavDay(-1)" style="font-size:16px;padding:4px 12px">‹</button>
+          <input type="date" id="today-date-picker" onchange="todayPickDate(this.value)"
+            style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">
+          <button class="btn" onclick="todayNavDay(1)" style="font-size:16px;padding:4px 12px">›</button>
+          <button class="btn" onclick="reloadToday()" style="font-size:12px;padding:6px 14px">🔄 רענן</button>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn" onclick="todayNavDay(-1)" style="font-size:16px;padding:4px 12px">‹</button>
-        <input type="date" id="today-date-picker" onchange="todayPickDate(this.value)"
-          style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">
-        <button class="btn" onclick="todayNavDay(1)" style="font-size:16px;padding:4px 12px">›</button>
-        <button class="btn" onclick="reloadToday()" style="font-size:12px;padding:6px 14px">🔄 רענן</button>
+      <!-- Store cards -->
+      <div class="kpi-grid" id="today-store-cards" style="margin-bottom:20px"></div>
+      <!-- Dept + Seller -->
+      <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="section">
+          <div class="section-header"><h3>לפי מחלקה</h3></div>
+          <div id="today-dept-list" style="padding:4px 0"></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h3>לפי מוכר</h3></div>
+          <div id="today-seller-list" style="padding:4px 0"></div>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div class="section">
+        <div class="section-header" style="justify-content:space-between">
+          <h3 id="today-chart-label">60 ימים אחרונים</h3>
+          <select id="today-chart-range" onchange="_renderTodayChart()"
+            style="font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:6px">
+            <option value="30">30 יום</option>
+            <option value="60" selected>60 יום</option>
+            <option value="90">90 יום</option>
+            <option value="180">180 יום</option>
+            <option value="0">הכל</option>
+          </select>
+        </div>
+        <div class="chart-wrap"><canvas id="today-chart"></canvas></div>
       </div>
     </div>
-    <!-- Store cards -->
-    <div class="kpi-grid" id="today-store-cards" style="margin-bottom:20px"></div>
-    <!-- Dept + Seller -->
-    <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-      <div class="section">
-        <div class="section-header"><h3>לפי מחלקה</h3></div>
-        <div id="today-dept-list" style="padding:4px 0"></div>
+
+    <!-- ── COMPARE PANEL ── -->
+    <div id="today-compare-panel" style="display:none">
+      <div id="today-synced-label-cmp" style="font-size:11px;color:var(--muted);margin-bottom:14px"></div>
+      <!-- Period pickers -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="section" style="padding:16px">
+          <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:10px">📅 תקופה א</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--muted)">מ-</label>
+            <input type="date" id="comp-a-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <label style="font-size:12px;color:var(--muted)">עד-</label>
+            <input type="date" id="comp-a-to" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn" onclick="compPreset('a','week')" style="font-size:11px;padding:3px 10px">שבוע אחרון</button>
+            <button class="btn" onclick="compPreset('a','month')" style="font-size:11px;padding:3px 10px">חודש אחרון</button>
+            <button class="btn" onclick="compPreset('a','year')" style="font-size:11px;padding:3px 10px">שנה אחרונה</button>
+          </div>
+        </div>
+        <div class="section" style="padding:16px">
+          <div style="font-size:14px;font-weight:700;color:#7c3aed;margin-bottom:10px">📅 תקופה ב</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--muted)">מ-</label>
+            <input type="date" id="comp-b-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <label style="font-size:12px;color:var(--muted)">עד-</label>
+            <input type="date" id="comp-b-to" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn" onclick="compPreset('b','week')" style="font-size:11px;padding:3px 10px">שבוע אחרון</button>
+            <button class="btn" onclick="compPreset('b','month')" style="font-size:11px;padding:3px 10px">חודש אחרון</button>
+            <button class="btn" onclick="compPreset('b','year')" style="font-size:11px;padding:3px 10px">שנה אחרונה</button>
+          </div>
+        </div>
       </div>
-      <div class="section">
-        <div class="section-header"><h3>לפי מוכר</h3></div>
-        <div id="today-seller-list" style="padding:4px 0"></div>
+      <div style="text-align:center;margin-bottom:20px">
+        <button class="btn btn-primary" onclick="renderComparison()" style="font-size:15px;padding:10px 36px">
+          🔍 השווה תקופות
+        </button>
       </div>
-    </div>
-    <!-- 30-day chart -->
-    <div class="section">
-      <div class="section-header"><h3>30 ימים אחרונים</h3></div>
-      <div class="chart-wrap"><canvas id="today-chart"></canvas></div>
+      <!-- Results -->
+      <div id="comp-results"></div>
     </div>
   </div>
 </div>
@@ -830,6 +898,7 @@ function loadSearchData(cb) {
 let TODAY_DATA = null;
 let _todayChart = null;
 let _todaySelectedDate = null;
+let _todayMode = 'single';
 
 function renderToday() {
   document.getElementById('today-loading').style.display = 'block';
@@ -842,7 +911,15 @@ function renderToday() {
       _todaySelectedDate = data.today; // ברירת מחדל: היום
       document.getElementById('today-loading').style.display = 'none';
       document.getElementById('today-content').style.display = 'block';
-      _renderTodayContent();
+      // set date range limits on comparison pickers
+      const allDates = data.daily.map(d => d.SaleDate).sort();
+      const minD = allDates[0] || data.today;
+      ['comp-a-from','comp-a-to','comp-b-from','comp-b-to'].forEach(id => {
+        const el = document.getElementById(id);
+        el.min = minD; el.max = data.today;
+      });
+      document.getElementById('today-synced-label-cmp').textContent = 'עודכן: ' + data.synced;
+      switchTodayMode(_todayMode);
     })
     .catch(() => {
       document.getElementById('today-loading').style.display = 'none';
@@ -851,6 +928,24 @@ function renderToday() {
 }
 
 function reloadToday() { TODAY_DATA = null; renderToday(); }
+
+function switchTodayMode(mode) {
+  _todayMode = mode;
+  const tabS = document.getElementById('tab-single');
+  const tabC = document.getElementById('tab-compare');
+  const panelS = document.getElementById('today-single-panel');
+  const panelC = document.getElementById('today-compare-panel');
+  if (mode === 'single') {
+    tabS.style.color = 'var(--navy)'; tabS.style.borderBottomColor = 'var(--navy)'; tabS.style.fontWeight = '700';
+    tabC.style.color = 'var(--muted)'; tabC.style.borderBottomColor = 'transparent'; tabC.style.fontWeight = '600';
+    panelS.style.display = ''; panelC.style.display = 'none';
+    _renderTodayContent();
+  } else {
+    tabC.style.color = 'var(--navy)'; tabC.style.borderBottomColor = 'var(--navy)'; tabC.style.fontWeight = '700';
+    tabS.style.color = 'var(--muted)'; tabS.style.borderBottomColor = 'transparent'; tabS.style.fontWeight = '600';
+    panelS.style.display = 'none'; panelC.style.display = '';
+  }
+}
 
 function todayNavDay(delta) {
   if (!TODAY_DATA) return;
@@ -868,6 +963,7 @@ function todayPickDate(val) {
 }
 
 function _renderTodayContent() {
+  if (!TODAY_DATA) return;
   const data = TODAY_DATA;
   const selDate = _todaySelectedDate || data.today;
   const fmt = n => '₪' + parseFloat(n).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -930,15 +1026,28 @@ function _renderTodayContent() {
         </div>`).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // גרף 30 יום — מסמן את התאריך הנבחר
+  // גרף
+  _renderTodayChart();
+}
+
+function _renderTodayChart() {
+  if (!TODAY_DATA) return;
+  const data = TODAY_DATA;
+  const selDate = _todaySelectedDate || data.today;
+  const rangeEl = document.getElementById('today-chart-range');
+  const nDays = parseInt(rangeEl ? rangeEl.value : '60');
+  const slice = nDays > 0 ? data.daily.slice(-nDays) : data.daily;
+  const labelEl = document.getElementById('today-chart-label');
+  if (labelEl) labelEl.textContent = nDays > 0 ? nDays + ' ימים אחרונים' : 'כל ההיסטוריה';
+
   if (_todayChart) _todayChart.destroy();
   _todayChart = new Chart(document.getElementById('today-chart').getContext('2d'), {
     type: 'bar',
     data: {
-      labels: data.daily.map(x => x.SaleDate.slice(5).replace('-','/')),
+      labels: slice.map(x => x.SaleDate.slice(5).replace('-','/')),
       datasets: [{
-        data: data.daily.map(x => x.TotalSales),
-        backgroundColor: data.daily.map(x =>
+        data: slice.map(x => x.TotalSales),
+        backgroundColor: slice.map(x =>
           x.SaleDate === selDate ? 'rgba(22,163,74,.9)' : 'rgba(37,99,235,.55)'),
         borderRadius: 4
       }]
@@ -946,12 +1055,145 @@ function _renderTodayContent() {
     options: {
       responsive: true,
       onClick: (_,els) => {
-        if (els.length) { _todaySelectedDate = data.daily[els[0].index].SaleDate; _renderTodayContent(); }
+        if (els.length) { _todaySelectedDate = slice[els[0].index].SaleDate; _renderTodayContent(); }
       },
       plugins: { legend:{display:false}, tooltip:{callbacks:{label: c=>'₪'+c.parsed.y.toLocaleString()}} },
-      scales: { y: { ticks: { callback: v => '₪'+(v/1000).toFixed(0)+'K' } } }
+      scales: { y: { ticks: { callback: v => '₪'+(v/1000).toFixed(0)+'K' } },
+                x: { ticks: { maxRotation: 45, font: { size: nDays > 90 ? 9 : 11 } } } }
     }
   });
+}
+
+/* ── PERIOD COMPARISON ── */
+function compPreset(period, preset) {
+  const today = TODAY_DATA ? TODAY_DATA.today : new Date().toISOString().slice(0,10);
+  const d = new Date(today + 'T12:00:00');
+  let fromDate, toDate = today;
+  if (preset === 'week') {
+    const f = new Date(d); f.setDate(f.getDate() - 6);
+    fromDate = f.toISOString().slice(0,10);
+  } else if (preset === 'month') {
+    const f = new Date(d); f.setDate(f.getDate() - 29);
+    fromDate = f.toISOString().slice(0,10);
+  } else if (preset === 'year') {
+    const f = new Date(d); f.setFullYear(f.getFullYear() - 1); f.setDate(f.getDate() + 1);
+    fromDate = f.toISOString().slice(0,10);
+  }
+  document.getElementById('comp-' + period + '-from').value = fromDate;
+  document.getElementById('comp-' + period + '-to').value = toDate;
+}
+
+function _aggregatePeriod(fromDate, toDate) {
+  const data = TODAY_DATA;
+  const dates = Object.keys(data.by_date).filter(d => d >= fromDate && d <= toDate).sort();
+  const stores = {}, depts = {}, sellers = {};
+  let totalSales = 0, totalTrans = 0;
+  dates.forEach(date => {
+    const day = data.by_date[date] || {};
+    (day.stores || []).forEach(s => {
+      if (!stores[s.StoreName]) stores[s.StoreName] = {sales:0, trans:0};
+      stores[s.StoreName].sales += s.TotalSales;
+      stores[s.StoreName].trans += s.Transactions;
+      totalSales += s.TotalSales; totalTrans += s.Transactions;
+    });
+    (day.depts || []).forEach(r => {
+      if (!depts[r.Dept]) depts[r.Dept] = 0;
+      depts[r.Dept] += r.TotalSales;
+    });
+    (day.sellers || []).forEach(s => {
+      if (!sellers[s.SellerName]) sellers[s.SellerName] = {sales:0, trans:0};
+      sellers[s.SellerName].sales += s.TotalSales;
+      sellers[s.SellerName].trans += s.Transactions;
+    });
+  });
+  return {
+    days: dates.length,
+    totalSales, totalTrans,
+    stores: Object.entries(stores).map(([k,v]) => ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
+    depts:  Object.entries(depts).map(([k,v])  => ({name:k,sales:v})).sort((a,b)=>b.sales-a.sales),
+    sellers:Object.entries(sellers).map(([k,v])=> ({name:k,...v})).sort((a,b)=>b.sales-a.sales),
+  };
+}
+
+function renderComparison() {
+  if (!TODAY_DATA) return;
+  const aFrom = document.getElementById('comp-a-from').value;
+  const aTo   = document.getElementById('comp-a-to').value;
+  const bFrom = document.getElementById('comp-b-from').value;
+  const bTo   = document.getElementById('comp-b-to').value;
+  if (!aFrom || !aTo || !bFrom || !bTo) {
+    alert('יש למלא את כל 4 התאריכים'); return;
+  }
+  const A = _aggregatePeriod(aFrom, aTo);
+  const B = _aggregatePeriod(bFrom, bTo);
+  const fmt  = n => '₪' + parseFloat(n||0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
+  const diff = (a,b) => {
+    if (b === 0) return a > 0 ? '<span style="color:var(--green)">+∞%</span>' : '—';
+    const p = ((a - b) / Math.abs(b) * 100);
+    const col = p >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<span style="color:${col}">${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
+  };
+
+  // Helper: build comparison table rows
+  const mkRows = (aItems, bItems, keyA='name', valA='sales', valB='sales') => {
+    const keys = [...new Set([...aItems.map(x=>x[keyA]), ...bItems.map(x=>x[keyA])])];
+    const aMap = Object.fromEntries(aItems.map(x=>[x[keyA],x[valA]||0]));
+    const bMap = Object.fromEntries(bItems.map(x=>[x[keyA],x[valB]||0]));
+    return keys.map(k => {
+      const av = aMap[k]||0, bv = bMap[k]||0;
+      return `<tr>
+        <td style="padding:6px 8px">${k}</td>
+        <td style="padding:6px 8px;text-align:left;font-weight:600;color:var(--navy)">${fmt(av)}</td>
+        <td style="padding:6px 8px;text-align:left;font-weight:600;color:#7c3aed">${fmt(bv)}</td>
+        <td style="padding:6px 8px;text-align:left">${diff(av,bv)}</td>
+      </tr>`;
+    }).join('');
+  };
+
+  const tableStyle = `width:100%;border-collapse:collapse;font-size:13px`;
+  const thStyle = `padding:7px 8px;background:var(--border);font-weight:700;text-align:right`;
+  const sectionHtml = (title, rows) => `
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header"><h3>${title}</h3></div>
+      <div style="overflow-x:auto;padding:4px">
+        <table style="${tableStyle}">
+          <thead><tr>
+            <th style="${thStyle}">שם</th>
+            <th style="${thStyle};text-align:left;color:var(--navy)">📅 תקופה א</th>
+            <th style="${thStyle};text-align:left;color:#7c3aed">📅 תקופה ב</th>
+            <th style="${thStyle};text-align:left">שינוי</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  let html = `
+    <!-- Summary KPIs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+      <div class="kpi-card" style="border:2px solid var(--navy)">
+        <div class="kpi-label" style="color:var(--navy);font-weight:700">📅 תקופה א</div>
+        <div class="kpi-sub" style="font-size:11px;margin-bottom:4px">${aFrom} עד ${aTo} | ${A.days} ימים</div>
+        <div class="kpi-value" style="font-size:20px;color:var(--navy)">${fmt(A.totalSales)}</div>
+        <div class="kpi-sub">${A.totalTrans.toLocaleString()} עסקאות</div>
+      </div>
+      <div class="kpi-card" style="border:2px solid #7c3aed">
+        <div class="kpi-label" style="color:#7c3aed;font-weight:700">📅 תקופה ב</div>
+        <div class="kpi-sub" style="font-size:11px;margin-bottom:4px">${bFrom} עד ${bTo} | ${B.days} ימים</div>
+        <div class="kpi-value" style="font-size:20px;color:#7c3aed">${fmt(B.totalSales)}</div>
+        <div class="kpi-sub">${B.totalTrans.toLocaleString()} עסקאות</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" style="font-weight:700">📊 הפרש</div>
+        <div class="kpi-value" style="font-size:20px">${fmt(A.totalSales - B.totalSales)}</div>
+        <div class="kpi-sub">${diff(A.totalSales, B.totalSales)}</div>
+      </div>
+    </div>
+    ${sectionHtml('לפי סניף', mkRows(A.stores, B.stores))}
+    ${sectionHtml('לפי מחלקה', mkRows(A.depts, B.depts))}
+    ${sectionHtml('לפי מוכר', mkRows(A.sellers, B.sellers))}
+  `;
+  document.getElementById('comp-results').innerHTML = html;
 }
 
 /* ========== AUTH ========== */
