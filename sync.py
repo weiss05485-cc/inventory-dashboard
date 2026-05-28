@@ -169,7 +169,7 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS OnHand,
             CAST(ist.ReorderPoint AS DECIMAL(18,1)) AS ReorderPoint,
-            CAST(ISNULL(ist.AVGCost, 0) / 1.18 AS DECIMAL(18,2)) AS Price,
+            CAST(ISNULL(NULLIF(ist.Price, 0), ISNULL(ist.AVGCost, 0)) AS DECIMAL(18,2)) AS Price,
             d.Name AS Department
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
@@ -216,7 +216,7 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS Qty,
             d.Name AS Department,
-            CAST(ISNULL(ist.AVGCost, 0) / 1.18 AS DECIMAL(18,2)) AS Price
+            CAST(ISNULL(NULLIF(ist.Price, 0), ISNULL(ist.AVGCost, 0)) AS DECIMAL(18,2)) AS Price
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
