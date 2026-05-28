@@ -239,9 +239,25 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 #logout-btn{display:none;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:11px;cursor:pointer}
 #logout-btn:hover{background:rgba(255,255,255,.25)}
 body.emp-mode .price-col{display:none!important}
+
+/* ORDER FLOAT BUTTON */
+#order-float-btn{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
+  border-radius:50px;padding:14px 32px;font-size:15px;font-weight:700;
+  cursor:pointer;display:none;align-items:center;gap:10px;
+  box-shadow:0 6px 24px rgba(16,185,129,.45);z-index:1000;
+  font-family:'Rubik',sans-serif;white-space:nowrap;transition:opacity .2s,transform .2s}
+#order-float-btn:hover{opacity:.92;transform:translateX(-50%) scale(1.03)}
+#order-count{background:rgba(255,255,255,.3);border-radius:20px;padding:2px 10px;font-size:13px}
+.order-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
 </style>
 </head>
 <body>
+
+<!-- ORDER FLOAT BUTTON -->
+<button id="order-float-btn" onclick="sendOrder()">
+  📦 שלח הזמנה <span id="order-count">0</span> פריטים
+</button>
 
 <!-- LOGIN OVERLAY -->
 <div id="login-overlay">
@@ -330,6 +346,7 @@ body.emp-mode .price-col{display:none!important}
     <div class="table-wrap">
       <table id="search-table">
         <thead><tr>
+          <th style="width:36px"></th>
           <th onclick="sortSearch('b')">ברקוד</th>
           <th onclick="sortSearch('n')">שם מוצר</th>
           <th>פרטי ברקוד</th>
@@ -1508,6 +1525,13 @@ function renderSearchResults() {
     }).join('');
 
     return `<tr>
+      <td><input type="checkbox" class="order-check" onchange="updateOrderBtn()"
+        data-bc="${item.b||''}"
+        data-name="${item.n||''}"
+        data-qty="${item.q||0}"
+        data-size="${item._parsed.size||''}"
+        data-season="${item._parsed.season||''}"
+        data-year="${item._parsed.year||''}"></td>
       <td style="font-size:12px;color:var(--muted);white-space:nowrap">
         ${item.b || '—'}
         ${bcChips(item.b)}
@@ -1526,7 +1550,7 @@ function renderSearchResults() {
   }).join('');
 
   if (items.length > MAX) {
-    tbody.innerHTML += `<tr><td colspan="7" style="text-align:center;color:var(--muted);font-size:12px;padding:12px">
+    tbody.innerHTML += `<tr><td colspan="8" style="text-align:center;color:var(--muted);font-size:12px;padding:12px">
       מוצגים ${MAX} ראשונים מתוך ${items.length} — צמצם את החיפוש לראות יותר
     </td></tr>`;
   }
@@ -2855,6 +2879,42 @@ function downloadCSV(rows, filename) {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = filename;
   a.click();
+}
+
+/* ========== ORDER BY EMAIL ========== */
+function updateOrderBtn() {
+  const checked = document.querySelectorAll('.order-check:checked');
+  const btn = document.getElementById('order-float-btn');
+  btn.style.display = checked.length > 0 ? 'flex' : 'none';
+  document.getElementById('order-count').textContent = checked.length;
+}
+
+function sendOrder() {
+  const checked = document.querySelectorAll('.order-check:checked');
+  if (!checked.length) return;
+
+  const today = new Date().toLocaleDateString('he-IL');
+  const lines = Array.from(checked).map((cb, i) => {
+    const name   = cb.dataset.name;
+    const bc     = cb.dataset.bc;
+    const size   = cb.dataset.size   ? ' מידה ' + cb.dataset.size   : '';
+    const season = cb.dataset.season ? ' ' + cb.dataset.season + ' ' + cb.dataset.year : '';
+    const qty    = cb.dataset.qty;
+    return `${i+1}. ${name}${size}${season} | מלאי נוכחי: ${qty} | ברקוד: ${bc}`;
+  });
+
+  const subject = encodeURIComponent('בקשת הזמנה — ' + today);
+  const body    = encodeURIComponent(
+    'שלום,\n\nבקשת הזמנה עבור הפריטים הבאים:\n\n' +
+    lines.join('\n') +
+    '\n\nתאריך: ' + today + '\n\nתודה'
+  );
+
+  window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
+
+  // uncheck after sending
+  checked.forEach(cb => cb.checked = false);
+  updateOrderBtn();
 }
 </script>
 </body>
