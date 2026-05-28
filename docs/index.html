@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>חסידים סנטר | דשבורד מלאי</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -331,86 +330,22 @@ body.emp-mode .price-col{display:none!important}
   </div>
 </div>
 
-<!-- ORDER DONE MODAL (step 2: PDF + email) -->
+<!-- ORDER DONE MODAL -->
 <div id="order-done-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:20px;padding:32px;width:460px;max-width:95vw;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
-    <div style="font-size:48px;margin-bottom:12px">✅</div>
+  <div style="background:#fff;border-radius:20px;padding:32px;width:400px;max-width:95vw;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:52px;margin-bottom:12px">✅</div>
     <h3 style="margin:0 0 8px;color:var(--primary);font-size:18px">ההזמנה הוכנה!</h3>
-
-    <!-- PDF status -->
-    <div id="done-pdf-status" style="display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:10px 16px;background:#ecfdf5;border-radius:10px;font-size:13px;font-weight:600;color:#065f46">
+    <div style="margin:14px 0;padding:12px 16px;background:#ecfdf5;border-radius:10px;font-size:13px;font-weight:600;color:#065f46">
       📥 קובץ PDF יורד אוטומטית למחשב שלך
     </div>
-
-    <!-- Email status -->
-    <div id="done-email-status" style="display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600">
-    </div>
-
-    <div style="display:flex;gap:10px;margin-top:18px;justify-content:center;flex-wrap:wrap">
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:center">
       <button onclick="document.getElementById('order-done-modal').style.display='none'"
-        style="padding:10px 20px;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px">
+        style="padding:10px 24px;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px">
         סגור
       </button>
-      <a id="order-gmail-link" href="#" target="_blank" id="done-gmail-btn"
-        style="padding:10px 22px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:10px;text-decoration:none;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:6px"
-        onclick="document.getElementById('order-done-modal').style.display='none'">
-        ✉️ פתח Gmail
-      </a>
       <button onclick="showPage('orders');document.getElementById('order-done-modal').style.display='none'"
-        style="padding:10px 20px;border:none;border-radius:10px;background:var(--bg);cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px;font-weight:600">
-        📋 ראה הזמנות
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- EMAIL SETTINGS MODAL (manager only) -->
-<div id="email-settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:20px;padding:28px 30px;width:500px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.28)">
-    <h3 style="margin:0 0 4px;color:var(--primary);font-size:18px">⚙️ הגדרות שליחת מייל</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:16px">שליחת מיילים אוטומטית דרך EmailJS (חינמי עד 200 מיילים/חודש)</p>
-
-    <!-- Setup instructions -->
-    <details style="background:#f0f4ff;border-radius:10px;padding:12px 14px;margin-bottom:16px;cursor:pointer">
-      <summary style="font-size:13px;font-weight:700;color:var(--primary);list-style:none">📖 איך להגדיר — לחץ לפתיחה</summary>
-      <ol style="margin:10px 0 0 0;padding-right:18px;font-size:12px;line-height:1.8;color:var(--text)">
-        <li>היכנס ל-<strong>emailjs.com</strong> וצור חשבון חינמי</li>
-        <li>לחץ <strong>Add New Service</strong> → בחר Gmail → אשר</li>
-        <li>לחץ <strong>Email Templates</strong> → <strong>Create New Template</strong></li>
-        <li>בתבנית: To Email = <code style="background:#e8ecf4;padding:1px 5px;border-radius:4px">{{to_email}}</code>, Subject = <code style="background:#e8ecf4;padding:1px 5px;border-radius:4px">{{subject}}</code></li>
-        <li>בגוף המייל: <code style="background:#e8ecf4;padding:1px 5px;border-radius:4px">{{message}}</code></li>
-        <li>שמור את התבנית</li>
-        <li>לחץ <strong>Account</strong> → העתק את <strong>Public Key</strong></li>
-        <li>מלא את הפרטים כאן למטה ולחץ שמור</li>
-      </ol>
-    </details>
-
-    <label class="order-form-label">מייל נמען (לאן ישלח ההזמנה)</label>
-    <input class="order-form-input" id="es-recipient" type="email" placeholder="example@gmail.com">
-
-    <label class="order-form-label">EmailJS Public Key</label>
-    <input class="order-form-input" id="es-pubkey" type="text" placeholder="xxxxxxxxxxxxxxx">
-
-    <label class="order-form-label">Service ID</label>
-    <input class="order-form-input" id="es-service" type="text" placeholder="service_xxxxxxx">
-
-    <label class="order-form-label">Template ID</label>
-    <input class="order-form-input" id="es-template" type="text" placeholder="template_xxxxxxx">
-
-    <div id="es-status" style="font-size:12px;margin-top:10px;min-height:16px;color:var(--green)"></div>
-
-    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end">
-      <button onclick="document.getElementById('email-settings-modal').style.display='none'"
-        style="padding:10px 20px;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px">
-        ביטול
-      </button>
-      <button onclick="testEmailSettings()"
-        style="padding:10px 18px;border:none;border-radius:10px;background:var(--bg);cursor:pointer;font-family:'Rubik',sans-serif;font-size:13px;font-weight:600">
-        🧪 בדוק חיבור
-      </button>
-      <button onclick="saveEmailSettings()"
         style="padding:10px 24px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700">
-        💾 שמור
+        📋 ראה הזמנות
       </button>
     </div>
   </div>
@@ -441,7 +376,6 @@ body.emp-mode .price-col{display:none!important}
   <div class="hdr-right">
     <span id="role-label"></span>
     <button id="logout-btn" onclick="doLogout()">יציאה</button>
-    <button id="email-settings-btn" onclick="openEmailSettings()" style="display:none;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'Rubik',sans-serif;font-weight:600;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">✉️ הגדרות מייל</button>
     <button onclick="triggerSync()" id="sync-btn" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;font-family:'Rubik',sans-serif;font-weight:600;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">🔄 עדכן עכשיו</button>
     <span id="last-updated">טוען...</span>
   </div>
@@ -1575,7 +1509,6 @@ function applyRole(role, userInfo) {
   document.getElementById('role-label').textContent = '👤 ' + displayName;
   document.getElementById('logout-btn').style.display = 'inline-block';
   document.getElementById('sync-btn').style.display = isMgmt ? '' : 'none';
-  document.getElementById('email-settings-btn').style.display = isMgmt ? 'inline-block' : 'none';
   document.body.classList.toggle('emp-mode', !isMgmt);
   const clearBtn = document.getElementById('clear-orders-btn');
   if (clearBtn) clearBtn.style.display = isMgmt ? 'inline-block' : 'none';
@@ -3240,7 +3173,7 @@ function closeOrderForm() {
   document.getElementById('order-form-modal').style.display = 'none';
 }
 
-// --- step 2: generate PDF + send email + save order ---
+// --- step 2: generate PDF + save order ---
 async function confirmOrder() {
   const userInfo  = JSON.parse(localStorage.getItem('cc_user') || '{}');
   const empName   = userInfo.display || '—';
@@ -3278,33 +3211,6 @@ async function confirmOrder() {
   // ── Generate PDF ──
   generateOrderPDF(order);
 
-  // ── Send Email ──
-  const emailSentEl = document.getElementById('done-email-status');
-  const emailSettings = getEmailSettings();
-  const hasEmailConfig = emailSettings.publicKey && emailSettings.serviceId && emailSettings.templateId && emailSettings.recipient;
-
-  if (hasEmailConfig) {
-    emailSentEl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:10px 16px;background:#eff6ff;border-radius:10px;font-size:13px;font-weight:600;color:#1d4ed8';
-    emailSentEl.textContent = '⏳ שולח מייל...';
-    const sent = await sendOrderEmail(order, emailSettings);
-    if (sent) {
-      emailSentEl.style.background = '#ecfdf5';
-      emailSentEl.style.color = '#065f46';
-      emailSentEl.textContent = '✅ המייל נשלח אוטומטית אל ' + emailSettings.recipient;
-      document.getElementById('order-gmail-link').style.display = 'none';
-    } else {
-      emailSentEl.style.background = '#fef3c7';
-      emailSentEl.style.color = '#b45309';
-      emailSentEl.textContent = '⚠️ שגיאה בשליחה — פתח Gmail ידנית';
-      setGmailLink(order, dateStr, totalQty);
-    }
-  } else {
-    emailSentEl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:10px 16px;background:#fef3c7;border-radius:10px;font-size:13px;font-weight:600;color:#b45309';
-    emailSentEl.textContent = '📧 מייל לא הוגדר — פתח Gmail ידנית';
-    setGmailLink(order, dateStr, totalQty);
-    document.getElementById('order-gmail-link').style.display = 'inline-flex';
-  }
-
   // close form, clear checkboxes, show done modal
   closeOrderForm();
   document.querySelectorAll('.order-check:checked').forEach(cb => {
@@ -3316,42 +3222,27 @@ async function confirmOrder() {
   document.getElementById('order-done-modal').style.display = 'flex';
 }
 
-function setGmailLink(order, dateStr, totalQty) {
-  const gmailBody = encodeURIComponent(
-    `שלום,\n\nבקשת הזמנה:\n\n` +
-    `עובד: ${order.employee}\nמסניף: ${order.fromStore}\nלכבוד: ${order.toStore}\n` +
-    (order.notes ? `הערות: ${order.notes}\n` : '') +
-    `\nפריטים:\n` +
-    order.items.map((it,i) =>
-      `${i+1}. ${it.name}${it.size?' מידה '+it.size:''} | ברקוד: ${it.bc} | כמות: ${it.orderQty}`
-    ).join('\n') +
-    `\n\nסה"כ: ${totalQty} יחידות\nתאריך: ${dateStr}\n\nתודה`
-  );
-  const gmailSubject = encodeURIComponent(`בקשת הזמנה — ${order.fromStore} → ${order.toStore} — ${dateStr}`);
-  document.getElementById('order-gmail-link').href =
-    `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${gmailSubject}&body=${gmailBody}`;
-}
-
 /* ========== PDF GENERATION ========== */
 function generateOrderPDF(order) {
   const totalQty = order.items.reduce((s, it) => s + it.orderQty, 0);
   const dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/\s/g,'_');
   const filename = `הזמנה_${order.fromStore}_${dateTag}.pdf`;
 
-  const itemRows = order.items.map((it, i) =>
+  const sortedItems = [...order.items].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+  const itemRows = sortedItems.map((it, i) =>
     `<tr style="background:${i%2===1?'#f8f9fc':'#fff'}">
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${i+1}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;font-weight:600">${it.name}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center">${it.size||'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:11px">${it.bc||'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.season?(it.season+' '+it.year):'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.stock}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:15px">${it.orderQty}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${i+1}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;font-weight:600">${it.name}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center">${it.size||'—'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:10px">${it.bc||'—'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.season?(it.season+' '+it.year):'—'}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.stock}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:14px">${it.orderQty}</td>
     </tr>`
   ).join('');
 
   const el = document.createElement('div');
-  el.style.cssText = 'width:750px;direction:rtl;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e2233;background:#fff;padding:28px 32px;box-sizing:border-box';
+  el.style.cssText = 'width:620px;direction:rtl;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1e2233;background:#fff;padding:24px 28px;box-sizing:border-box';
   el.innerHTML = `
     <!-- header -->
     <table style="width:100%;border-collapse:collapse;padding-bottom:16px;border-bottom:3px solid #4f46e5;margin-bottom:20px">
@@ -3434,89 +3325,6 @@ function generateOrderPDF(order) {
   }).from(el).save().then(() => {
     document.body.removeChild(el);
   });
-}
-
-/* ========== EMAIL SETTINGS ========== */
-function getEmailSettings() {
-  return JSON.parse(localStorage.getItem('cc_email_settings') || '{}');
-}
-
-function openEmailSettings() {
-  const s = getEmailSettings();
-  document.getElementById('es-recipient').value = s.recipient  || '';
-  document.getElementById('es-pubkey').value    = s.publicKey  || '';
-  document.getElementById('es-service').value   = s.serviceId  || '';
-  document.getElementById('es-template').value  = s.templateId || '';
-  document.getElementById('es-status').textContent = '';
-  document.getElementById('email-settings-modal').style.display = 'flex';
-}
-
-function saveEmailSettings() {
-  const s = {
-    recipient:  document.getElementById('es-recipient').value.trim(),
-    publicKey:  document.getElementById('es-pubkey').value.trim(),
-    serviceId:  document.getElementById('es-service').value.trim(),
-    templateId: document.getElementById('es-template').value.trim(),
-  };
-  localStorage.setItem('cc_email_settings', JSON.stringify(s));
-  const el = document.getElementById('es-status');
-  el.style.color = 'var(--green)';
-  el.textContent = '✅ הגדרות נשמרו בהצלחה';
-  setTimeout(() => { document.getElementById('email-settings-modal').style.display = 'none'; }, 900);
-}
-
-async function testEmailSettings() {
-  const s = {
-    recipient:  document.getElementById('es-recipient').value.trim(),
-    publicKey:  document.getElementById('es-pubkey').value.trim(),
-    serviceId:  document.getElementById('es-service').value.trim(),
-    templateId: document.getElementById('es-template').value.trim(),
-  };
-  const el = document.getElementById('es-status');
-  if (!s.publicKey || !s.serviceId || !s.templateId || !s.recipient) {
-    el.style.color = 'var(--red)';
-    el.textContent = '❌ נא למלא את כל השדות';
-    return;
-  }
-  el.style.color = 'var(--blue)';
-  el.textContent = '⏳ בודק חיבור...';
-  try {
-    emailjs.init(s.publicKey);
-    await emailjs.send(s.serviceId, s.templateId, {
-      to_email: s.recipient,
-      subject:  'בדיקת חיבור — חסידים סנטר',
-      message:  'החיבור עובד! המערכת תשלח הזמנות אוטומטית לכתובת זו.',
-    });
-    el.style.color = 'var(--green)';
-    el.textContent = '✅ החיבור עובד! מייל ניסיון נשלח';
-  } catch(e) {
-    el.style.color = 'var(--red)';
-    el.textContent = '❌ שגיאה: ' + (e.text || e.message || 'בדוק את הפרטים');
-  }
-}
-
-async function sendOrderEmail(order, settings) {
-  try {
-    emailjs.init(settings.publicKey);
-    const totalQty = order.items.reduce((s, it) => s + it.orderQty, 0);
-    const itemsText = order.items.map((it, i) =>
-      `${i+1}. ${it.name}${it.size ? ' / מידה ' + it.size : ''} | ברקוד: ${it.bc || '—'} | כמות: ${it.orderQty}`
-    ).join('\n');
-
-    await emailjs.send(settings.serviceId, settings.templateId, {
-      to_email:   settings.recipient,
-      subject:    `בקשת הזמנה — ${order.fromStore} → ${order.toStore} — ${order.dateStr}`,
-      message:
-        `שלום,\n\nהתקבלה בקשת הזמנה:\n\n` +
-        `עובד: ${order.employee}\nמסניף: ${order.fromStore}\nלכבוד: ${order.toStore}\n` +
-        (order.notes ? `הערות: ${order.notes}\n` : '') +
-        `\nפריטים:\n${itemsText}\n\nסה"כ: ${totalQty} יחידות\nתאריך: ${order.dateStr}\n\nתודה`,
-    });
-    return true;
-  } catch(e) {
-    console.error('EmailJS error:', e);
-    return false;
-  }
 }
 
 /* ========== ORDERS PAGE ========== */
