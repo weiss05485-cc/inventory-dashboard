@@ -465,6 +465,7 @@ body.emp-mode .price-col{display:none!important}
         <div class="table-wrap">
           <table id="shortage-table">
             <thead><tr>
+              <th style="width:36px"></th>
               <th>שם מוצר</th>
               <th>ברקוד</th>
               <th>חסר בסניף</th>
@@ -1950,7 +1951,12 @@ function renderShortageRows(items, store, otherStores) {
       ? `<span class="tag red">אפס</span>`
       : `<span class="tag orange">${item._myQty}</span>`;
 
+    const cbBc   = item._type==='regular' ? (item.b||'') : item._type==='chalk' ? (item.base||'') : '';
+    const cbName = item._type==='regular' ? (item.n||'') : item._type==='chalk' ? (item.name||'') : (item.modelName||'');
     return `<tr>
+      <td><input type="checkbox" class="order-check" onchange="updateOrderBtn()"
+        data-bc="${cbBc}" data-name="${cbName}"
+        data-qty="${item._myQty||0}" data-size="" data-season="" data-year=""></td>
       <td>${nameCell}</td>
       <td>${bcCell}</td>
       <td>${myTag}</td>
@@ -1959,7 +1965,7 @@ function renderShortageRows(items, store, otherStores) {
   }).join('');
 
   if (filtered.length > 300) {
-    tbody.innerHTML += `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
+    tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:10px">
       מוצגים 300 ראשונים מתוך ${filtered.length} — השתמש בסינון דגם לצמצום
     </td></tr>`;
   }
