@@ -2,7 +2,7 @@ name: Sync Sales Data
 
 on:
   schedule:
-    - cron: '0 * * * *'   # כל שעה עגולה
+    - cron: '*/5 * * * *'  # כל 5 דקות
   workflow_dispatch:        # כפתור הפעלה ידנית
 
 permissions:
