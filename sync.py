@@ -320,17 +320,16 @@ def main():
                 filled += 1
     print(f"  Price fill from barcode model: {filled} items filled")
 
-    # --- מילוי מחירים חסרים לפי מחירון ידני (לפי שם מוצר) ---
+    # --- מחירון ידני גובר על הכל (לפי שם מוצר) ---
     filled_pl = 0
     for item in item_map.values():
-        if item['p'] == 0:
-            name = item['n']
-            for pl_name, pl_price in PRICE_LIST:
-                if pl_name in name:
-                    item['p'] = pl_price
-                    filled_pl += 1
-                    break
-    print(f"  Price fill from price list:   {filled_pl} items filled")
+        name = item['n']
+        for pl_name, pl_price in PRICE_LIST:
+            if pl_name in name:
+                item['p'] = pl_price
+                filled_pl += 1
+                break
+    print(f"  Price override from price list: {filled_pl} items")
 
     search_items = list(item_map.values())
 
