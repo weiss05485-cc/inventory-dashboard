@@ -1,25 +1,35 @@
-import pyodbc
 import json
 import os
 import re
 from datetime import datetime
 from decimal import Decimal
-from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
+
+# credentials מ-config.py (מקומי) או environment variables (GitHub Actions)
+try:
+    from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
+except ImportError:
+    DB_SERVER   = os.environ['DB_SERVER']
+    DB_NAME     = os.environ['DB_NAME']
+    DB_USER     = os.environ['DB_USER']
+    DB_PASSWORD = os.environ['DB_PASSWORD']
+
+# חיבור: pyodbc על Windows, pymssql על Linux (GitHub Actions)
+try:
+    import pyodbc
+    CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
+                f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
+    _conn = pyodbc.connect(CONN_STR, timeout=15)
+except Exception:
+    import pymssql
+    _conn = pymssql.connect(server=DB_SERVER, user=DB_USER,
+                            password=DB_PASSWORD, database=DB_NAME,
+                            timeout=15, login_timeout=15)
 
 BARCODE_RE = re.compile(r'^(\d{2})([A-Za-z]+)(\d{2})([A-Za-z0-9]{2})(.+)$', re.IGNORECASE)
 
 def extract_size(barcode):
     m = BARCODE_RE.match(str(barcode or '').strip())
     return m.group(5) if m else ''
-
-CONN_STR = (
-    f"DRIVER={{SQL Server}};"
-    f"SERVER={DB_SERVER};"
-    f"DATABASE={DB_NAME};"
-    f"UID={DB_USER};"
-    f"PWD={DB_PASSWORD};"
-    f"Connection Timeout=15;"
-)
 
 def q(cur, sql, params=None):
     cur.execute(sql, params or [])
@@ -122,7 +132,7 @@ ONHAND_CTE = """
 
 def main():
     print("Connecting to SQL Server...")
-    conn = pyodbc.connect(CONN_STR, timeout=15)
+    conn = _conn
     cur = conn.cursor()
 
     print("  Store summary...")
