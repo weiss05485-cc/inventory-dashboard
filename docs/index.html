@@ -3281,7 +3281,7 @@ function generateOrderPDF(order) {
         </td>
         <td style="text-align:left;vertical-align:top">
           <div style="font-size:11px;color:#8492a6">תאריך:</div>
-          <div style="font-size:15px;font-weight:800">${order.dateStr}</div>
+          <div style="font-size:15px;font-weight:800" dir="ltr">${order.dateStr}</div>
         </td>
       </tr>
     </table>
@@ -3335,7 +3335,7 @@ function generateOrderPDF(order) {
 
     <!-- footer -->
     <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e8ecf4;text-align:center;font-size:10px;color:#8492a6">
-      חסידים סנטר | מערכת ניהול מלאי | ${order.dateStr}
+      חסידים סנטר | מערכת ניהול מלאי | <span dir="ltr">${order.dateStr}</span>
     </div>`;
 
   // html2pdf wraps el in its own off-screen container (left:-9999px) automatically.
@@ -3347,7 +3347,7 @@ function generateOrderPDF(order) {
     margin:      [8, 8, 8, 8],
     filename:    filename,
     image:       { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(el).save().then(() => {
     // html2pdf moved el into its own container — remove the container
