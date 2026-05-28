@@ -418,8 +418,14 @@ body.emp-mode .price-col{display:none!important}
 <div id="login-overlay">
   <div id="login-box">
     <div id="login-logo">חסידים סנטר</div>
-    <div id="login-sub">דשבורד מלאי — הזן סיסמה</div>
-    <input type="password" id="login-pass" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
+    <div id="login-sub">דשבורד מלאי — הכנס פרטי ארנט</div>
+    <input type="text" id="login-user" placeholder="שם משתמש" autocomplete="username"
+      onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"
+      style="width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:12px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;direction:ltr;font-family:'Rubik',sans-serif;transition:border-color .2s,box-shadow .2s"
+      onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(79,70,229,.15)'"
+      onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+    <input type="password" id="login-pass" placeholder="סיסמה" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doLogin()">
     <button id="login-btn" onclick="doLogin()">כניסה</button>
     <div id="login-error"></div>
   </div>
@@ -1483,41 +1489,79 @@ function renderComparison() {
 }
 
 /* ========== AUTH ========== */
-const PASS_MGMT = '4125';
-const PASS_EMP  = '1234';
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
 const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today','orders'];
+
+// ── Users from Arnet (users.json) ──
+let _usersCache = null;
+async function loadUsers() {
+  if (_usersCache) return _usersCache;
+  try {
+    const r = await fetch('users.json?v=' + Date.now());
+    _usersCache = await r.json();
+  } catch(e) { _usersCache = []; }
+  return _usersCache;
+}
+
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 function checkAuth() {
   const role = localStorage.getItem('cc_role');
   if (!role) {
     document.getElementById('login-overlay').style.display = 'flex';
+    loadUsers(); // preload in background
+    setTimeout(() => document.getElementById('login-user').focus(), 100);
   } else {
     document.getElementById('login-overlay').style.display = 'none';
-    applyRole(role);
+    const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
+    applyRole(role, userInfo);
     showPage(role === 'emp' ? 'search' : 'overview');
   }
 }
 
-function doLogin() {
-  const pass = document.getElementById('login-pass').value.trim();
-  let role = null;
-  if (pass === PASS_MGMT) role = 'mgmt';
-  else if (pass === PASS_EMP) role = 'emp';
-  if (!role) {
-    document.getElementById('login-error').textContent = 'סיסמה שגויה, נסה שוב';
+async function doLogin() {
+  const uInput = document.getElementById('login-user').value.trim();
+  const pInput = document.getElementById('login-pass').value.trim();
+  const errEl  = document.getElementById('login-error');
+  const btn    = document.getElementById('login-btn');
+
+  if (!uInput || !pInput) { errEl.textContent = 'הזן שם משתמש וסיסמה'; return; }
+
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  const users = await loadUsers();
+  const hash  = await sha256hex(pInput);
+
+  // match by UserName or UserNo
+  const user = users.find(u =>
+    (u.user === uInput || u.no === uInput) && u.hash === hash
+  );
+
+  btn.textContent = 'כניסה';
+  btn.disabled = false;
+
+  if (!user) {
+    errEl.textContent = 'שם משתמש או סיסמה שגויים';
     document.getElementById('login-pass').value = '';
     document.getElementById('login-pass').focus();
     return;
   }
-  localStorage.setItem('cc_role', role);
+
+  const userInfo = { no: user.no, display: user.display, store: user.store };
+  localStorage.setItem('cc_role', user.role);
+  localStorage.setItem('cc_user', JSON.stringify(userInfo));
   document.getElementById('login-overlay').style.display = 'none';
-  applyRole(role);
-  showPage(role === 'emp' ? 'search' : 'overview');
+  applyRole(user.role, userInfo);
+  showPage(user.role === 'emp' ? 'search' : 'overview');
 }
 
-function applyRole(role) {
-  const isMgmt = role === 'mgmt';
+function applyRole(role, userInfo) {
+  userInfo = userInfo || JSON.parse(localStorage.getItem('cc_user') || '{}');
+  const isMgmt   = role === 'mgmt';
   const navBtns  = document.querySelectorAll('.nav-btn');
   const bnavBtns = document.querySelectorAll('.bnav-btn');
   ALL_PAGES.forEach((id, i) => {
@@ -1525,13 +1569,12 @@ function applyRole(role) {
     navBtns[i].style.display  = visible ? '' : 'none';
     bnavBtns[i].style.display = visible ? '' : 'none';
   });
-  document.getElementById('role-label').textContent = isMgmt ? '👤 מנהל' : '👤 עובד';
+  const displayName = userInfo.display || (isMgmt ? 'מנהל' : 'עובד');
+  document.getElementById('role-label').textContent = '👤 ' + displayName;
   document.getElementById('logout-btn').style.display = 'inline-block';
-  // hide sync button, email settings and prices from employees
   document.getElementById('sync-btn').style.display = isMgmt ? '' : 'none';
   document.getElementById('email-settings-btn').style.display = isMgmt ? 'inline-block' : 'none';
   document.body.classList.toggle('emp-mode', !isMgmt);
-  // manager-only: clear button + actions column in orders page
   const clearBtn = document.getElementById('clear-orders-btn');
   if (clearBtn) clearBtn.style.display = isMgmt ? 'inline-block' : 'none';
   const actTh = document.getElementById('orders-actions-th');
@@ -1540,6 +1583,7 @@ function applyRole(role) {
 
 function doLogout() {
   localStorage.removeItem('cc_role');
+  localStorage.removeItem('cc_user');
   location.reload();
 }
 
@@ -3173,6 +3217,17 @@ function sendOrder() {
       </tr>`;
     }).join('') +
     '</tbody></table>';
+
+  // Pre-fill from logged-in user
+  const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
+  if (userInfo.display) {
+    const nameEl = document.getElementById('order-emp-name');
+    if (!nameEl.value) nameEl.value = userInfo.display;
+  }
+  if (userInfo.store) {
+    const storeEl = document.getElementById('order-from-store');
+    if (!storeEl.value) storeEl.value = userInfo.store;
+  }
 
   document.getElementById('order-form-error').textContent = '';
   document.getElementById('order-form-modal').style.display = 'flex';

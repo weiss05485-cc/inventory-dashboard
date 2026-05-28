@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -443,6 +444,47 @@ def main():
         for (dept, group, name, mc, size), data in report_map.items()
     ]
 
+    # ── Users (from Arnet) ──
+    print("  Users...")
+    STORE_CODE_MAP = {1: 'בני ברק', 2: 'ירושלים', 4: 'מחסן'}
+    cur.execute("""
+        SELECT
+            u.UserNo,
+            u.UserName,
+            u.Password,
+            LTRIM(RTRIM(ISNULL(u.UserFName,'') + ' ' + ISNULL(u.UserLName,''))) AS FullName,
+            CAST(u.IsSuperAdmin AS INT) AS IsAdmin,
+            u.RoleID,
+            (SELECT TOP 1 st2.Code
+             FROM UserStore us2
+             JOIN Store st2 ON us2.StoreID = st2.StoreID
+             WHERE us2.UserID = u.UserId
+             ORDER BY st2.Code) AS StoreCode
+        FROM Users u
+        WHERE u.IsUser = 1
+        ORDER BY u.UserNo
+    """)
+    users_list = []
+    for row in cur.fetchall():
+        user_no, user_name, password, full_name, is_admin, role_id, store_code = row
+        display  = (full_name or '').strip() or str(user_name or user_no or '')
+        pwd_str  = str(password or '').strip()
+        pwd_hash = hashlib.sha256(pwd_str.encode('utf-8')).hexdigest()
+        role     = 'mgmt' if is_admin else 'emp'
+        try:
+            sc = int(store_code) if store_code is not None else 0
+        except (ValueError, TypeError):
+            sc = 0
+        store = STORE_CODE_MAP.get(sc, '')
+        users_list.append({
+            'no':      str(user_no  or '').strip(),
+            'display': display,
+            'user':    str(user_name or '').strip(),
+            'hash':    pwd_hash,
+            'role':    role,
+            'store':   store,
+        })
+
     conn.close()
 
     os.makedirs("docs", exist_ok=True)
@@ -464,6 +506,9 @@ def main():
 
     with open("docs/sales.json", "w", encoding="utf-8") as f:
         json.dump(sales_items, f, ensure_ascii=False, default=serial)
+
+    with open("docs/users.json", "w", encoding="utf-8") as f:
+        json.dump(users_list, f, ensure_ascii=False)
 
     print(f"Done. {len(search_items)} search | {len(report_items)} report | {len(sales_items)} sales rows")
     for s in store_summary:
