@@ -1726,16 +1726,18 @@ function renderSearchResults() {
       return `<span class="sq ${cls}">${storeName(st)}: ${qty}</span>`;
     }).join('');
 
+    const _ps = _pendingOrderItems.find(it => it.bc === (item.b||''));
     return `<tr>
       <td style="white-space:nowrap">
         <input type="checkbox" class="order-check" onchange="toggleQty(this)"
+          ${_ps ? 'checked' : ''}
           data-bc="${item.b||''}"
           data-name="${item.n||''}"
           data-stock="${item.q||0}"
           data-size="${item._parsed.size||''}"
           data-season="${item._parsed.season||''}"
           data-year="${item._parsed.year||''}">
-        <input type="number" class="order-qty" min="1" value="1">
+        <input type="number" class="order-qty ${_ps?'show':''}" min="1" value="${_ps?_ps.orderQty:1}" oninput="updatePendingQty(this)">
       </td>
       <td style="font-size:12px;color:var(--muted);white-space:nowrap">
         ${item.b || '—'}
@@ -2137,12 +2139,14 @@ function renderShortageRows(items, store, otherStores) {
     const cbSize   = item._type==='chalk' ? (item.size||'') : (cbParsed.size||'');
     const cbSeason = cbParsed.season || '';
     const cbYear   = cbParsed.year   || '';
+    const _psh = cbBc ? _pendingOrderItems.find(it => it.bc === cbBc) : null;
     return `<tr>
       <td style="white-space:nowrap">
         <input type="checkbox" class="order-check" onchange="toggleQty(this)"
+          ${_psh ? 'checked' : ''}
           data-bc="${cbBc}" data-name="${cbName}"
           data-stock="${item._myQty||0}" data-size="${cbSize}" data-season="${cbSeason}" data-year="${cbYear}">
-        <input type="number" class="order-qty" min="1" value="1">
+        <input type="number" class="order-qty ${_psh?'show':''}" min="1" value="${_psh?_psh.orderQty:1}" oninput="updatePendingQty(this)">
       </td>
       <td>${nameCell}</td>
       <td>${bcCell}</td>
@@ -2287,15 +2291,17 @@ function renderLowTable() {
     const pct = n.ReorderPoint > 0 ? Math.min(100, Math.round(n.OnHand/n.ReorderPoint*100)) : 0;
     const statusCls = n.OnHand === 0 ? 'red' : shortage > 3 ? 'orange' : 'orange';
     const statusTxt = n.OnHand === 0 ? 'אפס מלאי' : 'חוסר';
-    const _lp = parseBarcode(n.BarcodeNumber||'');
+    const _lp  = parseBarcode(n.BarcodeNumber||'');
+    const _plw = _pendingOrderItems.find(it => it.bc === (n.BarcodeNumber||''));
     return `<tr>
       <td style="white-space:nowrap">
         <input type="checkbox" class="order-check" onchange="toggleQty(this)"
+          ${_plw ? 'checked' : ''}
           data-bc="${n.BarcodeNumber||''}"
           data-name="${n.Name||''}"
           data-stock="${n.OnHand||0}"
           data-size="${_lp.size||''}" data-season="${_lp.season||''}" data-year="${_lp.year||''}">
-        <input type="number" class="order-qty" min="1" value="1">
+        <input type="number" class="order-qty ${_plw?'show':''}" min="1" value="${_plw?_plw.orderQty:1}" oninput="updatePendingQty(this)">
       </td>
       <td><strong>${n.Name}</strong></td>
       <td>
@@ -3113,32 +3119,53 @@ function downloadCSV(rows, filename) {
 function toggleQty(cb) {
   const qtyInput = cb.nextElementSibling;
   if (qtyInput) qtyInput.classList.toggle('show', cb.checked);
+  const bc = cb.dataset.bc || '';
+  if (cb.checked) {
+    if (!_pendingOrderItems.find(it => it.bc === bc)) {
+      _pendingOrderItems.push({
+        name:     cb.dataset.name   || '',
+        bc:       bc,
+        size:     cb.dataset.size   || '',
+        season:   cb.dataset.season || '',
+        year:     cb.dataset.year   || '',
+        stock:    parseInt(cb.dataset.stock) || 0,
+        orderQty: parseInt((qtyInput||{}).value) || 1,
+      });
+    }
+  } else {
+    _pendingOrderItems = _pendingOrderItems.filter(it => it.bc !== bc);
+  }
   updateOrderBtn();
 }
 
+function updatePendingQty(input) {
+  const cb = input.previousElementSibling;
+  if (!cb) return;
+  const bc   = cb.dataset.bc || '';
+  const item = _pendingOrderItems.find(it => it.bc === bc);
+  if (item) item.orderQty = Math.max(1, parseInt(input.value) || 1);
+}
+
 function updateOrderBtn() {
-  const checked = document.querySelectorAll('.order-check:checked');
   const btn = document.getElementById('order-float-btn');
-  btn.style.display = checked.length > 0 ? 'flex' : 'none';
-  document.getElementById('order-count').textContent = checked.length;
+  btn.style.display = _pendingOrderItems.length > 0 ? 'flex' : 'none';
+  document.getElementById('order-count').textContent = _pendingOrderItems.length;
 }
 
 // --- step 1: open form modal ---
 let _pendingOrderItems = [];
 
 function sendOrder() {
-  const checked = document.querySelectorAll('.order-check:checked');
-  if (!checked.length) return;
+  if (!_pendingOrderItems.length) return;
 
-  _pendingOrderItems = Array.from(checked).map(cb => ({
-    name:     cb.dataset.name    || '',
-    bc:       cb.dataset.bc      || '',
-    size:     cb.dataset.size    || '',
-    season:   cb.dataset.season  || '',
-    year:     cb.dataset.year    || '',
-    stock:    parseInt(cb.dataset.stock) || 0,
-    orderQty: parseInt((cb.nextElementSibling || {}).value) || 1
-  }));
+  // sync quantities from currently-visible qty inputs
+  document.querySelectorAll('.order-check:checked').forEach(cb => {
+    const qtyInput = cb.nextElementSibling;
+    if (!qtyInput) return;
+    const bc   = cb.dataset.bc || '';
+    const item = _pendingOrderItems.find(it => it.bc === bc);
+    if (item) item.orderQty = Math.max(1, parseInt(qtyInput.value) || 1);
+  });
 
   // build items preview
   const preview = document.getElementById('order-form-items-preview');
@@ -3211,7 +3238,8 @@ async function confirmOrder() {
   // ── Generate PDF ──
   generateOrderPDF(order);
 
-  // close form, clear checkboxes, show done modal
+  // close form, clear pending items + checkboxes, show done modal
+  _pendingOrderItems = [];
   closeOrderForm();
   document.querySelectorAll('.order-check:checked').forEach(cb => {
     cb.checked = false;
@@ -3310,10 +3338,12 @@ function generateOrderPDF(order) {
       חסידים סנטר | מערכת ניהול מלאי | ${order.dateStr}
     </div>`;
 
-  // place off-screen so html2canvas can render it
-  el.style.position = 'fixed';
-  el.style.left = '-9999px';
-  el.style.top  = '0';
+  // place at top-left but behind page (z-index:-1) so html2canvas can render it
+  el.style.position      = 'fixed';
+  el.style.top           = '0';
+  el.style.left          = '0';
+  el.style.zIndex        = '-1';
+  el.style.pointerEvents = 'none';
   document.body.appendChild(el);
 
   html2pdf().set({
