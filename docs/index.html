@@ -473,6 +473,7 @@ body.emp-mode .price-col{display:none!important}
       <div class="table-wrap">
         <table>
           <thead><tr>
+            <th style="width:36px"></th>
             <th onclick="sortLow('Name')">פריט</th>
             <th>ברקוד</th>
             <th onclick="sortLow('Department')">מחלקה</th>
@@ -2071,6 +2072,13 @@ function renderLowTable() {
     const statusCls = n.OnHand === 0 ? 'red' : shortage > 3 ? 'orange' : 'orange';
     const statusTxt = n.OnHand === 0 ? 'אפס מלאי' : 'חוסר';
     return `<tr>
+      <td><input type="checkbox" class="order-check" onchange="updateOrderBtn()"
+        data-bc="${n.BarcodeNumber||''}"
+        data-name="${n.Name||''}"
+        data-qty="${n.OnHand||0}"
+        data-size=""
+        data-season=""
+        data-year=""></td>
       <td><strong>${n.Name}</strong></td>
       <td>
         <span style="font-size:11px;color:var(--muted)">${n.BarcodeNumber||''}</span>
