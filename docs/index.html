@@ -2197,13 +2197,17 @@ function renderShortageRows(items, store, otherStores) {
       ? `<span class="tag red">אפס</span>`
       : `<span class="tag orange">${item._myQty}</span>`;
 
-    const cbBc   = item._type==='regular' ? (item.b||'') : item._type==='chalk' ? (item.base||'') : '';
-    const cbName = item._type==='regular' ? (item.n||'') : item._type==='chalk' ? (item.name||'') : (item.modelName||'');
+    const cbBc     = item._type==='regular' ? (item.b||'') : item._type==='chalk' ? (item.base||'') : '';
+    const cbName   = item._type==='regular' ? (item.n||'') : item._type==='chalk' ? (item.name||'') : (item.modelName||'');
+    const cbParsed = cbBc ? parseBarcode(cbBc) : {};
+    const cbSize   = item._type==='chalk' ? (item.size||'') : (cbParsed.size||'');
+    const cbSeason = cbParsed.season || '';
+    const cbYear   = cbParsed.year   || '';
     return `<tr>
       <td style="white-space:nowrap">
         <input type="checkbox" class="order-check" onchange="toggleQty(this)"
           data-bc="${cbBc}" data-name="${cbName}"
-          data-stock="${item._myQty||0}" data-size="" data-season="" data-year="">
+          data-stock="${item._myQty||0}" data-size="${cbSize}" data-season="${cbSeason}" data-year="${cbYear}">
         <input type="number" class="order-qty" min="1" value="1">
       </td>
       <td>${nameCell}</td>
@@ -2349,13 +2353,14 @@ function renderLowTable() {
     const pct = n.ReorderPoint > 0 ? Math.min(100, Math.round(n.OnHand/n.ReorderPoint*100)) : 0;
     const statusCls = n.OnHand === 0 ? 'red' : shortage > 3 ? 'orange' : 'orange';
     const statusTxt = n.OnHand === 0 ? 'אפס מלאי' : 'חוסר';
+    const _lp = parseBarcode(n.BarcodeNumber||'');
     return `<tr>
       <td style="white-space:nowrap">
         <input type="checkbox" class="order-check" onchange="toggleQty(this)"
           data-bc="${n.BarcodeNumber||''}"
           data-name="${n.Name||''}"
           data-stock="${n.OnHand||0}"
-          data-size="" data-season="" data-year="">
+          data-size="${_lp.size||''}" data-season="${_lp.season||''}" data-year="${_lp.year||''}">
         <input type="number" class="order-qty" min="1" value="1">
       </td>
       <td><strong>${n.Name}</strong></td>
