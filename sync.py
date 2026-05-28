@@ -237,13 +237,17 @@ def main():
                 'b': row['BarcodeNumber'] or '',
                 'mn': row['ModelNumber'] or '',
                 'd': row['Department'] or '',
-                'p': float(row['Price'] or 0),
+                'p': 0,
                 's': {},
                 'q': 0,
             }
-        qty = float(row['Qty'] or 0)
+        qty   = float(row['Qty'] or 0)
+        price = float(row['Price'] or 0)
         item_map[bc]['s'][row['StoreName']] = qty
         item_map[bc]['q'] += qty
+        # שמור את המחיר הגבוה ביותר שנמצא (כמה סניפים — AVGCost שונה; חלקם 0)
+        if price > item_map[bc]['p']:
+            item_map[bc]['p'] = price
 
     search_items = list(item_map.values())
 
