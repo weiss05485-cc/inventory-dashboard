@@ -823,18 +823,21 @@ function bcChips(bc) {
 /* ========== SYNC BUTTON ========== */
 function triggerSync() {
   const btn = document.getElementById('sync-btn');
-  btn.textContent = '⏳ מעדכן...';
+  btn.textContent = '⏳ טוען...';
   btn.disabled = true;
-  // Opens local sync server in hidden iframe
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = 'http://localhost:8765/sync';
-  document.body.appendChild(iframe);
-  setTimeout(() => {
+  // רענן את כל הנתונים מ-GitHub Pages (cache bust)
+  Promise.all([
+    fetch('data.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('today.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)
+  ]).then(([data, today]) => {
+    if (data)  { DATA = data; renderOverview(); }
+    if (today) { TODAY_DATA = today; _renderTodayContent(); }
+    btn.textContent = '✅ מעודכן';
+    setTimeout(() => { btn.textContent = '🔄 עדכן עכשיו'; btn.disabled = false; }, 2000);
+  }).catch(() => {
     btn.textContent = '🔄 עדכן עכשיו';
     btn.disabled = false;
-    iframe.remove();
-  }, 15000);
+  });
 }
 
 /* ========== GLOBAL STATE ========== */
