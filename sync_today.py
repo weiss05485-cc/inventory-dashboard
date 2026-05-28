@@ -1,9 +1,9 @@
-import pyodbc, json, sys, os, platform
+import json, sys, os
 from datetime import datetime
 from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8')
 
-# קרא credentials מ-config.py (מקומי) או מ-environment variables (GitHub Actions)
+# credentials מ-config.py (מקומי) או environment variables (GitHub Actions)
 try:
     from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
 except ImportError:
@@ -12,11 +12,17 @@ except ImportError:
     DB_USER     = os.environ['DB_USER']
     DB_PASSWORD = os.environ['DB_PASSWORD']
 
-# דרייבר שונה על Windows / Linux
-DRIVER = 'SQL Server' if platform.system() == 'Windows' else 'ODBC Driver 18 for SQL Server'
-CONN_STR = (f"DRIVER={{{DRIVER}}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
-            f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
-conn = pyodbc.connect(CONN_STR, timeout=15)
+# חיבור: pyodbc על Windows, pymssql על Linux (GitHub Actions)
+try:
+    import pyodbc
+    CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
+                f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
+    conn = pyodbc.connect(CONN_STR, timeout=15)
+except Exception:
+    import pymssql
+    conn = pymssql.connect(server=DB_SERVER, user=DB_USER,
+                           password=DB_PASSWORD, database=DB_NAME,
+                           timeout=15, login_timeout=15)
 cur = conn.cursor()
 
 # ── 1. לפי סניף × יום (כל ההיסטוריה) ────────────────────────────────────
