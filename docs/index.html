@@ -1917,7 +1917,7 @@ function selectShortageModelFilter(code) {
   selectedShortageModel = code;
   buildShortageModelFilter(allShortageItems);
   const store = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
+  const otherStores = storeList.filter(s => s !== store);
   renderShortageRows(allShortageItems, store, otherStores);
 }
 
@@ -1991,7 +1991,7 @@ function renderShortageTable() {
   document.getElementById('shortage-table-wrap').style.display   = 'block';
 
   const store = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
+  const otherStores = storeList.filter(s => s !== store);
 
   if (!searchLoaded) {
     document.getElementById('shortage-count').textContent = 'טוען נתונים...';
@@ -2008,7 +2008,7 @@ function renderShortageTable() {
 function exportTransfer() {
   if (!selectedShortageStore || !searchLoaded) return;
   const store      = selectedShortageStore;
-  const otherStores = storeList.filter(s => s !== store && storeName(s) !== 'מחסן');
+  const otherStores = storeList.filter(s => s !== store);
   const items = selectedShortageModel
     ? allShortageItems.filter(i => i._modelCode === selectedShortageModel)
     : allShortageItems;
