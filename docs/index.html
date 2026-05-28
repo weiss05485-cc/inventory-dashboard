@@ -252,6 +252,33 @@ body.emp-mode .price-col{display:none!important}
 .order-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
 .order-qty{width:52px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:center;display:none;margin-right:4px;font-family:'Rubik',sans-serif;vertical-align:middle}
 .order-qty.show{display:inline-block}
+
+/* ========== ORDERS PAGE ========== */
+.order-status{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.order-status.pending{background:#fef3c7;color:#b45309}
+.order-status.approved{background:#dbeafe;color:#1d4ed8}
+.order-status.sent{background:#ede9fe;color:#6d28d9}
+.order-status.received{background:#d1fae5;color:#065f46}
+.order-status.cancelled{background:#fee2e2;color:#b91c1c}
+.status-btn{padding:3px 10px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:11px;font-weight:600;font-family:'Rubik',sans-serif;transition:all .15s;margin:1px}
+.status-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(79,70,229,.05)}
+.order-row-expand{cursor:pointer;transition:background .15s}
+.order-row-expand:hover td{background:#f0f4ff!important}
+.order-items-row td{background:#f8f9fc;padding:0}
+.order-items-inner{padding:10px 18px;border-top:1px solid var(--border)}
+.order-items-inner table{font-size:12px;margin:0}
+.order-items-inner th{font-size:10px;padding:6px 10px}
+.order-items-inner td{padding:5px 10px;font-size:12px}
+#orders-filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.ofilter-pill{padding:6px 14px;border-radius:24px;border:2px solid var(--border);background:var(--card);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Rubik',sans-serif}
+.ofilter-pill.active{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border-color:transparent}
+
+/* ORDER FORM MODAL */
+#order-form-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9997;display:none;align-items:center;justify-content:center}
+.order-form-box{background:#fff;border-radius:20px;padding:28px 30px;width:480px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.order-form-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;margin-top:14px;text-transform:uppercase;letter-spacing:.3px}
+.order-form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Rubik',sans-serif;outline:none;transition:border-color .2s}
+.order-form-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
 </style>
 </head>
 <body>
@@ -261,25 +288,70 @@ body.emp-mode .price-col{display:none!important}
   📦 שלח הזמנה <span id="order-count">0</span> פריטים
 </button>
 
-<!-- ORDER MODAL -->
-<div id="order-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:20px;padding:32px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)">
-    <h3 style="margin:0 0 16px;color:var(--primary);font-size:18px">📦 בקשת הזמנה מוכנה</h3>
-    <textarea id="order-modal-text" readonly
-      style="width:100%;height:220px;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-family:'Rubik',sans-serif;font-size:13px;resize:none;direction:rtl;box-sizing:border-box"></textarea>
-    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
-      <button onclick="document.getElementById('order-modal').style.display='none'"
+<!-- ORDER FORM MODAL (step 1: fill details) -->
+<div id="order-form-modal">
+  <div class="order-form-box">
+    <h3 style="margin:0 0 4px;color:var(--primary);font-size:18px">📦 פרטי הזמנה</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:4px">מלא את הפרטים לפני שליחת ההזמנה</p>
+
+    <label class="order-form-label">שם עובד *</label>
+    <input class="order-form-input" id="order-emp-name" type="text" placeholder="הזן שם מלא">
+
+    <label class="order-form-label">מסניף (שולח) *</label>
+    <select class="order-form-input" id="order-from-store">
+      <option value="">בחר סניף...</option>
+      <option value="בני ברק">בני ברק</option>
+      <option value="ירושלים">ירושלים</option>
+      <option value="מחסן">מחסן</option>
+    </select>
+
+    <label class="order-form-label">לכבוד (נמען) *</label>
+    <input class="order-form-input" id="order-to-store" type="text" placeholder="לדוגמה: בני ברק, מחסן, המנהל...">
+
+    <label class="order-form-label">הערות (אופציונלי)</label>
+    <textarea class="order-form-input" id="order-notes" rows="2" placeholder="הערות נוספות..."></textarea>
+
+    <!-- items preview -->
+    <div id="order-form-items-preview" style="margin-top:14px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;font-size:12px">
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button onclick="closeOrderForm()"
+        style="padding:10px 20px;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px">
+        ביטול
+      </button>
+      <button onclick="confirmOrder()"
+        style="padding:10px 24px;border:none;border-radius:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700">
+        📥 הכן הזמנה ושלח
+      </button>
+    </div>
+    <p id="order-form-error" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px"></p>
+  </div>
+</div>
+
+<!-- ORDER DONE MODAL (step 2: Excel downloaded, open Gmail) -->
+<div id="order-done-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:32px;width:440px;max-width:95vw;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:48px;margin-bottom:12px">✅</div>
+    <h3 style="margin:0 0 8px;color:var(--primary);font-size:18px">ההזמנה הוכנה!</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;line-height:1.6">
+      קובץ האקסל <strong id="done-filename"></strong> הורד למכשיר שלך.<br>
+      עכשיו פתח Gmail וצרף את הקובץ למייל.
+    </p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button onclick="document.getElementById('order-done-modal').style.display='none'"
         style="padding:10px 20px;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px">
         סגור
       </button>
-      <button onclick="copyOrder()"
-        style="padding:10px 20px;border:none;border-radius:10px;background:var(--bg);cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px;font-weight:600">
-        📋 העתק
-      </button>
       <a id="order-gmail-link" href="#" target="_blank"
-        style="padding:10px 22px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:10px;text-decoration:none;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">
+        style="padding:10px 22px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:10px;text-decoration:none;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:6px"
+        onclick="document.getElementById('order-done-modal').style.display='none'">
         ✉️ פתח Gmail
       </a>
+      <button onclick="showPage('orders');document.getElementById('order-done-modal').style.display='none'"
+        style="padding:10px 20px;border:none;border-radius:10px;background:var(--bg);cursor:pointer;font-family:'Rubik',sans-serif;font-size:14px;font-weight:600">
+        📋 ראה הזמנות
+      </button>
     </div>
   </div>
 </div>
@@ -316,6 +388,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
   <button class="nav-btn" onclick="showPage('sales')">📈 מכירות</button>
   <button class="nav-btn" onclick="showPage('today')">🏪 קופות יומי</button>
+  <button class="nav-btn" onclick="showPage('orders')">📋 הזמנות</button>
 </nav>
 
 <div id="bottom-nav">
@@ -326,6 +399,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="bnav-btn" onclick="showPage('reports')"><span class="bnav-icon">📋</span>דוחות</button>
   <button class="bnav-btn" onclick="showPage('sales')"><span class="bnav-icon">📈</span>מכירות</button>
   <button class="bnav-btn" onclick="showPage('today')"><span class="bnav-icon">🏪</span>קופות</button>
+  <button class="bnav-btn" onclick="showPage('orders')"><span class="bnav-icon">📋</span>הזמנות</button>
 </div>
 
 <div id="loading">
@@ -806,6 +880,62 @@ body.emp-mode .price-col{display:none!important}
       <div id="comp-results"></div>
     </div>
   </div>
+</div>
+</div>
+
+<!-- PAGE: ORDERS -->
+<div id="page-orders" class="page">
+<div class="container">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <h2 style="font-size:18px;font-weight:800;color:var(--text);margin:0">📋 ניהול הזמנות</h2>
+      <p style="color:var(--muted);font-size:12px;margin:2px 0 0">מעקב אחר כל ההזמנות בין הסניפים</p>
+    </div>
+    <button onclick="clearAllOrders()" id="clear-orders-btn"
+      style="display:none;padding:8px 16px;border:1.5px solid var(--red);border-radius:10px;background:#fff;color:var(--red);cursor:pointer;font-family:'Rubik',sans-serif;font-size:12px;font-weight:600">
+      🗑️ נקה הכל (מנהל)
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div id="orders-filter-bar">
+    <span style="font-size:12px;font-weight:700;color:var(--muted);margin-left:4px">סטטוס:</span>
+    <button class="ofilter-pill active" onclick="filterOrders('all',this)">הכל</button>
+    <button class="ofilter-pill" onclick="filterOrders('ממתין',this)">⏳ ממתין</button>
+    <button class="ofilter-pill" onclick="filterOrders('אושר',this)">✅ אושר</button>
+    <button class="ofilter-pill" onclick="filterOrders('נשלח',this)">📤 נשלח</button>
+    <button class="ofilter-pill" onclick="filterOrders('התקבל',this)">📦 התקבל</button>
+    <button class="ofilter-pill" onclick="filterOrders('בוטל',this)">❌ בוטל</button>
+  </div>
+
+  <!-- Empty state -->
+  <div id="orders-empty" style="text-align:center;padding:60px 20px;color:var(--muted)">
+    <div style="font-size:48px;margin-bottom:12px">📭</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px">אין הזמנות עדיין</div>
+    <div style="font-size:13px">הזמנות יופיעו כאן לאחר שעובד ישלח הזמנה מדף החוסרים או החיפוש</div>
+  </div>
+
+  <!-- Orders table -->
+  <div class="section" id="orders-table-wrap" style="display:none">
+    <div class="table-wrap">
+      <table id="orders-table">
+        <thead><tr>
+          <th style="width:32px"></th>
+          <th>מ"ס</th>
+          <th>תאריך</th>
+          <th>עובד</th>
+          <th>מסניף</th>
+          <th>לכבוד</th>
+          <th>פריטים</th>
+          <th>סטטוס</th>
+          <th id="orders-actions-th">עדכון</th>
+        </tr></thead>
+        <tbody id="orders-body"></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -1296,8 +1426,8 @@ function renderComparison() {
 /* ========== AUTH ========== */
 const PASS_MGMT = '4125';
 const PASS_EMP  = '1234';
-const EMP_PAGES = new Set(['search', 'lowstock']);
-const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today'];
+const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
+const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today','orders'];
 
 function checkAuth() {
   const role = localStorage.getItem('cc_role');
@@ -1341,6 +1471,11 @@ function applyRole(role) {
   // hide sync button and prices from employees
   document.getElementById('sync-btn').style.display = isMgmt ? '' : 'none';
   document.body.classList.toggle('emp-mode', !isMgmt);
+  // manager-only: clear button + actions column in orders page
+  const clearBtn = document.getElementById('clear-orders-btn');
+  if (clearBtn) clearBtn.style.display = isMgmt ? 'inline-block' : 'none';
+  const actTh = document.getElementById('orders-actions-th');
+  if (actTh) actTh.style.display = isMgmt ? '' : 'none';
 }
 
 function doLogout() {
@@ -1356,7 +1491,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5, today:6};
+  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5, today:6, orders:7};
   const navBtns  = document.querySelectorAll('.nav-btn');
   const bnavBtns = document.querySelectorAll('.bnav-btn');
   if (navBtns[labels[id]])  navBtns[labels[id]].classList.add('active');
@@ -1369,6 +1504,7 @@ function showPage(id) {
   if (id === 'reports')  renderReports();
   if (id === 'sales')    renderSales();
   if (id === 'today')    renderToday();
+  if (id === 'orders')   renderOrdersPage();
 }
 
 /* ========== OVERVIEW ========== */
@@ -2927,7 +3063,9 @@ function downloadCSV(rows, filename) {
   a.click();
 }
 
-/* ========== ORDER BY EMAIL ========== */
+/* ========== ORDER SYSTEM ========== */
+
+// --- checkbox helpers ---
 function toggleQty(cb) {
   const qtyInput = cb.nextElementSibling;
   if (qtyInput) qtyInput.classList.toggle('show', cb.checked);
@@ -2941,52 +3079,267 @@ function updateOrderBtn() {
   document.getElementById('order-count').textContent = checked.length;
 }
 
+// --- step 1: open form modal ---
+let _pendingOrderItems = [];
+
 function sendOrder() {
   const checked = document.querySelectorAll('.order-check:checked');
   if (!checked.length) return;
 
-  const today = new Date().toLocaleDateString('he-IL');
-  const lines = Array.from(checked).map((cb, i) => {
-    const name      = cb.dataset.name;
-    const bc        = cb.dataset.bc;
-    const size      = cb.dataset.size   ? ' מידה ' + cb.dataset.size   : '';
-    const season    = cb.dataset.season ? ' ' + cb.dataset.season + ' ' + cb.dataset.year : '';
-    const stock     = cb.dataset.stock;
-    const qtyInput  = cb.nextElementSibling;
-    const orderQty  = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
-    return `${i+1}. ${name}${size}${season}\n    כמות הזמנה: ${orderQty} | מלאי נוכחי: ${stock} | ברקוד: ${bc}`;
-  });
+  _pendingOrderItems = Array.from(checked).map(cb => ({
+    name:     cb.dataset.name    || '',
+    bc:       cb.dataset.bc      || '',
+    size:     cb.dataset.size    || '',
+    season:   cb.dataset.season  || '',
+    year:     cb.dataset.year    || '',
+    stock:    parseInt(cb.dataset.stock) || 0,
+    orderQty: parseInt((cb.nextElementSibling || {}).value) || 1
+  }));
 
-  const bodyText =
-    'שלום,\n\nבקשת הזמנה עבור הפריטים הבאים:\n\n' +
-    lines.join('\n\n') +
-    '\n\nתאריך: ' + today + '\n\nתודה';
+  // build items preview
+  const preview = document.getElementById('order-form-items-preview');
+  preview.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="padding:6px 10px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:right;border-bottom:1px solid var(--border)">מוצר</th>' +
+    '<th style="padding:6px 10px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border)">כמות</th>' +
+    '<th style="padding:6px 10px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border)">מלאי</th>' +
+    '</tr></thead><tbody>' +
+    _pendingOrderItems.map(it => {
+      const label = it.name + (it.size ? ' / ' + it.size : '') + (it.season ? ' (' + it.season + ' ' + it.year + ')' : '');
+      return `<tr>
+        <td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #f2f4f9">${label}</td>
+        <td style="padding:5px 10px;text-align:center;font-size:12px;font-weight:700;color:var(--primary);border-bottom:1px solid #f2f4f9">${it.orderQty}</td>
+        <td style="padding:5px 10px;text-align:center;font-size:12px;color:var(--muted);border-bottom:1px solid #f2f4f9">${it.stock}</td>
+      </tr>`;
+    }).join('') +
+    '</tbody></table>';
 
-  const subject = encodeURIComponent('בקשת הזמנה — ' + today);
-  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=&su=' + subject +
-                   '&body=' + encodeURIComponent(bodyText);
-
-  document.getElementById('order-modal-text').value = bodyText;
-  document.getElementById('order-gmail-link').href  = gmailUrl;
-  document.getElementById('order-modal').style.display = 'flex';
-
-  setTimeout(() => {
-    document.querySelectorAll('.order-check:checked').forEach(cb => {
-      cb.checked = false;
-      const qi = cb.nextElementSibling;
-      if (qi) { qi.classList.remove('show'); qi.value = 1; }
-    });
-    updateOrderBtn();
-  }, 300);
+  document.getElementById('order-form-error').textContent = '';
+  document.getElementById('order-form-modal').style.display = 'flex';
 }
 
-function copyOrder() {
-  const ta = document.getElementById('order-modal-text');
-  ta.select();
-  document.execCommand('copy');
-  const btn = event.target;
-  btn.textContent = '✅ הועתק!';
-  setTimeout(() => btn.textContent = '📋 העתק', 1500);
+function closeOrderForm() {
+  document.getElementById('order-form-modal').style.display = 'none';
+}
+
+// --- step 2: generate Excel + save order + open Gmail ---
+function confirmOrder() {
+  const empName  = document.getElementById('order-emp-name').value.trim();
+  const fromStore = document.getElementById('order-from-store').value.trim();
+  const toStore  = document.getElementById('order-to-store').value.trim();
+  const notes    = document.getElementById('order-notes').value.trim();
+  const errEl    = document.getElementById('order-form-error');
+
+  if (!empName)   { errEl.textContent = 'יש להזין שם עובד'; return; }
+  if (!fromStore) { errEl.textContent = 'יש לבחור סניף שולח'; return; }
+  if (!toStore)   { errEl.textContent = 'יש להזין נמען'; return; }
+  errEl.textContent = '';
+
+  const now     = new Date();
+  const dateStr = now.toLocaleDateString('he-IL');
+  const timeStr = now.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+  const orderId = now.getTime();
+  const filename = `הזמנה_${fromStore}_${dateStr.replace(/\./g,'-')}.xlsx`;
+
+  // ── Generate Excel ──
+  const wsRows = [
+    ['חסידים סנטר — בקשת הזמנה', '', '', '', '', ''],
+    ['תאריך:', dateStr + ' ' + timeStr, '', 'מסניף:', fromStore, ''],
+    ['עובד:', empName, '', 'לכבוד:', toStore, ''],
+    notes ? ['הערות:', notes, '', '', '', ''] : null,
+    [],
+    ['#', 'שם מוצר', 'ברקוד', 'מידה', 'עונה', 'מלאי נוכחי', 'כמות הזמנה'],
+    ..._pendingOrderItems.map((it, i) => [
+      i + 1,
+      it.name,
+      it.bc,
+      it.size || '—',
+      it.season ? (it.season + ' ' + it.year) : '—',
+      it.stock,
+      it.orderQty
+    ]),
+    [],
+    ['', '', '', '', '', 'סה"כ יחידות:', _pendingOrderItems.reduce((s, it) => s + it.orderQty, 0)]
+  ].filter(r => r !== null);
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsRows);
+    // column widths
+    ws['!cols'] = [{wch:4},{wch:32},{wch:14},{wch:8},{wch:14},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, 'הזמנה');
+    XLSX.writeFile(wb, filename);
+  } catch(e) {
+    console.error('XLSX error', e);
+  }
+
+  // ── Save order to localStorage ──
+  const orders = JSON.parse(localStorage.getItem('cc_orders') || '[]');
+  orders.unshift({
+    id:        orderId,
+    date:      now.toISOString(),
+    dateStr:   dateStr + ' ' + timeStr,
+    employee:  empName,
+    fromStore: fromStore,
+    toStore:   toStore,
+    notes:     notes,
+    filename:  filename,
+    items:     _pendingOrderItems,
+    status:    'ממתין'
+  });
+  localStorage.setItem('cc_orders', JSON.stringify(orders));
+
+  // ── Prepare Gmail URL ──
+  const totalQty = _pendingOrderItems.reduce((s, it) => s + it.orderQty, 0);
+  const gmailBody = encodeURIComponent(
+    `שלום,\n\nמצורף קובץ Excel עם פרטי ההזמנה (${filename}).\n\n` +
+    `עובד: ${empName}\nמסניף: ${fromStore}\nלכבוד: ${toStore}\n` +
+    `מספר פריטים: ${_pendingOrderItems.length} | סה"כ יחידות: ${totalQty}\n` +
+    (notes ? `הערות: ${notes}\n` : '') +
+    `\nתאריך: ${dateStr}\n\nתודה`
+  );
+  const gmailSubject = encodeURIComponent(`בקשת הזמנה — ${fromStore} → ${toStore} — ${dateStr}`);
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${gmailSubject}&body=${gmailBody}`;
+
+  document.getElementById('order-gmail-link').href = gmailUrl;
+  document.getElementById('done-filename').textContent = filename;
+
+  // close form, clear checkboxes, show done modal
+  closeOrderForm();
+  document.querySelectorAll('.order-check:checked').forEach(cb => {
+    cb.checked = false;
+    const qi = cb.nextElementSibling;
+    if (qi) { qi.classList.remove('show'); qi.value = 1; }
+  });
+  updateOrderBtn();
+  document.getElementById('order-done-modal').style.display = 'flex';
+}
+
+/* ========== ORDERS PAGE ========== */
+let _ordersFilter = 'all';
+
+const STATUS_LABELS = {
+  'ממתין':  {cls:'pending',  icon:'⏳'},
+  'אושר':   {cls:'approved', icon:'✅'},
+  'נשלח':   {cls:'sent',     icon:'📤'},
+  'התקבל':  {cls:'received', icon:'📦'},
+  'בוטל':   {cls:'cancelled',icon:'❌'},
+};
+
+function renderOrdersPage() {
+  const role   = localStorage.getItem('cc_role');
+  const isMgmt = role === 'mgmt';
+  const orders = JSON.parse(localStorage.getItem('cc_orders') || '[]');
+
+  // update manager-only UI
+  const clearBtn = document.getElementById('clear-orders-btn');
+  if (clearBtn) clearBtn.style.display = isMgmt ? 'inline-block' : 'none';
+  const actTh = document.getElementById('orders-actions-th');
+  if (actTh) actTh.style.display = isMgmt ? '' : 'none';
+
+  const filtered = _ordersFilter === 'all'
+    ? orders
+    : orders.filter(o => o.status === _ordersFilter);
+
+  const empty    = document.getElementById('orders-empty');
+  const tableWrap = document.getElementById('orders-table-wrap');
+
+  if (!filtered.length) {
+    empty.style.display     = 'block';
+    tableWrap.style.display = 'none';
+    return;
+  }
+  empty.style.display     = 'none';
+  tableWrap.style.display = 'block';
+
+  const statusBtns = (orderId, currentStatus) => {
+    if (!isMgmt) return '';
+    return Object.keys(STATUS_LABELS).map(s =>
+      s === currentStatus ? '' :
+      `<button class="status-btn" onclick="updateOrderStatus(${orderId},'${s}')">${STATUS_LABELS[s].icon} ${s}</button>`
+    ).join('');
+  };
+
+  const rows = filtered.map((o, idx) => {
+    const sl = STATUS_LABELS[o.status] || {cls:'gray', icon:'?'};
+    const totalQty = (o.items || []).reduce((s, it) => s + (it.orderQty || 1), 0);
+    return `
+      <tr class="order-row-expand" onclick="toggleOrderExpand(${o.id})">
+        <td style="text-align:center;font-size:16px">${sl.icon}</td>
+        <td style="font-weight:700;color:var(--muted);font-size:12px">#${(filtered.length - idx).toString().padStart(3,'0')}</td>
+        <td style="font-size:12px;white-space:nowrap">${o.dateStr || o.date?.slice(0,10) || ''}</td>
+        <td style="font-weight:600">${o.employee || ''}</td>
+        <td><span class="tag blue">${o.fromStore || ''}</span></td>
+        <td style="font-weight:600">${o.toStore || ''}</td>
+        <td style="text-align:center">
+          <span style="font-weight:700;color:var(--primary)">${(o.items||[]).length}</span>
+          <span style="color:var(--muted);font-size:11px"> פריטים / ${totalQty} יח'</span>
+        </td>
+        <td><span class="order-status ${sl.cls}">${sl.icon} ${o.status}</span></td>
+        <td style="display:${isMgmt?'':'none'};white-space:nowrap">${statusBtns(o.id, o.status)}</td>
+      </tr>
+      <tr id="expand-${o.id}" class="order-items-row" style="display:none">
+        <td colspan="9">
+          <div class="order-items-inner">
+            ${o.notes ? `<p style="color:var(--muted);font-size:12px;margin:0 0 8px">📝 ${o.notes}</p>` : ''}
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr>
+                <th style="text-align:right;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">#</th>
+                <th style="text-align:right;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">מוצר</th>
+                <th style="text-align:right;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">ברקוד</th>
+                <th style="text-align:center;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">מידה</th>
+                <th style="text-align:center;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">מלאי</th>
+                <th style="text-align:center;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">כמות הזמנה</th>
+              </tr></thead>
+              <tbody>
+              ${(o.items || []).map((it, j) => `
+                <tr>
+                  <td style="padding:5px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid #f2f4f9">${j+1}</td>
+                  <td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #f2f4f9">${it.name}${it.season ? ' <span style="color:var(--muted)">(' + it.season + ' ' + it.year + ')</span>' : ''}</td>
+                  <td style="padding:5px 10px;font-size:11px;font-family:monospace;border-bottom:1px solid #f2f4f9">${it.bc || '—'}</td>
+                  <td style="padding:5px 10px;font-size:12px;text-align:center;border-bottom:1px solid #f2f4f9">${it.size || '—'}</td>
+                  <td style="padding:5px 10px;font-size:12px;text-align:center;color:var(--muted);border-bottom:1px solid #f2f4f9">${it.stock}</td>
+                  <td style="padding:5px 10px;font-size:13px;font-weight:700;text-align:center;color:var(--primary);border-bottom:1px solid #f2f4f9">${it.orderQty}</td>
+                </tr>
+              `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('orders-body').innerHTML = rows;
+}
+
+function toggleOrderExpand(id) {
+  const row = document.getElementById('expand-' + id);
+  if (!row) return;
+  row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function updateOrderStatus(orderId, newStatus) {
+  event.stopPropagation();
+  const orders = JSON.parse(localStorage.getItem('cc_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1) {
+    orders[idx].status = newStatus;
+    localStorage.setItem('cc_orders', JSON.stringify(orders));
+    renderOrdersPage();
+  }
+}
+
+function filterOrders(status, btn) {
+  _ordersFilter = status;
+  document.querySelectorAll('.ofilter-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderOrdersPage();
+}
+
+function clearAllOrders() {
+  if (!confirm('האם למחוק את כל ההזמנות? פעולה זו אינה הפיכה.')) return;
+  localStorage.removeItem('cc_orders');
+  renderOrdersPage();
 }
 </script>
 </body>
