@@ -6,6 +6,7 @@
 <title>חסידים סנטר | דשבורד מלאי</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -338,7 +339,7 @@ body.emp-mode .price-col{display:none!important}
 
     <!-- PDF status -->
     <div id="done-pdf-status" style="display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:10px 16px;background:#ecfdf5;border-radius:10px;font-size:13px;font-weight:600;color:#065f46">
-      🖨️ חלון PDF נפתח — הדפס או שמור כ-PDF
+      📥 קובץ PDF יורד אוטומטית למחשב שלך
     </div>
 
     <!-- Email status -->
@@ -3334,160 +3335,105 @@ function setGmailLink(order, dateStr, totalQty) {
 /* ========== PDF GENERATION ========== */
 function generateOrderPDF(order) {
   const totalQty = order.items.reduce((s, it) => s + it.orderQty, 0);
+  const dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/\s/g,'_');
+  const filename = `הזמנה_${order.fromStore}_${dateTag}.pdf`;
 
-  const itemRows = order.items.map((it, i) => `
-    <tr class="${i % 2 === 1 ? 'alt' : ''}">
-      <td class="center">${i + 1}</td>
-      <td>${it.name}</td>
-      <td class="center">${it.size || '—'}</td>
-      <td class="mono center">${it.bc || '—'}</td>
-      <td class="center">${it.season ? it.season + ' ' + it.year : '—'}</td>
-      <td class="center muted">${it.stock}</td>
-      <td class="center bold primary">${it.orderQty}</td>
-    </tr>`).join('');
+  const itemRows = order.items.map((it, i) =>
+    `<tr style="background:${i%2===1?'#f8f9fc':'#fff'}">
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${i+1}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;font-weight:600">${it.name}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center">${it.size||'—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:11px">${it.bc||'—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.season?(it.season+' '+it.year):'—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">${it.stock}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:15px">${it.orderQty}</td>
+    </tr>`
+  ).join('');
 
-  const html = `<!DOCTYPE html>
-<html dir="rtl" lang="he">
-<head>
-<meta charset="UTF-8">
-<title>הזמנה — ${order.fromStore} → ${order.toStore}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    direction: rtl;
-    color: #1e2233;
-    font-size: 13px;
-    padding: 28px 32px;
-    background: #fff;
-  }
-  /* ── Header ── */
-  .doc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding-bottom: 16px;
-    border-bottom: 3px solid #4f46e5;
-    margin-bottom: 20px;
-  }
-  .company-name { font-size: 22px; font-weight: 900; color: #4f46e5; letter-spacing: -.3px; }
-  .doc-title    { font-size: 13px; color: #8492a6; margin-top: 3px; font-weight: 600; }
-  .doc-num      { font-size: 11px; color: #8492a6; text-align: left; }
-  .doc-date     { font-size: 16px; font-weight: 800; text-align: left; color: #1e2233; }
-  /* ── Meta grid ── */
-  .meta {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 24px;
-    background: #f4f6fb;
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 22px;
-  }
-  .meta-row { display: flex; gap: 8px; align-items: baseline; }
-  .meta-label { font-size: 11px; font-weight: 700; color: #8492a6; text-transform: uppercase; min-width: 52px; }
-  .meta-value { font-size: 13px; font-weight: 600; color: #1e2233; }
-  /* ── Table ── */
-  table { width: 100%; border-collapse: collapse; }
-  thead tr { background: #4f46e5; color: #fff; }
-  thead th { padding: 10px 12px; font-size: 11px; font-weight: 700; text-align: right; white-space: nowrap; }
-  tbody td { padding: 9px 12px; border-bottom: 1px solid #e8ecf4; }
-  tr.alt td { background: #f8f9fc; }
-  tfoot td { padding: 10px 12px; font-weight: 700; background: #ede9fe; border-top: 2px solid #7c3aed; }
-  .center { text-align: center; }
-  .bold   { font-weight: 700; }
-  .primary{ color: #4f46e5; font-size: 15px; }
-  .muted  { color: #8492a6; }
-  .mono   { font-family: 'Courier New', monospace; font-size: 11px; }
-  /* ── Footer ── */
-  .doc-footer {
-    margin-top: 24px;
-    padding-top: 12px;
-    border-top: 1px solid #e8ecf4;
-    text-align: center;
-    font-size: 10px;
-    color: #8492a6;
-  }
-  /* ── Print ── */
-  @media print {
-    body { padding: 16px 20px; }
-    @page { margin: 1cm; }
-  }
-</style>
-</head>
-<body>
+  const el = document.createElement('div');
+  el.style.cssText = 'width:750px;direction:rtl;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e2233;background:#fff;padding:28px 32px;box-sizing:border-box';
+  el.innerHTML = `
+    <!-- header -->
+    <table style="width:100%;border-collapse:collapse;padding-bottom:16px;border-bottom:3px solid #4f46e5;margin-bottom:20px">
+      <tr>
+        <td>
+          <div style="font-size:22px;font-weight:900;color:#4f46e5">חסידים סנטר</div>
+          <div style="font-size:13px;color:#8492a6;margin-top:3px;font-weight:600">בקשת הזמנה</div>
+        </td>
+        <td style="text-align:left;vertical-align:top">
+          <div style="font-size:11px;color:#8492a6">תאריך:</div>
+          <div style="font-size:15px;font-weight:800">${order.dateStr}</div>
+        </td>
+      </tr>
+    </table>
 
-<div class="doc-header">
-  <div>
-    <div class="company-name">חסידים סנטר</div>
-    <div class="doc-title">בקשת הזמנה</div>
-  </div>
-  <div>
-    <div class="doc-num">תאריך:</div>
-    <div class="doc-date">${order.dateStr}</div>
-  </div>
-</div>
+    <!-- meta -->
+    <table style="width:100%;border-collapse:collapse;background:#f4f6fb;border-radius:10px;padding:14px 18px;margin-bottom:22px">
+      <tr>
+        <td style="padding:6px 10px;width:50%">
+          <span style="font-size:10px;font-weight:700;color:#8492a6;text-transform:uppercase">עובד: </span>
+          <span style="font-weight:600">${order.employee}</span>
+        </td>
+        <td style="padding:6px 10px">
+          <span style="font-size:10px;font-weight:700;color:#8492a6;text-transform:uppercase">מסניף: </span>
+          <span style="font-weight:600">${order.fromStore}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 10px">
+          <span style="font-size:10px;font-weight:700;color:#8492a6;text-transform:uppercase">לכבוד: </span>
+          <span style="font-weight:600">${order.toStore}</span>
+        </td>
+        ${order.notes ? `<td style="padding:6px 10px">
+          <span style="font-size:10px;font-weight:700;color:#8492a6;text-transform:uppercase">הערות: </span>
+          <span style="font-weight:600">${order.notes}</span>
+        </td>` : '<td></td>'}
+      </tr>
+    </table>
 
-<div class="meta">
-  <div class="meta-row">
-    <span class="meta-label">עובד</span>
-    <span class="meta-value">${order.employee}</span>
-  </div>
-  <div class="meta-row">
-    <span class="meta-label">מסניף</span>
-    <span class="meta-value">${order.fromStore}</span>
-  </div>
-  <div class="meta-row">
-    <span class="meta-label">לכבוד</span>
-    <span class="meta-value">${order.toStore}</span>
-  </div>
-  ${order.notes ? `<div class="meta-row" style="grid-column:span 2">
-    <span class="meta-label">הערות</span>
-    <span class="meta-value">${order.notes}</span>
-  </div>` : ''}
-</div>
+    <!-- items table -->
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:#4f46e5;color:#fff">
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:36px">#</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:right">שם מוצר</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:70px">מידה</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:110px">ברקוד</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:80px">עונה</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:60px">מלאי</th>
+          <th style="padding:10px;font-size:11px;font-weight:700;text-align:center;width:80px">כמות הזמנה</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot>
+        <tr style="background:#ede9fe;border-top:2px solid #7c3aed">
+          <td colspan="5" style="padding:10px"></td>
+          <td style="padding:10px;font-weight:700">סה"כ יחידות:</td>
+          <td style="padding:10px;font-weight:700;color:#4f46e5;font-size:15px;text-align:center">${totalQty}</td>
+        </tr>
+      </tfoot>
+    </table>
 
-<table>
-  <thead>
-    <tr>
-      <th class="center" style="width:36px">#</th>
-      <th>שם מוצר</th>
-      <th class="center" style="width:70px">מידה</th>
-      <th class="center" style="width:110px">ברקוד</th>
-      <th class="center" style="width:90px">עונה</th>
-      <th class="center" style="width:70px">מלאי</th>
-      <th class="center" style="width:80px">כמות הזמנה</th>
-    </tr>
-  </thead>
-  <tbody>${itemRows}</tbody>
-  <tfoot>
-    <tr>
-      <td colspan="5"></td>
-      <td>סה"כ יחידות:</td>
-      <td class="center primary">${totalQty}</td>
-    </tr>
-  </tfoot>
-</table>
+    <!-- footer -->
+    <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e8ecf4;text-align:center;font-size:10px;color:#8492a6">
+      חסידים סנטר | מערכת ניהול מלאי | ${order.dateStr}
+    </div>`;
 
-<div class="doc-footer">
-  חסידים סנטר | מערכת ניהול מלאי | הודפס: ${order.dateStr}
-</div>
+  // place off-screen so html2canvas can render it
+  el.style.position = 'fixed';
+  el.style.left = '-9999px';
+  el.style.top  = '0';
+  document.body.appendChild(el);
 
-<script>
-  window.onload = function() {
-    setTimeout(function() { window.print(); }, 400);
-  };
-<\/script>
-</body>
-</html>`;
-
-  const w = window.open('', '_blank', 'width=850,height=950');
-  if (w) {
-    w.document.write(html);
-    w.document.close();
-  } else {
-    alert('הדפדפן חסם חלון קופץ — אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב');
-  }
+  html2pdf().set({
+    margin:      [8, 8, 8, 8],
+    filename:    filename,
+    image:       { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(el).save().then(() => {
+    document.body.removeChild(el);
+  });
 }
 
 /* ========== EMAIL SETTINGS ========== */
