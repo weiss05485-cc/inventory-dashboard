@@ -3338,12 +3338,9 @@ function generateOrderPDF(order) {
       חסידים סנטר | מערכת ניהול מלאי | ${order.dateStr}
     </div>`;
 
-  // place at top-left but behind page (z-index:-1) so html2canvas can render it
-  el.style.position      = 'fixed';
-  el.style.top           = '0';
-  el.style.left          = '0';
-  el.style.zIndex        = '-1';
-  el.style.pointerEvents = 'none';
+  // html2pdf wraps el in its own off-screen container (left:-9999px) automatically.
+  // Do NOT add position:fixed — that would make el escape the container to the viewport,
+  // causing html2canvas to capture an empty container instead of the element content.
   document.body.appendChild(el);
 
   html2pdf().set({
@@ -3353,7 +3350,10 @@ function generateOrderPDF(order) {
     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(el).save().then(() => {
-    document.body.removeChild(el);
+    // html2pdf moved el into its own container — remove the container
+    const c = el.parentNode;
+    if (c && c !== document.body && c.parentNode) c.parentNode.removeChild(c);
+    else if (c) c.removeChild(el);
   });
 }
 
