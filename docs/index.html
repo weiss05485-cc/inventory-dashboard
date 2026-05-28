@@ -2918,11 +2918,17 @@ function sendOrder() {
     '\n\nתאריך: ' + today + '\n\nתודה'
   );
 
-  window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
+  const a = document.createElement('a');
+  a.href = 'mailto:?subject=' + subject + '&body=' + body;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
   // uncheck after sending
-  checked.forEach(cb => cb.checked = false);
-  updateOrderBtn();
+  setTimeout(() => {
+    checked.forEach(cb => cb.checked = false);
+    updateOrderBtn();
+  }, 500);
 }
 </script>
 </body>
