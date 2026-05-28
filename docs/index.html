@@ -291,22 +291,23 @@ body.emp-mode .price-col{display:none!important}
 <!-- ORDER FORM MODAL (step 1: fill details) -->
 <div id="order-form-modal">
   <div class="order-form-box">
-    <h3 style="margin:0 0 4px;color:var(--primary);font-size:18px">📦 פרטי הזמנה</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:4px">מלא את הפרטים לפני שליחת ההזמנה</p>
+    <h3 style="margin:0 0 12px;color:var(--primary);font-size:18px">📦 לאן ההזמנה?</h3>
 
-    <label class="order-form-label">שם עובד *</label>
-    <input class="order-form-input" id="order-emp-name" type="text" placeholder="הזן שם מלא">
+    <!-- Who / from — read-only pill display -->
+    <div style="background:#f4f6fb;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap;font-size:13px;align-items:center">
+      <div><span style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px">עובד</span><span id="order-sender-name" style="font-weight:700;color:var(--text)"></span></div>
+      <div style="width:1px;background:var(--border);align-self:stretch"></div>
+      <div><span style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px">מסניף</span><span id="order-sender-store" style="font-weight:700;color:var(--primary)"></span></div>
+    </div>
 
-    <label class="order-form-label">מסניף (שולח) *</label>
-    <select class="order-form-input" id="order-from-store">
-      <option value="">בחר סניף...</option>
+    <label class="order-form-label">לכבוד *</label>
+    <select class="order-form-input" id="order-to-store">
+      <option value="">בחר יעד...</option>
       <option value="בני ברק">בני ברק</option>
       <option value="ירושלים">ירושלים</option>
       <option value="מחסן">מחסן</option>
+      <option value="מנהל">מנהל</option>
     </select>
-
-    <label class="order-form-label">לכבוד (נמען) *</label>
-    <input class="order-form-input" id="order-to-store" type="text" placeholder="לדוגמה: בני ברק, מחסן, המנהל...">
 
     <label class="order-form-label">הערות (אופציונלי)</label>
     <textarea class="order-form-input" id="order-notes" rows="2" placeholder="הערות נוספות..."></textarea>
@@ -3218,19 +3219,15 @@ function sendOrder() {
     }).join('') +
     '</tbody></table>';
 
-  // Pre-fill from logged-in user
+  // Show sender info from session (read-only)
   const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
-  if (userInfo.display) {
-    const nameEl = document.getElementById('order-emp-name');
-    if (!nameEl.value) nameEl.value = userInfo.display;
-  }
-  if (userInfo.store) {
-    const storeEl = document.getElementById('order-from-store');
-    if (!storeEl.value) storeEl.value = userInfo.store;
-  }
+  document.getElementById('order-sender-name').textContent  = userInfo.display || '—';
+  document.getElementById('order-sender-store').textContent = userInfo.store   || '—';
+  document.getElementById('order-to-store').value = '';
 
   document.getElementById('order-form-error').textContent = '';
   document.getElementById('order-form-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('order-to-store').focus(), 100);
 }
 
 function closeOrderForm() {
@@ -3239,15 +3236,14 @@ function closeOrderForm() {
 
 // --- step 2: generate PDF + send email + save order ---
 async function confirmOrder() {
-  const empName   = document.getElementById('order-emp-name').value.trim();
-  const fromStore = document.getElementById('order-from-store').value.trim();
+  const userInfo  = JSON.parse(localStorage.getItem('cc_user') || '{}');
+  const empName   = userInfo.display || '—';
+  const fromStore = userInfo.store   || '—';
   const toStore   = document.getElementById('order-to-store').value.trim();
   const notes     = document.getElementById('order-notes').value.trim();
   const errEl     = document.getElementById('order-form-error');
 
-  if (!empName)   { errEl.textContent = 'יש להזין שם עובד'; return; }
-  if (!fromStore) { errEl.textContent = 'יש לבחור סניף שולח'; return; }
-  if (!toStore)   { errEl.textContent = 'יש להזין נמען'; return; }
+  if (!toStore) { errEl.textContent = 'יש לבחור יעד להזמנה'; return; }
   errEl.textContent = '';
 
   const now     = new Date();
