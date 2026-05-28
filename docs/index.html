@@ -439,6 +439,7 @@ body.emp-mode .price-col{display:none!important}
     <span id="search-count" style="color:var(--muted);font-size:13px"></span>
     <button class="btn btn-export" onclick="exportSearch()">⬇️ ייצוא CSV</button>
   </div>
+  <div id="search-summary" style="margin-bottom:4px"></div>
   <div id="search-loading" style="text-align:center;padding:30px;color:var(--muted);display:none">
     <div class="spin"></div><br>טוען רשימת מוצרים...
   </div>
@@ -1683,6 +1684,7 @@ function doSearch() {
     searchResults = [];
     document.getElementById('search-count').textContent = 'הכנס מילת חיפוש למעלה';
     document.getElementById('search-body').innerHTML = '';
+    document.getElementById('search-summary').innerHTML = '';
     return;
   }
 
@@ -1714,6 +1716,7 @@ function renderSearchResults() {
   cnt.textContent = items.length === 0
     ? 'לא נמצאו תוצאות'
     : `נמצאו ${items.length.toLocaleString('he-IL')} פריטים`;
+  renderSearchSummary(items);
 
   const MAX = 200;
   const shown = items.slice(0, MAX);
@@ -1761,6 +1764,34 @@ function renderSearchResults() {
       מוצגים ${MAX} ראשונים מתוך ${items.length} — צמצם את החיפוש לראות יותר
     </td></tr>`;
   }
+}
+
+function renderSearchSummary(items) {
+  const el = document.getElementById('search-summary');
+  if (!el) return;
+  if (!items.length || !storeList.length) { el.innerHTML = ''; return; }
+
+  // Sum quantities per store across all results
+  const totals = {};
+  storeList.forEach(st => { totals[st] = 0; });
+  items.forEach(item => storeList.forEach(st => { totals[st] += (item.s[st] || 0); }));
+  const totalAll = storeList.reduce((s, st) => s + totals[st], 0);
+  if (!totalAll) { el.innerHTML = ''; return; }
+
+  const chips = storeList.map(st => {
+    const q = totals[st];
+    const cls = q > 20 ? 'has' : q > 0 ? 'low' : 'zero';
+    return `<span class="sq ${cls}" style="font-size:13px;padding:5px 12px;border-radius:8px">${storeName(st)}: <strong>${q}</strong></span>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#f4f6fb;border-radius:12px;padding:10px 16px;margin-bottom:10px;border:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--muted);font-weight:700">סה"כ מלאי בחיפוש:</span>
+      <span style="font-weight:800;font-size:18px;color:var(--primary)">${totalAll.toLocaleString('he-IL')}</span>
+      <span style="font-size:12px;color:var(--muted)">יחידות</span>
+      <span style="color:var(--border);margin:0 2px">|</span>
+      ${chips}
+    </div>`;
 }
 
 function exportSearch() {
@@ -1992,7 +2023,10 @@ function parseStrippedBC(stripped) {
   const m = String(stripped || '').toUpperCase().match(/^(\d{2})([A-Za-z0-9]{2})(.*)$/);
   if (!m) return {modelCode:'', product:'', size: stripped};
   const product = FABRIC_MODEL_TABLE[m[1]+m[2]] || MODEL_TABLE[m[2]] || '';
-  return {modelCode: m[2], product, size: m[3]};
+  // Use full 4-char fabric+model key so items like ריפס (5420) and בעקישטע (5320)
+  // don't collapse into the same pill just because they share the 2-char model code '20'.
+  const modelCode = (FABRIC_MODEL_TABLE[m[1]+m[2]] ? m[1]+m[2] : m[2]);
+  return {modelCode, product, size: m[3]};
 }
 
 /* ---- Build the complete shortage item list ---- */
@@ -2001,7 +2035,8 @@ function buildShortageItems(store, otherStores) {
 
   /* A) חליפות + פרחוני — group by MODEL CODE across all year/season/size.
         If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a model, skip it. */
-  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.includes(item.d));
+  // Match 'חליפות', 'חליפות נוער', 'פרחוני', 'פרחוני נוער', etc.
+  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.some(d => item.d === d || item.d.startsWith(d + ' ')));
   const modelGroups = {};
   modelRaw.forEach(item => {
     const p = parseBarcode(item.b);
