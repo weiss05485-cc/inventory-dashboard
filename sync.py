@@ -169,7 +169,7 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS OnHand,
             CAST(ist.ReorderPoint AS DECIMAL(18,1)) AS ReorderPoint,
-            CAST(ISNULL(NULLIF(ist.Price, 0), ISNULL(ist.AVGCost, 0)) AS DECIMAL(18,2)) AS Price,
+            CAST(COALESCE(NULLIF(ist.AVCostWithoutTax, 0), NULLIF(ist.CostWithoutTax, 0), NULLIF(ist.AVGCost / 1.18, 0)) AS DECIMAL(18,2)) AS Price,
             d.Name AS Department
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
@@ -216,7 +216,7 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS Qty,
             d.Name AS Department,
-            CAST(ISNULL(NULLIF(ist.Price, 0), ISNULL(ist.AVGCost, 0)) AS DECIMAL(18,2)) AS Price
+            CAST(COALESCE(NULLIF(ist.AVCostWithoutTax, 0), NULLIF(ist.CostWithoutTax, 0), NULLIF(ist.AVGCost / 1.18, 0)) AS DECIMAL(18,2)) AS Price
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
@@ -245,9 +245,48 @@ def main():
         price = float(row['Price'] or 0)
         item_map[bc]['s'][row['StoreName']] = qty
         item_map[bc]['q'] += qty
-        # שמור את המחיר הגבוה ביותר שנמצא (כמה סניפים — AVGCost שונה; חלקם 0)
+        # שמור את המחיר הגבוה ביותר שנמצא (כמה סניפים — עלות שונה; חלקם 0)
         if price > item_map[bc]['p']:
             item_map[bc]['p'] = price
+
+    # --- מילוי מחירים חסרים לפי ברקוד ---
+    # ברקוד: YY + עונה + דגם + צבע + מידה  (e.g. 25W0303M40)
+    # רמה 1 — מפתח מלא (שנה+עונה+דגם+צבע): אותה שנה, אותו דגם וצבע
+    # רמה 2 — מפתח ללא שנה (עונה+דגם+צבע): אותו דגם גם משנים אחרות
+    # רמה 1: שנה+עונה+דגם+צבע  (25W0303)
+    # רמה 2: עונה+דגם+צבע ללא שנה  (W0303)
+    # רמה 3: דגם+צבע בלבד  (0303) — ללא שנה ועונה
+    MODEL_FULL_RE    = re.compile(r'^(\d{2}[A-Za-z]+\d{2}[A-Za-z0-9]{2})', re.IGNORECASE)
+    MODEL_NOYEAR_RE  = re.compile(r'^\d{2}([A-Za-z]+\d{2}[A-Za-z0-9]{2})', re.IGNORECASE)
+    MODEL_NOSEAS_RE  = re.compile(r'^\d{2}[A-Za-z]+(\d{2}[A-Za-z0-9]{2})',  re.IGNORECASE)
+
+    def build_price_map(key_re):
+        pm = {}
+        for item in item_map.values():
+            if item['p'] > 0 and item['b']:
+                m = key_re.match(str(item['b']).strip())
+                if m and item['p'] > pm.get(m.group(1), 0):
+                    pm[m.group(1)] = item['p']
+        return pm
+
+    price_full   = build_price_map(MODEL_FULL_RE)
+    price_noyear = build_price_map(MODEL_NOYEAR_RE)
+    price_noseas = build_price_map(MODEL_NOSEAS_RE)
+
+    filled = 0
+    for item in item_map.values():
+        if item['p'] == 0 and item['b']:
+            bc = str(item['b']).strip()
+            m1 = MODEL_FULL_RE.match(bc)
+            m2 = MODEL_NOYEAR_RE.match(bc)
+            m3 = MODEL_NOSEAS_RE.match(bc)
+            p = (price_full.get(m1.group(1))   if m1 else None) or \
+                (price_noyear.get(m2.group(1))  if m2 else None) or \
+                (price_noseas.get(m3.group(1))  if m3 else None)
+            if p:
+                item['p'] = p
+                filled += 1
+    print(f"  Price fill from barcode model: {filled} items filled")
 
     search_items = list(item_map.values())
 
