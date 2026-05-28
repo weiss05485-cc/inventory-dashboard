@@ -2918,11 +2918,11 @@ function sendOrder() {
     '\n\nתאריך: ' + today + '\n\nתודה'
   );
 
-  const a = document.createElement('a');
-  a.href = 'mailto:?subject=' + subject + '&body=' + body;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // פתח Gmail Compose ישירות
+  window.open(
+    'https://mail.google.com/mail/?view=cm&fs=1&to=&su=' + subject + '&body=' + body,
+    '_blank'
+  );
 
   // uncheck after sending
   setTimeout(() => {
