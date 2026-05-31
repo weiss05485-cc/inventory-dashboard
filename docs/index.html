@@ -1142,7 +1142,7 @@ fetch('data.json?t=' + Date.now())
         if (ageHours > 3) {
           dots.forEach(d => { d.style.background = '#fb923c'; d.style.animationDuration = '1s'; });
           if (strip) strip.style.setProperty('color', '#fde68a');
-          upd.forEach(el => el.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu;)
+          upd.forEach(el => el.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu);
         }
       }
     })();
