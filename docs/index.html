@@ -186,18 +186,7 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .avail-badge{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;margin:1px}
 .avail-badge.has{background:#d1fae5;color:#065f46}
 .avail-badge.none{background:#f1f5f9;color:#94a3b8}
-/* ORDER PRINT AREA */
-#order-print-area{display:none}
-body.printing-order #order-print-area{display:block}
-body.printing-order > *:not(#order-print-area){display:none!important}
-@media print{
-  @page{size:A4 portrait;margin:8mm}
-  body{padding:0!important;margin:0!important}
-  .no-print{display:none!important}
-  #order-print-area{display:block!important}
-  body > *:not(#order-print-area){display:none!important}
-  #order-print-area .order-print-content{padding:0!important}
-}
+
 
 /* Comparison mode */
 .cmp-mode-toggle{display:flex;gap:6px;margin-bottom:10px;padding:4px;background:#f1f5f9;border-radius:10px;width:fit-content}
@@ -3540,31 +3529,31 @@ async function confirmOrder() {
   document.getElementById('order-done-modal').style.display = 'flex';
 }
 
-/* ========== PDF GENERATION (via browser print) ========== */
+/* ========== PDF GENERATION ========== */
 function generateOrderPDF(order) {
-  const totalQty = order.items.reduce((s, it) => s + it.orderQty, 0);
-  const dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/[ ]/g,'_');
-  const filename = 'הזמנה_' + order.fromStore + '_' + dateTag;
+  var totalQty = order.items.reduce(function(s, it) { return s + it.orderQty; }, 0);
+  var dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/ /g,'_');
+  var filename = 'הזמנה_' + order.fromStore + '_' + dateTag + '.pdf';
 
-  const sortedItems = [...order.items].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
-  const itemRows = sortedItems.map(function(it, i) {
+  var sortedItems = order.items.slice().sort(function(a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
+  var itemRows = sortedItems.map(function(it, i) {
     return '<tr style="background:' + (i%2===1?'#f8f9fc':'#fff') + '">' +
       '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (i+1) + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;font-weight:600">' + (it.name||'—') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center">' + (it.size||'—') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:10px">' + (it.bc||'—') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (it.season?(it.season+' '+it.year):'—') + '</td>' +
+      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;font-weight:600">' + (it.name||'-') + '</td>' +
+      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center">' + (it.size||'-') + '</td>' +
+      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:10px">' + (it.bc||'-') + '</td>' +
+      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (it.season?(it.season+' '+it.year):'-') + '</td>' +
       '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + it.stock + '</td>' +
       '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:14px">' + it.orderQty + '</td>' +
       '</tr>';
   }).join('');
 
-  const notesCell = order.notes
+  var notesCell = order.notes
     ? '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">הערות: </span><span style="font-weight:600">' + order.notes + '</span></td>'
     : '<td></td>';
 
-  const html =
-    '<div class="order-print-content" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1e2233;direction:rtl">' +
+  var html =
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1e2233;direction:rtl;padding:20px">' +
     '<table style="width:100%;border-collapse:collapse;padding-bottom:16px;border-bottom:3px solid #4f46e5;margin-bottom:20px">' +
     '<tr><td>' +
     '<div style="font-size:22px;font-weight:900;color:#4f46e5">חסידים סנטר</div>' +
@@ -3575,10 +3564,10 @@ function generateOrderPDF(order) {
     '</td></tr></table>' +
     '<table style="width:100%;border-collapse:collapse;background:#f4f6fb;border-radius:10px;padding:14px 18px;margin-bottom:22px">' +
     '<tr>' +
-    '<td style="padding:6px 10px;width:50%"><span style="font-size:10px;font-weight:700;color:#8492a6">עובד: </span><span style="font-weight:600">' + (order.employee||'—') + '</span></td>' +
-    '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">מסניף: </span><span style="font-weight:600">' + (order.fromStore||'—') + '</span></td>' +
+    '<td style="padding:6px 10px;width:50%"><span style="font-size:10px;font-weight:700;color:#8492a6">עובד: </span><span style="font-weight:600">' + (order.employee||'-') + '</span></td>' +
+    '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">מסניף: </span><span style="font-weight:600">' + (order.fromStore||'-') + '</span></td>' +
     '</tr><tr>' +
-    '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">לכבוד: </span><span style="font-weight:600">' + (order.toStore||'—') + '</span></td>' +
+    '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">לכבוד: </span><span style="font-weight:600">' + (order.toStore||'-') + '</span></td>' +
     notesCell +
     '</tr></table>' +
     '<table style="width:100%;border-collapse:collapse">' +
@@ -3601,28 +3590,21 @@ function generateOrderPDF(order) {
     'חסידים סנטר | מערכת ניהול מלאי | <span style="direction:ltr;display:inline-block">' + order.dateStr + '</span></div>' +
     '</div>';
 
-  const printArea = document.getElementById('order-print-area');
-  printArea.innerHTML =
-    '<div class="no-print" style="position:fixed;top:26px;left:0;right:0;background:#312e81;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:9999;font-family:inherit">' +
-      '<span style="font-size:13px;font-weight:700">הזמנה מוכנה</span>' +
-      '<button onclick="window.print()" style="background:#fff;color:#4f46e5;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨️ הדפס / שמור PDF</button>' +
-      '<button onclick="document.getElementById(\'order-print-area\').innerHTML=\'\';document.body.classList.remove(\'printing-order\')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit">✕ סגור</button>' +
-    '</div>' +
-    '<div style="padding-top:56px">' + html + '</div>';
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff';
+  el.innerHTML = html;
+  document.body.appendChild(el);
 
-  document.body.classList.add('printing-order');
-  var origTitle = document.title;
-  document.title = filename;
-
-  var cleanup = function() {
-    document.body.classList.remove('printing-order');
-    document.title = origTitle;
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
-  setTimeout(function() { window.print(); }, 300);
+  html2pdf().set({
+    margin: [8, 8, 8, 8],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(el).save().then(function() {
+    document.body.removeChild(el);
+  });
 }
-
 
 /* ========== ORDERS PAGE ========== */
 let _ordersFilter = 'all';
@@ -3751,6 +3733,5 @@ function clearAllOrders() {
   renderOrdersPage();
 }
 </script>
-<div id="order-print-area"></div>
 </body>
 </html>
