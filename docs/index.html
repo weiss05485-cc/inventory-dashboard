@@ -592,9 +592,14 @@ body.emp-mode .price-col{display:none!important}
 
       <!-- Comparison mode table -->
       <div id="cmp-table-wrap" style="display:none">
+        <!-- Dept filter for comparison -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:700">סנן לפי מחלקה:</div>
+          <div id="cmp-dept-filter" class="dept-filter" style="margin-bottom:0;flex-wrap:wrap"></div>
+        </div>
         <div id="cmp-count" style="color:var(--muted);font-size:13px;margin-bottom:8px"></div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px">
-          💡 מוצגות קבוצות+מידות שבסניף הנבחר יש <strong>פחות משמעותית</strong> מסניף אחר (לפחות פי 2 ועוד 3 יחידות). הטור הכהה הוא הסניף שנבחר.
+          💡 מוצגות קבוצות+מידות שבסניף הנבחר יש <strong>פחות משמעותית</strong> מסניף אחר (פי 2 + 3 יחידות לפחות). הטור הכהה הוא הסניף שנבחר.
         </div>
         <div class="table-wrap">
           <table id="cmp-table">
@@ -1100,6 +1105,7 @@ let selectedShortageStore = null;
 let selectedShortageModel = null;   // model code filter on shortage page
 let allShortageItems = [];          // computed shortage list (for model re-filter)
 let allCompareItems  = [];          // computed comparison list
+let selectedCmpDept  = null;        // dept filter for comparison mode
 let shortageMode = 'shortage';      // 'shortage' | 'compare'
 let lowSectionOpen = false;
 let selectedDrillDept = null;
@@ -1112,7 +1118,25 @@ fetch('data.json?t=' + Date.now())
     DATA = data;
     storeList = DATA.store_summary.map(s => s.StoreName);
     document.getElementById('last-updated').textContent = 'עודכן: ' + data.last_updated;
-    document.getElementById('strip-updated').textContent = 'עדכון אחרון: ' + data.last_updated;
+    // Status strip: show stale warning if data > 3 hours old
+    (function() {
+      const lu = data.last_updated || '';
+      const strip = document.getElementById('status-strip');
+      const dot   = strip ? strip.querySelector('.strip-dot') : null;
+      const upd   = document.getElementById('strip-updated');
+      upd.textContent = 'עדכון אחרון: ' + lu;
+      // Parse dd/mm/yyyy hh:mm
+      const pm = lu.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+      if (pm && strip) {
+        const updated = new Date(+pm[3], +pm[2]-1, +pm[1], +pm[4], +pm[5]);
+        const ageHours = (Date.now() - updated.getTime()) / 3600000;
+        if (ageHours > 3) {
+          if (dot) { dot.style.background = '#fb923c'; dot.style.animationDuration = '1s'; }
+          if (strip) strip.style.setProperty('color', '#fde68a');
+          upd.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu;
+        }
+      }
+    })();
     document.getElementById('loading').style.display = 'none';
     checkAuth();
   })
@@ -2061,6 +2085,7 @@ function buildShortageStoreSelector() {
 function selectShortageStore(store) {
   selectedShortageStore = store;
   selectedShortageModel = null;
+  selectedCmpDept = null;
   buildShortageStoreSelector();
   renderShortageTable();
 }
@@ -2183,8 +2208,9 @@ function selectShortageModelFilter(code) {
   const store = selectedShortageStore;
   const otherStores = storeList.filter(s => s !== store);
   if (shortageMode === 'compare') {
-    buildShortageModelFilter(allCompareItems);
-    renderComparisonTable(allCompareItems, store, otherStores);
+    const base = selectedCmpDept ? allCompareItems.filter(i => i.dept === selectedCmpDept) : allCompareItems;
+    buildShortageModelFilter(base);
+    renderComparisonTable(base, store, otherStores);
   } else {
     buildShortageModelFilter(allShortageItems);
     renderShortageRows(allShortageItems, store, otherStores);
@@ -2258,9 +2284,34 @@ function renderShortageRows(items, store, otherStores) {
 /* ---- Mode toggle ---- */
 function setShortageMode(mode) {
   shortageMode = mode;
+  selectedShortageModel = null;
+  selectedCmpDept = null;
   document.getElementById('mode-btn-shortage').classList.toggle('active', mode === 'shortage');
   document.getElementById('mode-btn-compare').classList.toggle('active', mode === 'compare');
   renderShortageTable();
+}
+
+/* ---- Comparison dept filter ---- */
+function buildCmpDeptFilter(items) {
+  const wrap = document.getElementById('cmp-dept-filter');
+  if (!wrap) return;
+  const depts = [...new Set(items.map(i => i.dept || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  wrap.innerHTML = [
+    `<button class="pill ${!selectedCmpDept?'active':''}" onclick="selectCmpDept(null)">הכל</button>`,
+    ...depts.map(d =>
+      `<button class="pill ${selectedCmpDept===d?'active':''}" onclick="selectCmpDept('${d}')">${d}</button>`)
+  ].join('');
+}
+
+function selectCmpDept(dept) {
+  selectedCmpDept = dept;
+  selectedShortageModel = null;
+  buildCmpDeptFilter(allCompareItems);
+  const store = selectedShortageStore;
+  const otherStores = storeList.filter(s => s !== store);
+  const filtered = selectedCmpDept ? allCompareItems.filter(i => i.dept === selectedCmpDept) : allCompareItems;
+  buildShortageModelFilter(filtered);
+  renderComparisonTable(filtered, store, otherStores);
 }
 
 /* ---- Build cross-store comparison items (uses REPORT_DATA — has real group field) ---- */
@@ -2387,14 +2438,18 @@ function renderShortageTable() {
       document.getElementById('cmp-body').innerHTML    = '';
       loadReportsData(() => {
         allCompareItems = buildComparisonItems(store, otherStores);
-        buildShortageModelFilter(allCompareItems);
-        renderComparisonTable(allCompareItems, store, otherStores);
+        buildCmpDeptFilter(allCompareItems);
+        const cmpFiltered2 = selectedCmpDept ? allCompareItems.filter(i => i.dept === selectedCmpDept) : allCompareItems;
+        buildShortageModelFilter(cmpFiltered2);
+        renderComparisonTable(cmpFiltered2, store, otherStores);
       });
       return;
     }
     allCompareItems = buildComparisonItems(store, otherStores);
-    buildShortageModelFilter(allCompareItems);
-    renderComparisonTable(allCompareItems, store, otherStores);
+    buildCmpDeptFilter(allCompareItems);
+    const cmpFiltered = selectedCmpDept ? allCompareItems.filter(i => i.dept === selectedCmpDept) : allCompareItems;
+    buildShortageModelFilter(cmpFiltered);
+    renderComparisonTable(cmpFiltered, store, otherStores);
   } else {
     document.getElementById('shortage-table-wrap').style.display = 'block';
     document.getElementById('cmp-table-wrap').style.display      = 'none';
