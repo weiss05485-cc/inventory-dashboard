@@ -853,8 +853,32 @@ body.emp-mode .price-col{display:none!important}
 
     <!-- ── SINGLE DAY PANEL ── -->
     <div id="today-single-panel">
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <!-- Sub-mode toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="btn-view-day" class="btn" onclick="setTodaySubMode('day')" style="padding:5px 16px;font-size:13px;background:var(--navy);color:#fff">📅 יום בודד</button>
+        <button id="btn-view-period" class="btn" onclick="setTodaySubMode('period')" style="padding:5px 16px;font-size:13px">📊 תקופה</button>
+      </div>
+      <!-- Period controls (hidden by default) -->
+      <div id="today-period-ctrl" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn" onclick="applyTodayPeriod('week')"  style="padding:5px 12px;font-size:12px">השבוע</button>
+          <button class="btn" onclick="applyTodayPeriod('month')" style="padding:5px 12px;font-size:12px">החודש</button>
+          <button class="btn" onclick="applyTodayPeriod('3m')"    style="padding:5px 12px;font-size:12px">3 חודשים</button>
+          <button class="btn" onclick="applyTodayPeriod('year')"  style="padding:5px 12px;font-size:12px">השנה</button>
+          <button class="btn" onclick="applyTodayPeriod('all')"   style="padding:5px 12px;font-size:12px">הכל</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap">
+          <span style="color:var(--muted)">מ:</span>
+          <input type="date" id="period-sub-from" onchange="renderTodayPeriodSub()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+          <span style="color:var(--muted)">עד:</span>
+          <input type="date" id="period-sub-to"   onchange="renderTodayPeriodSub()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+          <span id="period-sub-label" style="color:var(--muted);font-size:12px"></span>
+        </div>
+      </div>
+      <!-- Period results (hidden by default) -->
+      <div id="today-period-results" style="display:none"></div>
+      <!-- Header (day mode) -->
+      <div id="today-day-hdr" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <div>
           <div id="today-date-label" style="font-size:18px;font-weight:700;color:var(--navy)"></div>
           <div id="today-synced-label" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
@@ -885,7 +909,7 @@ body.emp-mode .price-col{display:none!important}
         </div>
       </div>
       <!-- Chart -->
-      <div class="section">
+      <div class="section" id="today-chart-section">
         <div class="section-header" style="justify-content:space-between">
           <h3 id="today-chart-label">60 ימים אחרונים</h3>
           <select id="today-chart-range" onchange="_renderTodayChart()"
@@ -1234,10 +1258,94 @@ function switchTodayMode(mode) {
 function todayNavDay(delta) {
   if (!TODAY_DATA) return;
   const dates = TODAY_DATA.daily.map(d => d.SaleDate).sort();
-  const idx = dates.indexOf(_todaySelectedDate);
+  let idx = dates.indexOf(_todaySelectedDate);
+  if (idx === -1) idx = dates.length; // treat as one past last → back goes to last
   const newIdx = Math.max(0, Math.min(dates.length - 1, idx + delta));
   _todaySelectedDate = dates[newIdx];
   _renderTodayContent();
+}
+
+let _todaySubMode = 'day';
+
+function setTodaySubMode(mode) {
+  _todaySubMode = mode;
+  const isDay = mode === 'day';
+  const btnDay = document.getElementById('btn-view-day');
+  const btnPer = document.getElementById('btn-view-period');
+  if (btnDay) { btnDay.style.background = isDay ? 'var(--navy)' : ''; btnDay.style.color = isDay ? '#fff' : ''; }
+  if (btnPer) { btnPer.style.background = !isDay ? 'var(--navy)' : ''; btnPer.style.color = !isDay ? '#fff' : ''; }
+  const els = {
+    'today-day-hdr':        isDay ? '' : 'none',
+    'today-store-cards':    isDay ? '' : 'none',
+    'today-grid':           isDay ? 'grid' : 'none',
+    'today-chart-section':  isDay ? '' : 'none',
+    'today-period-ctrl':    isDay ? 'none' : 'block',
+    'today-period-results': isDay ? 'none' : 'block',
+  };
+  Object.entries(els).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = val;
+  });
+  if (!isDay && TODAY_DATA) applyTodayPeriod('month');
+}
+
+function applyTodayPeriod(preset) {
+  if (!TODAY_DATA) return;
+  const today = TODAY_DATA.today;
+  const d = new Date(today + 'T12:00:00');
+  let from;
+  if (preset === 'week') {
+    const sun = new Date(d); sun.setDate(d.getDate() - d.getDay());
+    from = sun.toISOString().slice(0, 10);
+  } else if (preset === 'month') {
+    from = today.slice(0, 7) + '-01';
+  } else if (preset === '3m') {
+    const d3 = new Date(d); d3.setMonth(d3.getMonth() - 2); d3.setDate(1);
+    from = d3.toISOString().slice(0, 10);
+  } else if (preset === 'year') {
+    from = today.slice(0, 4) + '-01-01';
+  } else {
+    from = (TODAY_DATA.daily.map(x => x.SaleDate).sort()[0]) || today;
+  }
+  document.getElementById('period-sub-from').value = from;
+  document.getElementById('period-sub-to').value   = today;
+  renderTodayPeriodSub();
+}
+
+function renderTodayPeriodSub() {
+  const from = document.getElementById('period-sub-from').value;
+  const to   = document.getElementById('period-sub-to').value;
+  if (!from || !to || !TODAY_DATA) return;
+  const agg = _aggregatePeriod(from, to);
+  const fmt = n => '₪' + parseFloat(n || 0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
+  document.getElementById('period-sub-label').textContent = agg.days + ' ימים | ' + agg.totalTrans.toLocaleString() + ' עסקאות';
+
+  const totalCard = `<div class="kpi-card" style="border:2px solid var(--navy)">
+    <div class="kpi-label" style="color:var(--navy);font-weight:700">סה"כ</div>
+    <div class="kpi-value" style="color:var(--navy);font-size:20px">${fmt(agg.totalSales)}</div>
+    <div class="kpi-sub">${agg.totalTrans.toLocaleString()} עסקאות | ${agg.days} ימים</div>
+  </div>`;
+  const storeCards = agg.stores.map(s => `<div class="kpi-card">
+    <div class="kpi-label">${s.name}</div>
+    <div class="kpi-value" style="color:var(--green);font-size:19px">${fmt(s.sales)}</div>
+    <div class="kpi-sub">${s.trans.toLocaleString()} עסקאות</div>
+  </div>`).join('');
+
+  const payTotal = agg.payments.reduce((s, p) => s + p.sales, 0);
+  const gap = Math.round(agg.totalSales - payTotal);
+  const payItems = [...agg.payments, ...(gap > 50 ? [{name:'לא משויך', sales:gap}] : [])];
+  const row = (label, val) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${label}</span><span style="font-weight:600">${fmt(val)}</span></div>`;
+  const payList    = payItems.map(p => row(p.name, p.sales)).join('') || '<span style="color:var(--muted);font-size:13px">אין נתונים</span>';
+  const deptList   = agg.depts.slice(0,12).map(d => row(d.name, d.sales)).join('') || '<span style="color:var(--muted);font-size:13px">אין נתונים</span>';
+  const sellerList = agg.sellers.slice(0,12).map(s => row(s.name, s.sales)).join('') || '<span style="color:var(--muted);font-size:13px">אין נתונים</span>';
+
+  document.getElementById('today-period-results').innerHTML = `
+    <div class="kpi-grid" style="margin-bottom:20px">${totalCard}${storeCards}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="section"><div class="section-header"><h3>לפי מחלקה</h3></div><div style="padding:4px 0">${deptList}</div></div>
+      <div class="section"><div class="section-header"><h3>💳 אמצעי תשלום</h3></div><div style="padding:4px 0">${payList}</div></div>
+      <div class="section"><div class="section-header"><h3>לפי מוכר</h3></div><div style="padding:4px 0">${sellerList}</div></div>
+    </div>`;
 }
 
 function todayPickDate(val) {
