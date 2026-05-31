@@ -2113,10 +2113,15 @@ function parseStrippedBC(stripped) {
 function buildShortageItems(store, otherStores) {
   const items = [];
 
+  // Store-specific product name exclusions
+  const STORE_EXCLUDED_NAMES = { 'בני ברק': ['חלאט ירושלמי'] };
+  const excludedNames = STORE_EXCLUDED_NAMES[store] || [];
+  const isExcluded = name => excludedNames.some(ex => (name||''). includes(ex));
+
   /* A) חליפות + פרחוני — group by MODEL CODE across all year/season/size.
         If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a model, skip it. */
   // Match 'חליפות', 'חליפות נוער', 'פרחוני', 'פרחוני נוער', etc.
-  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.some(d => item.d === d || item.d.startsWith(d + ' ')));
+  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.some(d => item.d === d || item.d.startsWith(d + ' ')) && !isExcluded(item.n));
   const modelGroups = {};
   modelRaw.forEach(item => {
     const p = parseBarcode(item.b);
@@ -2142,7 +2147,7 @@ function buildShortageItems(store, otherStores) {
   });
 
   /* B) חלק — group by stripped barcode (strip year+season, keep size) */
-  const chalkRaw = SEARCH_DATA.filter(item => CHALK_DEPTS.includes(item.d));
+  const chalkRaw = SEARCH_DATA.filter(item => CHALK_DEPTS.includes(item.d) && !isExcluded(item.n));
   const chalkGroups = {};
   chalkRaw.forEach(item => {
     const base = stripYearSeason(item.b);
@@ -2168,7 +2173,7 @@ function buildShortageItems(store, otherStores) {
 
   /* C) All other departments — exact barcode */
   const skipDepts = [...MODEL_LEVEL_DEPTS, ...CHALK_DEPTS];
-  SEARCH_DATA.filter(item => !skipDepts.includes(item.d)).forEach(item => {
+  SEARCH_DATA.filter(item => !skipDepts.includes(item.d) && !isExcluded(item.n)).forEach(item => {
     const myQty = item.s[store] || 0;
     const otherAvail = otherStores.reduce((sum,s) => sum+(item.s[s]||0), 0);
     if (myQty < 2 && otherAvail > 0) {
@@ -2324,11 +2329,14 @@ function buildComparisonItems(store, otherStores) {
   const relevantDepts = ['חליפות', 'פרחוני', 'חלק', 'ווסטים', 'מכנסיים', 'מעילים'];
   // Retail stores only (exclude warehouse) for the alert comparison
   const retailOther = otherStores.filter(s => storeName(s) !== 'מחסן');
+  const STORE_EXCLUDED_NAMES_CMP = { 'בני ברק': ['חלאט ירושלמי'] };
 
   const items = [];
+  const excNames = (STORE_EXCLUDED_NAMES_CMP[store] || []);
   REPORT_DATA.filter(item =>
     relevantDepts.some(d => item.dept === d || (item.dept || '').startsWith(d + ' ')) &&
-    item.sz && item.g && item.g !== 'ללא קבוצה' && item.g !== 'ללא דוגמא'
+    item.sz && item.g && item.g !== 'ללא קבוצה' && item.g !== 'ללא דוגמא' &&
+    !excNames.some(ex => (item.n||'').includes(ex))
   ).forEach(item => {
     const myQty     = item.s[store] || 0;
     const maxRetail = retailOther.length
