@@ -117,21 +117,40 @@ for r in cur.fetchall():
 print(f"  {len(daily)} ימים")
 
 # ── 5. אמצעי תשלום × יום (כל ההיסטוריה) ─────────────────────────────────
-# שאילתת UNION: מביאה TenderEntry רגיל + משלימה "לא משויך" לעסקאות ללא כיסוי מלא
 print("שולף נתוני אמצעי תשלום...")
 cur.execute("""
-    SELECT
-        CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
-        ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
-        SUM(te.Amount)                                              AS TotalAmount,
-        COUNT(*)                                                    AS Cnt
-    FROM TenderEntry te
-    JOIN [Transaction] t  ON te.TransactionID = t.TransactionID
-    JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
-    LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
-    WHERE t.Status > -1
-      AND te.Status > -1
-    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), te.TenderID, tn.TenderNameHe
+    SELECT SaleDate, PayMethod, SUM(TotalAmount) AS TotalAmount, SUM(Cnt) AS Cnt
+    FROM (
+        /* 5a. תשלומים רגילים מ-TenderEntry */
+        SELECT
+            CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
+            ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
+            te.Amount                                                    AS TotalAmount,
+            1                                                            AS Cnt
+        FROM TenderEntry te
+        JOIN [Transaction] t  ON te.TransactionID = t.TransactionID
+        JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+        LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
+        WHERE t.Status > -1
+          AND te.Status > -1
+
+        UNION ALL
+
+        /* 5b. מימוש גיפטקארד / סימפלי קלאב — שורות שליליות ב-TransactionEntry */
+        SELECT
+            CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
+            N'גיפטקארד סימפלי'                    AS PayMethod,
+            ABS(tei.Total)                        AS TotalAmount,
+            1                                     AS Cnt
+        FROM TransactionEntry tei
+        JOIN [Transaction] t  ON tei.TransactionID = t.TransactionID
+        JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+        WHERE t.Status > -1
+          AND tei.Status > -1
+          AND tei.TransactionEntryType IN (4, 10, 12, 16)
+          AND tei.Total < 0
+    ) base
+    GROUP BY SaleDate, PayMethod
     ORDER BY SaleDate, TotalAmount DESC
 """)
 cols = [d[0] for d in cur.description]
