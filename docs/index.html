@@ -3590,20 +3590,13 @@ function generateOrderPDF(order) {
     'חסידים סנטר | מערכת ניהול מלאי | <span style="direction:ltr;display:inline-block">' + order.dateStr + '</span></div>' +
     '</div>';
 
-  var el = document.createElement('div');
-  el.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff';
-  el.innerHTML = html;
-  document.body.appendChild(el);
-
   html2pdf().set({
     margin: [8, 8, 8, 8],
     filename: filename,
     image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, logging: false },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(el).save().then(function() {
-    document.body.removeChild(el);
-  });
+  }).from(html).save();
 }
 
 /* ========== ORDERS PAGE ========== */
