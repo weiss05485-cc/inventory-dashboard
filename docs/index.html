@@ -1333,7 +1333,7 @@ function renderTodayPeriodSub() {
 
   const payTotal = agg.payments.reduce((s, p) => s + p.sales, 0);
   const gap = Math.round(agg.totalSales - payTotal);
-  const payItems = [...agg.payments, ...(gap > 50 ? [{name:'לא משויך', sales:gap}] : [])];
+  const payItems = [...agg.payments, ...(gap > 50 ? [{name:'חשבון לקוח', sales:gap}] : [])];
   const row = (label, val) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${label}</span><span style="font-weight:600">${fmt(val)}</span></div>`;
   const payList    = payItems.map(p => row(p.name, p.sales)).join('') || '<span style="color:var(--muted);font-size:13px">אין נתונים</span>';
   const deptList   = agg.depts.slice(0,12).map(d => row(d.name, d.sales)).join('') || '<span style="color:var(--muted);font-size:13px">אין נתונים</span>';
@@ -1549,13 +1549,13 @@ function renderComparison() {
   const A = _aggregatePeriod(aFrom, aTo);
   const B = _aggregatePeriod(bFrom, bTo);
 
-  // השלם "לא משויך" כדי שסכום אמצעי תשלום = סכום חנויות
+  // השלם "חשבון לקוח" כדי שסכום אמצעי תשלום = סכום חנויות
   const aPayTotal = A.payments.reduce((s,p)=>s+p.sales,0);
   const bPayTotal = B.payments.reduce((s,p)=>s+p.sales,0);
   const aGap = Math.round(A.totalSales - aPayTotal);
   const bGap = Math.round(B.totalSales - bPayTotal);
-  const pA = aGap > 50 ? [...A.payments, {name:'לא משויך',sales:aGap}] : A.payments;
-  const pB = bGap > 50 ? [...B.payments, {name:'לא משויך',sales:bGap}] : B.payments;
+  const pA = aGap > 50 ? [...A.payments, {name:'חשבון לקוח',sales:aGap}] : A.payments;
+  const pB = bGap > 50 ? [...B.payments, {name:'חשבון לקוח',sales:bGap}] : B.payments;
 
   const fmt  = n => '₪' + parseFloat(n||0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
   const diff = (a,b) => {

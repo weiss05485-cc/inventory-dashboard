@@ -122,7 +122,7 @@ print("שולף נתוני אמצעי תשלום...")
 cur.execute("""
     SELECT SaleDate, PayMethod, SUM(TotalAmount) AS TotalAmount, SUM(Cnt) AS Cnt
     FROM (
-        /* --- 5a. תשלומים מ-TenderEntry — כולל סוגי עסקה 14,21 (קבלות/פירעון חוב לקוח) --- */
+        /* --- 5a. תשלומים רגילים מ-TenderEntry (רק עסקאות מכירה, לא קבלות) --- */
         SELECT
             CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
             ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
@@ -133,14 +133,15 @@ cur.execute("""
         JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
         LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
         WHERE t.Status > -1
+          AND t.TransactionType NOT IN (14, 21)
           AND te.Status > -1
 
         UNION ALL
 
-        /* --- 5b. הפרש לא מכוסה — רק עסקאות מכירה רגילות (לא קבלות) --- */
+        /* --- 5b. מכירות בחשבון לקוח — עסקאות ללא כיסוי ב-TenderEntry --- */
         SELECT
             CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
-            N'לא משויך'                            AS PayMethod,
+            N'חשבון לקוח'                          AS PayMethod,
             t.Total - ISNULL(te_s.SumAmt, 0)      AS TotalAmount,
             1                                      AS Cnt
         FROM [Transaction] t
