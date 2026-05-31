@@ -116,46 +116,6 @@ for r in cur.fetchall():
     daily.append(d)
 print(f"  {len(daily)} ימים")
 
-# ── DEBUG: פירוט TransactionEntryType לשורות שליליות ─────────────────────
-print("DEBUG: פירוט סוגי TransactionEntry שליליים...")
-cur.execute("""
-    SELECT tei.TransactionEntryType,
-           COUNT(*) AS Cnt,
-           SUM(ABS(tei.Total)) AS TotalAbs,
-           MIN(tei.Total) AS MinTotal,
-           MAX(tei.Total) AS MaxTotal
-    FROM TransactionEntry tei
-    JOIN [Transaction] t ON tei.TransactionID = t.TransactionID
-    JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
-    WHERE t.Status > -1
-      AND tei.Status > -1
-      AND tei.Total < 0
-    GROUP BY tei.TransactionEntryType
-    ORDER BY TotalAbs DESC
-""")
-for row in cur.fetchall():
-    print(f"  Type={row[0]}  Cnt={row[1]}  SumAbs={round(float(row[2]),2)}  Min={row[3]}  Max={row[4]}")
-
-print("DEBUG: פירוט לפי CustomerID (חבר מועדון) בשורות IN(4,10,12,16)...")
-cur.execute("""
-    SELECT
-        CASE WHEN t.CustomerID IS NULL OR t.CustomerID=0 THEN 'ללא לקוח' ELSE 'עם לקוח' END AS HasCustomer,
-        tei.TransactionEntryType,
-        COUNT(*) AS Cnt,
-        SUM(ABS(tei.Total)) AS TotalAbs
-    FROM TransactionEntry tei
-    JOIN [Transaction] t ON tei.TransactionID = t.TransactionID
-    JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
-    WHERE t.Status > -1
-      AND tei.Status > -1
-      AND tei.TransactionEntryType IN (4, 10, 12, 16)
-      AND tei.Total < 0
-    GROUP BY CASE WHEN t.CustomerID IS NULL OR t.CustomerID=0 THEN 'ללא לקוח' ELSE 'עם לקוח' END,
-             tei.TransactionEntryType
-    ORDER BY HasCustomer, TotalAbs DESC
-""")
-for row in cur.fetchall():
-    print(f"  {row[0]}  Type={row[1]}  Cnt={row[2]}  SumAbs={round(float(row[3]),2)}")
 
 # ── 5. אמצעי תשלום × יום (כל ההיסטוריה) ─────────────────────────────────
 print("שולף נתוני אמצעי תשלום...")
@@ -188,7 +148,7 @@ cur.execute("""
         JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
         WHERE t.Status > -1
           AND tei.Status > -1
-          AND tei.TransactionEntryType IN (4, 10, 12, 16)
+          AND tei.TransactionEntryType = 18
           AND tei.Total < 0
     ) base
     GROUP BY SaleDate, PayMethod
