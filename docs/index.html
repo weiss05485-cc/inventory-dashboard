@@ -1548,6 +1548,15 @@ function renderComparison() {
   }
   const A = _aggregatePeriod(aFrom, aTo);
   const B = _aggregatePeriod(bFrom, bTo);
+
+  // השלם "לא משויך" כדי שסכום אמצעי תשלום = סכום חנויות
+  const aPayTotal = A.payments.reduce((s,p)=>s+p.sales,0);
+  const bPayTotal = B.payments.reduce((s,p)=>s+p.sales,0);
+  const aGap = Math.round(A.totalSales - aPayTotal);
+  const bGap = Math.round(B.totalSales - bPayTotal);
+  const pA = aGap > 50 ? [...A.payments, {name:'לא משויך',sales:aGap}] : A.payments;
+  const pB = bGap > 50 ? [...B.payments, {name:'לא משויך',sales:bGap}] : B.payments;
+
   const fmt  = n => '₪' + parseFloat(n||0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
   const diff = (a,b) => {
     if (b === 0) return a > 0 ? '<span style="color:var(--green)">+∞%</span>' : '—';
@@ -1612,15 +1621,14 @@ function renderComparison() {
       </div>
     </div>
     ${sectionHtml('לפי סניף', mkRows(A.stores, B.stores))}
-    ${(() => {
-      const aPayTotal = A.payments.reduce((s,p)=>s+p.sales,0);
-      const bPayTotal = B.payments.reduce((s,p)=>s+p.sales,0);
-      const aGap = Math.round(A.totalSales - aPayTotal);
-      const bGap = Math.round(B.totalSales - bPayTotal);
-      const pA = aGap > 50 ? [...A.payments, {name:'לא משויך',sales:aGap}] : A.payments;
-      const pB = bGap > 50 ? [...B.payments, {name:'לא משויך',sales:bGap}] : B.payments;
-      return sectionHtml('💳 אמצעי תשלום', mkRows(pA, pB));
-    })()}
+    ${sectionHtml('💳 אמצעי תשלום',
+        mkRows(pA, pB) +
+        `<tr style="background:var(--border);font-weight:700">
+          <td style="padding:6px 8px">סה"כ</td>
+          <td style="padding:6px 8px;text-align:left;color:var(--navy)">${fmt(A.totalSales)}</td>
+          <td style="padding:6px 8px;text-align:left;color:#7c3aed">${fmt(B.totalSales)}</td>
+          <td style="padding:6px 8px;text-align:left">${diff(A.totalSales,B.totalSales)}</td>
+        </tr>`)}
     ${sectionHtml('לפי מחלקה', mkRows(A.depts, B.depts))}
     ${sectionHtml('לפי מוכר', mkRows(A.sellers, B.sellers))}
   `;
