@@ -116,6 +116,26 @@ for r in cur.fetchall():
     daily.append(d)
 print(f"  {len(daily)} ימים")
 
+# ── DEBUG: פירוט TransactionEntryType לשורות שליליות ─────────────────────
+print("DEBUG: פירוט סוגי TransactionEntry שליליים...")
+cur.execute("""
+    SELECT tei.TransactionEntryType,
+           COUNT(*) AS Cnt,
+           SUM(ABS(tei.Total)) AS TotalAbs,
+           MIN(tei.Total) AS MinTotal,
+           MAX(tei.Total) AS MaxTotal
+    FROM TransactionEntry tei
+    JOIN [Transaction] t ON tei.TransactionID = t.TransactionID
+    JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+    WHERE t.Status > -1
+      AND tei.Status > -1
+      AND tei.Total < 0
+    GROUP BY tei.TransactionEntryType
+    ORDER BY TotalAbs DESC
+""")
+for row in cur.fetchall():
+    print(f"  Type={row[0]}  Cnt={row[1]}  SumAbs={round(float(row[2]),2)}  Min={row[3]}  Max={row[4]}")
+
 # ── 5. אמצעי תשלום × יום (כל ההיסטוריה) ─────────────────────────────────
 print("שולף נתוני אמצעי תשלום...")
 cur.execute("""
