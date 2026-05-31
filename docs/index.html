@@ -3628,7 +3628,7 @@ function generateOrderPDF(order) {
     margin:      [8, 8, 8, 8],
     filename:    filename,
     image:       { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, logging: false, foreignObjectRendering: true },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(el).save().then(() => {
     // html2pdf moved el into its own container — remove the container
