@@ -130,7 +130,7 @@ cur.execute("""
     LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
     WHERE t.Status > -1
       AND t.TransactionType NOT IN (14, 21)
-      AND te.Status = 1
+      AND te.Status > -1
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), te.TenderID, tn.TenderNameHe
     ORDER BY SaleDate, TotalAmount DESC
 """)
