@@ -23,11 +23,14 @@
 body{font-family:'Rubik',sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding-top:142px}
 
 /* STATUS STRIP */
-#status-strip{position:fixed;top:0;right:0;left:0;z-index:102;height:26px;background:#0f172a;color:#86efac;font-size:11px;font-family:'Rubik',sans-serif;font-weight:600;display:flex;align-items:center;justify-content:center;gap:14px;letter-spacing:.2px}
-#status-strip .strip-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse-dot 2.5s ease-in-out infinite;margin-left:4px}
+#status-strip{position:fixed;top:0;right:0;left:0;z-index:102;height:26px;background:#0f172a;overflow:hidden;display:flex;align-items:center}
+#status-strip-track{display:inline-flex;align-items:center;white-space:nowrap;gap:50px;color:#86efac;font-size:11px;font-family:'Rubik',sans-serif;font-weight:600;letter-spacing:.2px;animation:ticker-rtl 32s linear infinite}
+.strip-item{display:inline-flex;align-items:center;gap:10px}
+.strip-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;flex-shrink:0;animation:pulse-dot 2.5s ease-in-out infinite}
+.strip-sep-diamond{color:#4ade80;opacity:.4;font-size:10px}
+.strip-upd{color:#a3e635;opacity:.85}
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
-#status-strip .strip-sep{opacity:.25;font-size:13px}
-#strip-updated{color:#a3e635;opacity:.85}
+@keyframes ticker-rtl{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 /* HEADER */
 header{position:fixed;top:26px;right:0;left:0;z-index:100;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 24px rgba(79,70,229,.45)}
@@ -306,10 +309,12 @@ body.emp-mode .price-col{display:none!important}
 
 <!-- STATUS STRIP -->
 <div id="status-strip">
-  <span class="strip-dot"></span>
-  <span>האתר פעיל</span>
-  <span class="strip-sep">|</span>
-  <span id="strip-updated">טוען...</span>
+  <div id="status-strip-track">
+    <span class="strip-item"><span class="strip-dot"></span><span>האתר פעיל</span><span style="opacity:.25;margin:0 4px">|</span><span class="strip-upd">טוען...</span></span>
+    <span class="strip-sep-diamond">✦</span>
+    <span class="strip-item"><span class="strip-dot"></span><span>האתר פעיל</span><span style="opacity:.25;margin:0 4px">|</span><span class="strip-upd">טוען...</span></span>
+    <span class="strip-sep-diamond">✦</span>
+  </div>
 </div>
 
 <!-- ORDER FLOAT BUTTON -->
@@ -1126,18 +1131,18 @@ fetch('data.json?t=' + Date.now())
     (function() {
       const lu = data.last_updated || '';
       const strip = document.getElementById('status-strip');
-      const dot   = strip ? strip.querySelector('.strip-dot') : null;
-      const upd   = document.getElementById('strip-updated');
-      upd.textContent = 'עדכון אחרון: ' + lu;
+      const dots  = strip ? strip.querySelectorAll('.strip-dot') : [];
+      const upd   = document.querySelectorAll('.strip-upd');
+      upd.forEach(el => el.textContent = 'עדכון אחרון: ' + lu);
       // Parse dd/mm/yyyy hh:mm
       const pm = lu.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
       if (pm && strip) {
         const updated = new Date(+pm[3], +pm[2]-1, +pm[1], +pm[4], +pm[5]);
         const ageHours = (Date.now() - updated.getTime()) / 3600000;
         if (ageHours > 3) {
-          if (dot) { dot.style.background = '#fb923c'; dot.style.animationDuration = '1s'; }
+          dots.forEach(d => { d.style.background = '#fb923c'; d.style.animationDuration = '1s'; });
           if (strip) strip.style.setProperty('color', '#fde68a');
-          upd.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu;
+          upd.forEach(el => el.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu;)
         }
       }
     })();
