@@ -1086,6 +1086,25 @@ function renderAccounting(){
       </div>
     </div>
     <div class="synced-note" id="acc-note"></div>
+    <div class="chart-card" id="cust-card">
+      <div class="cc-hdr">
+        <span class="cc-title">סיכום לפי לקוח / גוף</span>
+        <input id="cust-search" type="text" placeholder="חיפוש לקוח..." style="padding:4px 8px;border-radius:6px;border:1px solid #dde;font-family:Rubik;font-size:13px;width:180px" oninput="renderCustTable()">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th onclick="custSortBy('name')" style="cursor:pointer">שם לקוח / גוף ⇅</th>
+            <th onclick="custSortBy('cnt')" style="cursor:pointer;text-align:center">מסמכים ⇅</th>
+            <th onclick="custSortBy('total')" style="cursor:pointer" class="num">סה"כ חויב ⇅</th>
+            <th onclick="custSortBy('openCnt')" style="cursor:pointer;text-align:center">פתוחות ⇅</th>
+            <th onclick="custSortBy('balance')" style="cursor:pointer" class="num">יתרה לגבייה ⇅</th>
+            <th onclick="custSortBy('last')" style="cursor:pointer">חשבונית אחרונה ⇅</th>
+          </tr></thead>
+          <tbody id="cust-tbody"></tbody>
+        </table>
+      </div>
+    </div>
     <div class="chart-card" id="inv-card">
       <div class="cc-hdr">
         <span class="cc-title">חשבוניות רווחית</span>
@@ -1159,6 +1178,7 @@ function renderAccounting(){
   });
 
   renderAccYear();
+  renderCustTable();
   renderInvTable();
 }
 
@@ -1270,6 +1290,50 @@ function renderInvTable(){
       <td class="num" style="color:${balance>0?'#f59e0b':'#94a3b8'}">${balance>0?fmt(balance):'—'}</td>
     </tr>`;
   }).join('');
+}
+
+// ════════════════════════════════════════════
+// CUSTOMER SUMMARY TABLE
+// ════════════════════════════════════════════
+let custSortColV='total', custSortDirV=-1;
+function custSortBy(col){
+  if(custSortColV===col) custSortDirV*=-1; else{custSortColV=col;custSortDirV=-1;}
+  renderCustTable();
+}
+function renderCustTable(){
+  const tbody=document.getElementById('cust-tbody');
+  if(!tbody) return;
+  const search=(document.getElementById('cust-search')?.value||'').trim().toLowerCase();
+
+  // Aggregate by customer name
+  const map={};
+  rivhitInv.forEach(r=>{
+    const name=r.CustName||'—';
+    if(!map[name]) map[name]={name,cnt:0,total:0,openCnt:0,balance:0,last:''};
+    map[name].cnt++;
+    map[name].total+=r.TtlMam;
+    const bal=r.Sgira?0:(r.TtlMam-r.SgiraSchum);
+    if(bal>0){ map[name].balance+=bal; map[name].openCnt++; }
+    if(!map[name].last||r.HenDate>map[name].last) map[name].last=r.HenDate;
+  });
+
+  let rows=Object.values(map);
+  if(search) rows=rows.filter(r=>r.name.toLowerCase().includes(search));
+
+  rows.sort((a,b)=>{
+    const va=a[custSortColV], vb=b[custSortColV];
+    if(typeof va==='string') return va.localeCompare(vb,'he')*custSortDirV;
+    return(va-vb)*custSortDirV;
+  });
+
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r.name}</td>
+    <td style="text-align:center">${r.cnt}</td>
+    <td class="num">${fmt(r.total)}</td>
+    <td style="text-align:center;color:${r.openCnt>0?'#f59e0b':'#94a3b8'}">${r.openCnt>0?r.openCnt:'—'}</td>
+    <td class="num" style="color:${r.balance>0?'#f59e0b':'#94a3b8'}">${r.balance>0?fmt(r.balance):'—'}</td>
+    <td style="color:#8492a6;font-size:12px">${r.last||''}</td>
+  </tr>`).join('');
 }
 
 // ════════════════════════════════════════════
