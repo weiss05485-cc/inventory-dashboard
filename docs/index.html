@@ -840,7 +840,7 @@ body.emp-mode .price-col{display:none!important}
   </div>
   <div id="today-content" style="display:none">
     <!-- Mode tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:0">
+    <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:0;align-items:center">
       <button id="tab-single" onclick="switchTodayMode('single')"
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:700;color:var(--navy);border-bottom:3px solid var(--navy);margin-bottom:-2px">
         📅 יום בודד
@@ -848,6 +848,10 @@ body.emp-mode .price-col{display:none!important}
       <button id="tab-compare" onclick="switchTodayMode('compare')"
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px">
         📊 השוואה בין תקופות
+      </button>
+      <button id="btn-vat-toggle" onclick="toggleExVAT()"
+        style="margin-right:auto;padding:5px 14px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;border-radius:8px;font-size:12px;font-weight:600;font-family:'Rubik',sans-serif;color:var(--muted);transition:all .2s">
+        ללא מע"מ
       </button>
     </div>
 
@@ -1266,6 +1270,23 @@ function todayNavDay(delta) {
 }
 
 let _todaySubMode = 'day';
+let _showExVAT = false;
+
+function toggleExVAT() {
+  _showExVAT = !_showExVAT;
+  const btn = document.getElementById('btn-vat-toggle');
+  if (btn) {
+    btn.style.background    = _showExVAT ? '#fff7ed' : 'var(--card)';
+    btn.style.borderColor   = _showExVAT ? 'var(--orange)' : 'var(--border)';
+    btn.style.color         = _showExVAT ? 'var(--orange)' : 'var(--muted)';
+    btn.textContent         = _showExVAT ? '✓ ללא מע"מ' : 'ללא מע"מ';
+  }
+  if (_todaySubMode === 'day') _renderTodayContent();
+  else renderTodayPeriodSub();
+  const cmp = document.getElementById('today-compare-panel');
+  if (cmp && cmp.style.display !== 'none' && document.getElementById('comp-results').innerHTML)
+    renderComparison();
+}
 
 function setTodaySubMode(mode) {
   _todaySubMode = mode;
@@ -1317,7 +1338,7 @@ function renderTodayPeriodSub() {
   const to   = document.getElementById('period-sub-to').value;
   if (!from || !to || !TODAY_DATA) return;
   const agg = _aggregatePeriod(from, to);
-  const fmt = n => '₪' + parseFloat(n || 0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
+  const fmt = n => '₪' + parseFloat((_showExVAT ? (n||0)/1.18 : (n||0))).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
   document.getElementById('period-sub-label').textContent = agg.days + ' ימים | ' + agg.totalTrans.toLocaleString() + ' עסקאות';
 
   const totalCard = `<div class="kpi-card" style="border:2px solid var(--navy)">
@@ -1356,7 +1377,7 @@ function _renderTodayContent() {
   if (!TODAY_DATA) return;
   const data = TODAY_DATA;
   const selDate = _todaySelectedDate || data.today;
-  const fmt = n => '₪' + parseFloat(n).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt = n => '₪' + parseFloat(_showExVAT ? n/1.18 : n).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
   // עדכון picker
@@ -1550,7 +1571,7 @@ function renderComparison() {
   const pA = A.payments;
   const pB = B.payments;
 
-  const fmt  = n => '₪' + parseFloat(n||0).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
+  const fmt  = n => '₪' + parseFloat(_showExVAT ? (n||0)/1.18 : (n||0)).toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0});
   const diff = (a,b) => {
     if (b === 0) return a > 0 ? '<span style="color:var(--green)">+∞%</span>' : '—';
     const p = ((a - b) / Math.abs(b) * 100);
