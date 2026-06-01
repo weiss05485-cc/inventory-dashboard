@@ -202,17 +202,17 @@ try:
     # 7a. סיכום לפי ספק × חודש
     cur.execute("""
         SELECT
-            CONVERT(VARCHAR(7), sd.DateT, 120)          AS YearMonth,
-            ISNULL(sup.Name, N'ללא ספק')                AS SupplierName,
+            CONVERT(VARCHAR(7), sd.DateT, 120)           AS YearMonth,
+            ISNULL(sup.Name, N'ללא ספק')                 AS SupplierName,
             CASE sd.Type
                 WHEN 1 THEN N'חשבון'
                 WHEN 2 THEN N'החזרה'
                 WHEN 3 THEN N'חיוב'
                 WHEN 4 THEN N'זיכוי'
                 ELSE CAST(sd.Type AS NVARCHAR(10))
-            END                                          AS DocType,
-            COUNT(DISTINCT sd.ID)                        AS DocCount,
-            CAST(SUM(sde.Price * sde.Qty) AS DECIMAL(18,2)) AS TotalAmount
+            END                                           AS DocType,
+            COUNT(DISTINCT sd.ID)                         AS DocCount,
+            CAST(SUM(ISNULL(sde.ExtPrice, sde.Cost * sde.Qty)) AS DECIMAL(18,2)) AS TotalAmount
         FROM SuppliersDocs sd
         JOIN SuppliersDocsEntry sde ON sde.ID = sd.ID AND sde.Status > 0
         LEFT JOIN Supplier sup      ON sd.SupplierID = sup.SupplierID
@@ -230,23 +230,25 @@ try:
         r['DocCount']    = int(r['DocCount'])
     print(f"  {len(sup_monthly_raw)} שורות חודשי ספקים")
 
-    # 7b. פירוט חשבוניות (12 חודשים אחרונים)
+    # 7b. פירוט חשבוניות (14 חודשים אחרונים)
     cur.execute("""
         SELECT
-            CONVERT(VARCHAR(10), sd.DateT, 23)           AS DocDate,
-            ISNULL(sup.Name, N'ללא ספק')                 AS SupplierName,
-            ISNULL(sd.DocNumber, N'')                     AS DocNumber,
+            CONVERT(VARCHAR(10), sd.DateT, 23)            AS DocDate,
+            ISNULL(sup.Name, N'ללא ספק')                  AS SupplierName,
+            ISNULL(sd.No, N'')                             AS DocNumber,
             CASE sd.Type
                 WHEN 1 THEN N'חשבון'
                 WHEN 2 THEN N'החזרה'
                 WHEN 3 THEN N'חיוב'
                 WHEN 4 THEN N'זיכוי'
                 ELSE CAST(sd.Type AS NVARCHAR(10))
-            END                                           AS DocType,
-            ISNULL(st.StoreName, N'')                     AS StoreName,
-            COUNT(sde.ID)                                 AS LineCount,
-            CAST(SUM(sde.Qty)  AS DECIMAL(18,1))          AS TotalQty,
-            CAST(SUM(sde.Price * sde.Qty) AS DECIMAL(18,2)) AS TotalAmount
+            END                                            AS DocType,
+            ISNULL(st.StoreName, N'')                      AS StoreName,
+            sd.IsPaid                                      AS IsPaid,
+            CAST(ISNULL(sd.AmountPay, 0) AS DECIMAL(18,2)) AS AmountPay,
+            COUNT(sde.ID)                                  AS LineCount,
+            CAST(SUM(sde.Qty) AS DECIMAL(18,1))            AS TotalQty,
+            CAST(SUM(ISNULL(sde.ExtPrice, sde.Cost * sde.Qty)) AS DECIMAL(18,2)) AS TotalAmount
         FROM SuppliersDocs sd
         JOIN SuppliersDocsEntry sde ON sde.ID = sd.ID AND sde.Status > 0
         LEFT JOIN Supplier sup      ON sd.SupplierID = sup.SupplierID
@@ -255,7 +257,7 @@ try:
           AND sd.Type NOT IN (5, 6)
           AND sd.DocStatus IN (7, 8, 9, 10)
           AND sd.DateT >= DATEADD(MONTH, -14, GETDATE())
-        GROUP BY sd.DateT, sup.Name, sd.DocNumber, sd.Type, st.StoreName
+        GROUP BY sd.DateT, sup.Name, sd.No, sd.Type, st.StoreName, sd.IsPaid, sd.AmountPay
         ORDER BY sd.DateT DESC
     """)
     cols = [d[0] for d in cur.description]
@@ -263,7 +265,9 @@ try:
     for r in sup_docs_raw:
         r['TotalAmount'] = round(float(r['TotalAmount'] or 0), 2)
         r['TotalQty']    = round(float(r['TotalQty'] or 0), 1)
+        r['AmountPay']   = round(float(r['AmountPay'] or 0), 2)
         r['LineCount']   = int(r['LineCount'])
+        r['IsPaid']      = int(r['IsPaid'] or 0)
     print(f"  {len(sup_docs_raw)} חשבוניות ספקים")
 
 except Exception as e:
