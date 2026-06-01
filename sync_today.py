@@ -196,19 +196,96 @@ except Exception as e:
     print(f"  רווחית לא זמין: {e}")
     rivhit_raw = []
 
+# ── 7. חשבוניות ספקים ────────────────────────────────────────────────────
+print("שולף חשבוניות ספקים...")
+try:
+    # 7a. סיכום לפי ספק × חודש
+    cur.execute("""
+        SELECT
+            CONVERT(VARCHAR(7), sd.DateT, 120)          AS YearMonth,
+            ISNULL(sup.Name, N'ללא ספק')                AS SupplierName,
+            CASE sd.Type
+                WHEN 1 THEN N'חשבון'
+                WHEN 2 THEN N'החזרה'
+                WHEN 3 THEN N'חיוב'
+                WHEN 4 THEN N'זיכוי'
+                ELSE CAST(sd.Type AS NVARCHAR(10))
+            END                                          AS DocType,
+            COUNT(DISTINCT sd.ID)                        AS DocCount,
+            CAST(SUM(sde.Price * sde.Qty) AS DECIMAL(18,2)) AS TotalAmount
+        FROM SuppliersDocs sd
+        JOIN SuppliersDocsEntry sde ON sde.ID = sd.ID AND sde.Status > 0
+        LEFT JOIN Supplier sup      ON sd.SupplierID = sup.SupplierID
+        WHERE sd.Status > 0
+          AND sd.Type NOT IN (5, 6)
+          AND sd.DocStatus IN (7, 8, 9, 10)
+          AND sd.DateT >= DATEADD(YEAR, -3, GETDATE())
+        GROUP BY CONVERT(VARCHAR(7), sd.DateT, 120), sup.Name, sd.Type
+        ORDER BY YearMonth DESC, TotalAmount DESC
+    """)
+    cols = [d[0] for d in cur.description]
+    sup_monthly_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in sup_monthly_raw:
+        r['TotalAmount'] = round(float(r['TotalAmount'] or 0), 2)
+        r['DocCount']    = int(r['DocCount'])
+    print(f"  {len(sup_monthly_raw)} שורות חודשי ספקים")
+
+    # 7b. פירוט חשבוניות (12 חודשים אחרונים)
+    cur.execute("""
+        SELECT
+            CONVERT(VARCHAR(10), sd.DateT, 23)           AS DocDate,
+            ISNULL(sup.Name, N'ללא ספק')                 AS SupplierName,
+            ISNULL(sd.DocNumber, N'')                     AS DocNumber,
+            CASE sd.Type
+                WHEN 1 THEN N'חשבון'
+                WHEN 2 THEN N'החזרה'
+                WHEN 3 THEN N'חיוב'
+                WHEN 4 THEN N'זיכוי'
+                ELSE CAST(sd.Type AS NVARCHAR(10))
+            END                                           AS DocType,
+            ISNULL(st.StoreName, N'')                     AS StoreName,
+            COUNT(sde.ID)                                 AS LineCount,
+            CAST(SUM(sde.Qty)  AS DECIMAL(18,1))          AS TotalQty,
+            CAST(SUM(sde.Price * sde.Qty) AS DECIMAL(18,2)) AS TotalAmount
+        FROM SuppliersDocs sd
+        JOIN SuppliersDocsEntry sde ON sde.ID = sd.ID AND sde.Status > 0
+        LEFT JOIN Supplier sup      ON sd.SupplierID = sup.SupplierID
+        LEFT JOIN Store st          ON sd.StoreID = st.StoreID
+        WHERE sd.Status > 0
+          AND sd.Type NOT IN (5, 6)
+          AND sd.DocStatus IN (7, 8, 9, 10)
+          AND sd.DateT >= DATEADD(MONTH, -14, GETDATE())
+        GROUP BY sd.DateT, sup.Name, sd.DocNumber, sd.Type, st.StoreName
+        ORDER BY sd.DateT DESC
+    """)
+    cols = [d[0] for d in cur.description]
+    sup_docs_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in sup_docs_raw:
+        r['TotalAmount'] = round(float(r['TotalAmount'] or 0), 2)
+        r['TotalQty']    = round(float(r['TotalQty'] or 0), 1)
+        r['LineCount']   = int(r['LineCount'])
+    print(f"  {len(sup_docs_raw)} חשבוניות ספקים")
+
+except Exception as e:
+    print(f"  ספקים לא זמין: {e}")
+    sup_monthly_raw = []
+    sup_docs_raw    = []
+
 conn.close()
 
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {
-    'today':   today_str,
-    'synced':  datetime.now().strftime('%d/%m/%Y %H:%M'),
-    'daily':   daily,
-    'by_date': dict(by_date),
-    'rivhit':  rivhit_raw,
+    'today':        today_str,
+    'synced':       datetime.now().strftime('%d/%m/%Y %H:%M'),
+    'daily':        daily,
+    'by_date':      dict(by_date),
+    'rivhit':       rivhit_raw,
+    'sup_monthly':  sup_monthly_raw,
+    'sup_docs':     sup_docs_raw,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False)
 
 today_total = sum(r['TotalSales'] for r in (by_date.get(today_str, {}).get('stores') or []))
-print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f} | רווחית: {len(rivhit_raw)} חודשים")
+print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f} | רווחית: {len(rivhit_raw)} חודשים | ספקים: {len(sup_docs_raw)} חשבוניות")

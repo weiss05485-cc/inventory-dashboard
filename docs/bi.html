@@ -205,6 +205,7 @@ tr:hover td{background:#f8f9ff}
     <button class="nbtn" onclick="showTab('sellers')">👥 מוכרים</button>
     <button class="nbtn" onclick="showTab('payments')">💳 תשלומים</button>
     <button class="nbtn" onclick="showTab('inventory')">📦 מלאי</button>
+    <button class="nbtn" onclick="showTab('suppliers')">🏭 ספקים</button>
     <button class="nbtn" onclick="showTab('accounting')">📋 חשבונאות</button>
   </nav>
 
@@ -340,6 +341,63 @@ tr:hover td{background:#f8f9ff}
     </div>
   </div>
 
+  <!-- ── SUPPLIERS ── -->
+  <div id="tab-suppliers" class="tab-page">
+    <div class="page">
+      <div class="kpi-row" id="sup-kpis"></div>
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="cc-hdr"><span class="cc-title">רכישות לפי ספק</span><span class="cc-sub" id="sup-chart-sub"></span></div>
+          <div class="chart-wrap h300"><canvas id="ch-sup-bar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="cc-hdr"><span class="cc-title">חלוקת ספקים</span></div>
+          <div class="chart-wrap h300"><canvas id="ch-sup-pie"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="cc-hdr"><span class="cc-title">מגמת רכישות חודשית</span></div>
+        <div class="chart-wrap h260"><canvas id="ch-sup-trend"></canvas></div>
+      </div>
+      <!-- Invoice table -->
+      <div class="chart-card">
+        <div class="cc-hdr" style="flex-wrap:wrap;gap:10px">
+          <span class="cc-title">📄 פירוט חשבוניות</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="sup-filter-name" onchange="renderSupplierTable()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Rubik',sans-serif;background:#fff">
+              <option value="">כל הספקים</option>
+            </select>
+            <select id="sup-filter-type" onchange="renderSupplierTable()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Rubik',sans-serif;background:#fff">
+              <option value="">כל הסוגים</option>
+              <option value="חשבון">חשבון</option>
+              <option value="החזרה">החזרה</option>
+              <option value="זיכוי">זיכוי</option>
+            </select>
+            <button class="btn-export" onclick="exportSupplierCSV()" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Rubik',sans-serif">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table id="sup-docs-tbl">
+            <thead>
+              <tr>
+                <th onclick="sortSupTbl('DocDate')">תאריך ↕</th>
+                <th onclick="sortSupTbl('SupplierName')">ספק ↕</th>
+                <th>מספר חשבונית</th>
+                <th>סוג</th>
+                <th>סניף</th>
+                <th>פריטים</th>
+                <th>יחידות</th>
+                <th onclick="sortSupTbl('TotalAmount')">סכום ↕</th>
+              </tr>
+            </thead>
+            <tbody id="sup-docs-body"></tbody>
+          </table>
+        </div>
+        <div style="text-align:center;padding:8px;font-size:11px;color:var(--muted)" id="sup-tbl-count"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── ACCOUNTING ── -->
   <div id="tab-accounting" class="tab-page">
     <div class="page">
@@ -395,6 +453,8 @@ const PAYC={
 // STATE
 // ════════════════════════════════════════════
 let dailyData=[], byDate={}, rivhit=[], invData={};
+let supMonthly=[], supDocs=[];
+let supSortCol='DocDate', supSortDir=-1;
 let period='2026';
 let activeTab='overview';
 let charts={};
@@ -497,6 +557,8 @@ async function init(){
     dailyData=todayJson.daily||[];
     byDate=todayJson.by_date||{};
     rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
+    supMonthly=todayJson.sup_monthly||[];
+    supDocs=todayJson.sup_docs||[];
     invData=invJson;
     document.getElementById('hdr-synced').textContent='עודכן: '+(todayJson.synced||'');
 
@@ -514,6 +576,7 @@ function renderAll(){
   else if(activeTab==='sellers') renderSellers();
   else if(activeTab==='payments') renderPayments();
   else if(activeTab==='inventory') renderInventory();
+  else if(activeTab==='suppliers') renderSuppliers();
   else if(activeTab==='accounting') renderAccounting();
 }
 
@@ -524,7 +587,7 @@ function showTab(id){
   document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','inventory','accounting'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','inventory','suppliers','accounting'].indexOf(id)].classList.add('active');
   activeTab=id;
   renderAll();
 }
@@ -795,6 +858,164 @@ function renderPayments(){
     }))},
     options:chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true})
   });
+}
+
+// ════════════════════════════════════════════
+// SUPPLIERS
+// ════════════════════════════════════════════
+function getSupPeriodData(){
+  // filter supMonthly + supDocs by active period
+  const{from,to}=getPeriodRange();
+  const fromYM=from.slice(0,7), toYM=to.slice(0,7);
+  const monthly=supMonthly.filter(r=>r.YearMonth>=fromYM&&r.YearMonth<=toYM);
+  const docs=supDocs.filter(r=>r.DocDate>=from&&r.DocDate<=to);
+  return{monthly,docs};
+}
+
+function renderSuppliers(){
+  const{monthly,docs}=getSupPeriodData();
+
+  if(!monthly.length&&!docs.length){
+    document.getElementById('sup-kpis').innerHTML='';
+    document.getElementById('sup-docs-body').innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">אין נתוני ספקים עדיין — יופיעו בסנכרון הבא</td></tr>';
+    return;
+  }
+
+  // aggregate per supplier (invoices only, exclude returns for totals)
+  const supMap={};
+  docs.forEach(d=>{
+    if(!supMap[d.SupplierName])supMap[d.SupplierName]={name:d.SupplierName,total:0,docs:0,qty:0,returns:0};
+    if(d.DocType==='חשבון'||d.DocType==='חיוב'){
+      supMap[d.SupplierName].total+=d.TotalAmount;
+      supMap[d.SupplierName].docs+=1;
+      supMap[d.SupplierName].qty+=d.TotalQty;
+    } else if(d.DocType==='החזרה'||d.DocType==='זיכוי'){
+      supMap[d.SupplierName].returns+=Math.abs(d.TotalAmount);
+    }
+  });
+  const supArr=Object.values(supMap).sort((a,b)=>b.total-a.total);
+  const grandTotal=supArr.reduce((s,r)=>s+r.total,0);
+  const grandReturns=supArr.reduce((s,r)=>s+r.returns,0);
+  const grandDocs=docs.filter(d=>d.DocType==='חשבון'||d.DocType==='חיוב').length;
+  const topSup=supArr[0]||{};
+
+  // KPIs
+  document.getElementById('sup-kpis').innerHTML=[
+    {label:'סה"כ רכישות',val:fmtM(grandTotal),sub:grandDocs+' חשבוניות',accent:'#4f46e5'},
+    {label:'ספקים פעילים',val:supArr.length,sub:'',accent:'#10b981'},
+    {label:'ספק מוביל',val:topSup.name||'—',val2:topSup.name?fmtM(topSup.total):'',accent:'#f59e0b'},
+    {label:'זיכויים / החזרות',val:fmtM(grandReturns),sub:'',accent:'#ef4444'},
+  ].map(c=>`<div class="kpi">
+    <div class="kpi-accent" style="background:${c.accent}"></div>
+    <div class="kpi-label">${c.label}</div>
+    <div class="kpi-val" style="font-size:${String(c.val).length>10?'15px':'22px'}">${c.val}</div>
+    ${c.val2?`<div class="kpi-sub">${c.val2}</div>`:''}
+    ${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}
+  </div>`).join('');
+
+  document.getElementById('sup-chart-sub').textContent=`סה"כ: ${fmtM(grandTotal)}`;
+
+  // Horizontal bar — top suppliers
+  const top12=supArr.slice(0,12);
+  destroyChart('supbar');
+  charts.supbar=new Chart(document.getElementById('ch-sup-bar'),{
+    type:'bar',
+    data:{labels:top12.map(s=>s.name),datasets:[
+      {label:'רכישות',data:top12.map(s=>s.total),backgroundColor:'#4f46e5bb',borderWidth:0,borderRadius:4},
+      {label:'החזרות',data:top12.map(s=>s.returns),backgroundColor:'#ef4444bb',borderWidth:0,borderRadius:4},
+    ]},
+    options:{...chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true}),indexAxis:'y'}
+  });
+
+  // Pie
+  const top6=supArr.slice(0,6);
+  const othersTotal=supArr.slice(6).reduce((s,r)=>s+r.total,0);
+  const pieLabels=[...top6.map(s=>s.name),...(othersTotal>0?['אחרים']:[])];
+  const pieVals=[...top6.map(s=>s.total),...(othersTotal>0?[othersTotal]:[])];
+  destroyChart('suppie');
+  charts.suppie=new Chart(document.getElementById('ch-sup-pie'),{
+    type:'doughnut',
+    data:{labels:pieLabels,datasets:[{data:pieVals,backgroundColor:[...SCOL,...(othersTotal>0?['#94a3b8']:[])],borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{font:{family:'Rubik',size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.parsed)} (${pctOf(c.parsed,grandTotal)})`}}}}
+  });
+
+  // Monthly trend
+  const monthMap={};
+  monthly.forEach(r=>{
+    if(!monthMap[r.YearMonth])monthMap[r.YearMonth]={ym:r.YearMonth,invoices:0,returns:0};
+    if(r.DocType==='חשבון'||r.DocType==='חיוב') monthMap[r.YearMonth].invoices+=r.TotalAmount;
+    else if(r.DocType==='החזרה'||r.DocType==='זיכוי') monthMap[r.YearMonth].returns+=Math.abs(r.TotalAmount);
+  });
+  const monthArr=Object.values(monthMap).sort((a,b)=>a.ym.localeCompare(b.ym));
+  const mLabels=monthArr.map(m=>{const p=m.ym.split('-');return MHE[+p[1]]+' '+p[0];});
+  destroyChart('suptrend');
+  charts.suptrend=new Chart(document.getElementById('ch-sup-trend'),{
+    type:'bar',
+    data:{labels:mLabels,datasets:[
+      {label:'רכישות',data:monthArr.map(m=>m.invoices),backgroundColor:'#4f46e5bb',borderRadius:4,order:2},
+      {label:'החזרות',data:monthArr.map(m=>m.returns),backgroundColor:'#ef4444bb',borderRadius:4,order:2},
+      {label:'מגמה',data:monthArr.map((_,i)=>{const sl=monthArr.map(m=>m.invoices).slice(Math.max(0,i-1),i+2);return sl.reduce((a,b)=>a+b,0)/sl.length;}),
+        type:'line',borderColor:'#f59e0b',backgroundColor:'transparent',borderWidth:2.5,pointRadius:0,tension:.4,order:1}
+    ]},
+    options:chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true})
+  });
+
+  // Populate supplier filter
+  const sel=document.getElementById('sup-filter-name');
+  const curVal=sel.value;
+  sel.innerHTML='<option value="">כל הספקים</option>'+
+    supArr.map(s=>`<option value="${s.name}"${s.name===curVal?' selected':''}>${s.name} (${fmtM(s.total)})</option>`).join('');
+
+  renderSupplierTable();
+}
+
+function renderSupplierTable(){
+  const{docs}=getSupPeriodData();
+  const nameFilter=document.getElementById('sup-filter-name')?.value||'';
+  const typeFilter=document.getElementById('sup-filter-type')?.value||'';
+
+  let filtered=docs;
+  if(nameFilter) filtered=filtered.filter(d=>d.SupplierName===nameFilter);
+  if(typeFilter) filtered=filtered.filter(d=>d.DocType===typeFilter);
+
+  // sort
+  filtered=[...filtered].sort((a,b)=>{
+    const av=a[supSortCol]||'', bv=b[supSortCol]||'';
+    return typeof av==='number'?(av-bv)*supSortDir:av.localeCompare(bv)*supSortDir;
+  });
+
+  const fmt2=(n)=>n===0?'—':fmt(n);
+  document.getElementById('sup-docs-body').innerHTML=filtered.map(d=>{
+    const isReturn=d.DocType==='החזרה'||d.DocType==='זיכוי';
+    return`<tr style="${isReturn?'background:#fff5f5':''}">
+      <td>${d.DocDate}</td>
+      <td><strong>${d.SupplierName}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${d.DocNumber||'—'}</td>
+      <td><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:${isReturn?'#fee2e2':d.DocType==='חשבון'?'#dbeafe':'#fef3c7'};color:${isReturn?'#b91c1c':d.DocType==='חשבון'?'#1d4ed8':'#92400e'}">${d.DocType}</span></td>
+      <td>${d.StoreName||'—'}</td>
+      <td>${d.LineCount}</td>
+      <td>${d.TotalQty>0?d.TotalQty.toLocaleString():'—'}</td>
+      <td class="num" style="${isReturn?'color:var(--red)':''}">${isReturn?'-':''}${fmt(Math.abs(d.TotalAmount))}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sup-tbl-count').textContent=`${filtered.length} חשבוניות מוצגות`;
+}
+
+function sortSupTbl(col){
+  if(supSortCol===col) supSortDir*=-1; else {supSortCol=col;supSortDir=-1;}
+  renderSupplierTable();
+}
+
+function exportSupplierCSV(){
+  const{docs}=getSupPeriodData();
+  if(!docs.length){alert('אין נתונים לייצוא');return;}
+  let rows=['תאריך,ספק,מספר חשבונית,סוג,סניף,פריטים,יחידות,סכום'];
+  docs.forEach(d=>rows.push(`${d.DocDate},"${d.SupplierName}","${d.DocNumber||''}",${d.DocType},"${d.StoreName||''}",${d.LineCount},${d.TotalQty},${d.TotalAmount}`));
+  const blob=new Blob(['﻿'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='suppliers_export.csv';a.click();
 }
 
 // ════════════════════════════════════════════
