@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>חסידים סנטר | חשבונאות</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary:#4f46e5; --primary2:#7c3aed; --primary-dark:#312e81;
+  --bg:#f4f6fb; --card:#ffffff;
+  --border:#e8ecf4; --text:#1e2233; --muted:#8492a6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --blue:#3b82f6;
+  --radius:14px; --shadow:0 2px 16px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Rubik',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+/* ── PIN SCREEN ── */
+#pin-screen{position:fixed;inset:0;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:28px}
+.pin-box{background:rgba(255,255,255,.12);backdrop-filter:blur(16px);border-radius:24px;padding:40px 36px;display:flex;flex-direction:column;align-items:center;gap:24px;box-shadow:0 16px 48px rgba(0,0,0,.35);width:320px}
+.pin-logo{font-size:42px}
+.pin-title{color:#fff;font-size:20px;font-weight:800;letter-spacing:.3px}
+.pin-sub{color:rgba(255,255,255,.55);font-size:12px;margin-top:-16px}
+.pin-dots{display:flex;gap:12px;height:14px;align-items:center}
+.pin-dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.pin-dot.filled{background:#a5f3fc;box-shadow:0 0 8px #a5f3fc}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
+.pin-btn{height:64px;border-radius:14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif}
+.pin-btn:hover{background:rgba(255,255,255,.28);transform:scale(1.04)}
+.pin-btn:active{transform:scale(.96)}
+.pin-clear{font-size:16px}
+.pin-error{color:#fca5a5;font-size:13px;font-weight:600;min-height:18px}
+
+/* ── MAIN ── */
+#main{display:none;padding-top:90px}
+header{position:fixed;top:0;right:0;left:0;z-index:100;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 24px rgba(79,70,229,.45)}
+.hdr-title{font-size:18px;font-weight:800}
+.hdr-sub{font-size:11px;opacity:.6;margin-top:2px}
+.hdr-badge{background:rgba(255,255,255,.15);padding:4px 14px;border-radius:20px;font-size:11px}
+.page{max-width:1200px;margin:0 auto;padding:24px 20px}
+
+/* ── CARDS ── */
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--card);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.card-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.card-val{font-size:26px;font-weight:800;color:var(--primary)}
+.card-val.green{color:var(--green)}
+.card-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ── CHART CARDS ── */
+.chart-card{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:22px}
+.chart-title{font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text)}
+.chart-wrap{position:relative;height:300px}
+
+/* ── YEAR TABS ── */
+.year-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.ytab{padding:7px 18px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.15s;font-family:'Rubik',sans-serif}
+.ytab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8f9ff;padding:10px 14px;text-align:right;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8f9ff}
+.num{font-weight:700;color:var(--primary)}
+
+.synced-note{font-size:11px;color:var(--muted);text-align:center;padding:12px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .cards-row{grid-template-columns:1fr 1fr}
+  .pin-pad{grid-template-columns:repeat(3,62px);gap:8px}
+  .pin-btn{height:56px;font-size:20px}
+  .pin-box{width:290px;padding:30px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div class="pin-box">
+    <div class="pin-logo">🔐</div>
+    <div class="pin-title">חשבונאות</div>
+    <div class="pin-sub">הכנס קוד גישה</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d4"></div>
+      <div class="pin-dot" id="d5"></div>
+      <div class="pin-dot" id="d6"></div>
+      <div class="pin-dot" id="d7"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-btn" onclick="pinKey('1')">1</button>
+      <button class="pin-btn" onclick="pinKey('2')">2</button>
+      <button class="pin-btn" onclick="pinKey('3')">3</button>
+      <button class="pin-btn" onclick="pinKey('4')">4</button>
+      <button class="pin-btn" onclick="pinKey('5')">5</button>
+      <button class="pin-btn" onclick="pinKey('6')">6</button>
+      <button class="pin-btn" onclick="pinKey('7')">7</button>
+      <button class="pin-btn" onclick="pinKey('8')">8</button>
+      <button class="pin-btn" onclick="pinKey('9')">9</button>
+      <button class="pin-btn pin-clear" onclick="pinClear()">⌫</button>
+      <button class="pin-btn" onclick="pinKey('0')">0</button>
+      <button class="pin-btn" style="opacity:.3;cursor:default"></button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <header>
+    <div>
+      <div class="hdr-title">📊 חשבונאות — רווחית</div>
+      <div class="hdr-sub">נתונים חשבונאיים חסויים</div>
+    </div>
+    <div class="hdr-badge" id="hdr-synced">טוען...</div>
+  </header>
+
+  <div class="page">
+
+    <!-- YEAR SUMMARY CARDS -->
+    <div class="cards-row" id="year-cards"></div>
+
+    <!-- YEAR TABS + MONTHLY CHART -->
+    <div class="chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div class="chart-title" style="margin-bottom:0">מחזור חודשי</div>
+        <div class="year-tabs" id="year-tabs"></div>
+      </div>
+      <div class="chart-wrap"><canvas id="monthly-chart"></canvas></div>
+    </div>
+
+    <!-- YEAR COMPARISON CHART -->
+    <div class="chart-card">
+      <div class="chart-title">השוואה שנתית</div>
+      <div class="chart-wrap"><canvas id="compare-chart"></canvas></div>
+    </div>
+
+    <!-- DETAIL TABLE -->
+    <div class="chart-card">
+      <div class="chart-title" id="tbl-title">פירוט חודשי</div>
+      <div class="tbl-wrap">
+        <table id="detail-table">
+          <thead><tr><th>שנה</th><th>חודש</th><th>סכום</th><th>עסקאות</th></tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="synced-note" id="synced-note"></div>
+  </div>
+</div>
+
+<script>
+// ── PIN ──────────────────────────────────────────────────────────────────
+const CORRECT = '41254125';
+let pinVal = '';
+
+function pinKey(k) {
+  if (pinVal.length >= 8) return;
+  pinVal += k;
+  updateDots();
+  if (pinVal.length === 8) checkPin();
+}
+function pinClear() {
+  pinVal = pinVal.slice(0, -1);
+  updateDots();
+  document.getElementById('pin-error').textContent = '';
+}
+function updateDots() {
+  for (let i = 0; i < 8; i++)
+    document.getElementById('d' + i).classList.toggle('filled', i < pinVal.length);
+}
+function checkPin() {
+  if (pinVal === CORRECT) {
+    sessionStorage.setItem('bi_auth', '1');
+    document.getElementById('pin-screen').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('pin-error').textContent = 'קוד שגוי, נסה שוב';
+    pinVal = '';
+    updateDots();
+    document.getElementById('pin-screen').style.animation = 'shake .3s';
+    setTimeout(() => document.getElementById('pin-screen').style.animation = '', 300);
+  }
+}
+// Auto-unlock if already authenticated this session
+if (sessionStorage.getItem('bi_auth') === '1') {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────
+const MONTHS_HE = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const YEAR_COLORS = {
+  2022:'#6366f1', 2023:'#10b981', 2024:'#f59e0b', 2025:'#ef4444', 2026:'#3b82f6'
+};
+
+let allData = [];
+let monthlyChart = null, compareChart = null;
+let activeYear = null;
+
+function fmt(n) {
+  if (!n || isNaN(n)) return '₪0';
+  return '₪' + Math.abs(Math.round(n)).toLocaleString('he-IL');
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('today.json?t=' + Date.now());
+    const json = await res.json();
+    if (!json.rivhit || json.rivhit.length === 0) {
+      document.getElementById('year-cards').innerHTML = '<p style="color:var(--muted);padding:20px">אין נתוני רווחית עדיין — הסנכרון הבא יהיה ב-7:00 בבוקר</p>';
+      return;
+    }
+    allData = json.rivhit.filter(r => r.Total > 0 && r.Year >= 2022);
+    document.getElementById('hdr-synced').textContent = 'עודכן: ' + (json.synced || '');
+    if (json.rivhit[0] && json.rivhit[0].UpdatedAt)
+      document.getElementById('synced-note').textContent = 'נתוני רווחית עודכנו: ' + json.rivhit[0].UpdatedAt;
+
+    buildYearCards();
+    buildYearTabs();
+    buildCompareChart();
+  } catch(e) {
+    document.getElementById('year-cards').innerHTML = '<p style="color:var(--red);padding:20px">שגיאה בטעינת הנתונים</p>';
+  }
+}
+
+function getYears() {
+  return [...new Set(allData.map(r => r.Year))].sort();
+}
+
+function buildYearCards() {
+  const years = getYears();
+  const container = document.getElementById('year-cards');
+  container.innerHTML = '';
+  years.forEach(y => {
+    const rows = allData.filter(r => r.Year === y);
+    const total = rows.reduce((s, r) => s + r.Total, 0);
+    const cnt   = rows.reduce((s, r) => s + r.Cnt, 0);
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <div class="card-label">${y}</div>
+      <div class="card-val green">${fmt(total)}</div>
+      <div class="card-sub">${cnt.toLocaleString()} עסקאות · ${rows.length} חודשים</div>`;
+    container.appendChild(div);
+  });
+}
+
+function buildYearTabs() {
+  const years = getYears();
+  activeYear = years[years.length - 1];
+  const tabs = document.getElementById('year-tabs');
+  tabs.innerHTML = '';
+  years.forEach(y => {
+    const b = document.createElement('button');
+    b.className = 'ytab' + (y === activeYear ? ' active' : '');
+    b.textContent = y;
+    b.onclick = () => { activeYear = y; renderYear(y); tabs.querySelectorAll('.ytab').forEach(t => t.classList.remove('active')); b.classList.add('active'); };
+    tabs.appendChild(b);
+  });
+  renderYear(activeYear);
+}
+
+function renderYear(year) {
+  const rows = allData.filter(r => r.Year === year).sort((a,b) => a.Month - b.Month);
+  const labels = rows.map(r => MONTHS_HE[r.Month]);
+  const vals   = rows.map(r => r.Total);
+  const color  = YEAR_COLORS[year] || '#4f46e5';
+
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(document.getElementById('monthly-chart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'מחזור ₪',
+        data: vals,
+        backgroundColor: color + 'cc',
+        borderColor: color,
+        borderWidth: 1.5,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y) } }
+      },
+      scales: {
+        y: { ticks: { callback: v => '₪' + (v/1000000).toFixed(1) + 'M' } }
+      }
+    }
+  });
+
+  // Table
+  document.getElementById('tbl-title').textContent = 'פירוט חודשי — ' + year;
+  const tbody = document.getElementById('tbl-body');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.Year}</td><td>${MONTHS_HE[r.Month]}</td><td class="num">${fmt(r.Total)}</td><td>${r.Cnt.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildCompareChart() {
+  const years = getYears().filter(y => allData.some(r => r.Year === y));
+  const datasets = years.map(y => {
+    const rows = allData.filter(r => r.Year === y);
+    const byMonth = {};
+    rows.forEach(r => byMonth[r.Month] = r.Total);
+    return {
+      label: String(y),
+      data: Array.from({length: 12}, (_, i) => byMonth[i+1] || null),
+      borderColor: YEAR_COLORS[y] || '#999',
+      backgroundColor: (YEAR_COLORS[y] || '#999') + '22',
+      tension: .4, fill: false, pointRadius: 4, pointHoverRadius: 6
+    };
+  });
+
+  if (compareChart) compareChart.destroy();
+  compareChart = new Chart(document.getElementById('compare-chart'), {
+    type: 'line',
+    data: {
+      labels: MONTHS_HE.slice(1),
+      datasets
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      spanGaps: true,
+      plugins: {
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } }
+      },
+      scales: {
+        y: { ticks: { callback: v => '₪' + (v/1000000).toFixed(1) + 'M' } }
+      }
+    }
+  });
+}
+
+// Auto-load if already authenticated
+if (sessionStorage.getItem('bi_auth') === '1') loadData();
+</script>
+</body>
+</html>
