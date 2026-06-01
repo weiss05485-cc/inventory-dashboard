@@ -161,8 +161,6 @@ for r in payments_raw:
     r['Cnt'] = int(r['Cnt'])
 print(f"  {len(payments_raw)} שורות תשלומים")
 
-conn.close()
-
 # ── ארגון לפי תאריך ───────────────────────────────────────────────────────
 by_date = defaultdict(lambda: {'stores': [], 'depts': [], 'sellers': [], 'payments': []})
 for r in stores_raw:
@@ -178,16 +176,39 @@ for r in payments_raw:
     dt = r.pop('SaleDate')
     by_date[dt]['payments'].append(r)
 
+# ── 6. נתוני רווחית (חשבונאות) ────────────────────────────────────────────
+print("שולף נתוני רווחית...")
+try:
+    cur.execute("""
+        SELECT Year, Month, Total, Cnt, UpdatedAt
+        FROM RivhitMonthly
+        ORDER BY Year, Month
+    """)
+    cols = [d[0] for d in cur.description]
+    rivhit_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in rivhit_raw:
+        r['Total'] = round(float(r['Total']), 2)
+        r['Cnt']   = int(r['Cnt'])
+        if r['UpdatedAt']:
+            r['UpdatedAt'] = r['UpdatedAt'].strftime('%d/%m/%Y %H:%M')
+    print(f"  {len(rivhit_raw)} חודשים רווחית")
+except Exception as e:
+    print(f"  רווחית לא זמין: {e}")
+    rivhit_raw = []
+
+conn.close()
+
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {
     'today':   today_str,
     'synced':  datetime.now().strftime('%d/%m/%Y %H:%M'),
     'daily':   daily,
-    'by_date': dict(by_date)
+    'by_date': dict(by_date),
+    'rivhit':  rivhit_raw,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False)
 
 today_total = sum(r['TotalSales'] for r in (by_date.get(today_str, {}).get('stores') or []))
-print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f}")
+print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f} | רווחית: {len(rivhit_raw)} חודשים")
