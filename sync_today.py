@@ -196,6 +196,39 @@ except Exception as e:
     print(f"  רווחית לא זמין: {e}")
     rivhit_raw = []
 
+# ── 6b. חשבוניות רווחית ───────────────────────────────────────────────────
+print("שולף חשבוניות רווחית...")
+try:
+    cur.execute("""
+        SELECT
+            CONVERT(VARCHAR(10), HenDate, 23) AS HenDate,
+            HenType,
+            HenTypeName,
+            HenNum,
+            CustName,
+            TtlMam,
+            TtlWith,
+            Sgira,
+            SgiraSchum,
+            ISNULL(Commnts, '') AS Commnts,
+            CONVERT(VARCHAR(16), UpdatedAt, 120) AS UpdatedAt
+        FROM RivhitInvoices
+        ORDER BY HenDate DESC
+    """)
+    cols = [d[0] for d in cur.description]
+    rivhit_invoices_raw = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in rivhit_invoices_raw:
+        r['TtlMam']     = round(float(r['TtlMam'] or 0), 2)
+        r['TtlWith']    = round(float(r['TtlWith'] or 0), 2)
+        r['SgiraSchum'] = round(float(r['SgiraSchum'] or 0), 2)
+        r['Sgira']      = int(r['Sgira'] or 0)
+        r['HenNum']     = int(r['HenNum'])
+        r['HenType']    = int(r['HenType'])
+    print(f"  {len(rivhit_invoices_raw)} חשבוניות רווחית")
+except Exception as e:
+    print(f"  חשבוניות רווחית לא זמין: {e}")
+    rivhit_invoices_raw = []
+
 # ── 7. חשבוניות ספקים ────────────────────────────────────────────────────
 print("שולף חשבוניות ספקים...")
 try:
@@ -279,17 +312,18 @@ conn.close()
 
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {
-    'today':        today_str,
-    'synced':       datetime.now().strftime('%d/%m/%Y %H:%M'),
-    'daily':        daily,
-    'by_date':      dict(by_date),
-    'rivhit':       rivhit_raw,
-    'sup_monthly':  sup_monthly_raw,
-    'sup_docs':     sup_docs_raw,
+    'today':            today_str,
+    'synced':           datetime.now().strftime('%d/%m/%Y %H:%M'),
+    'daily':            daily,
+    'by_date':          dict(by_date),
+    'rivhit':           rivhit_raw,
+    'rivhit_invoices':  rivhit_invoices_raw,
+    'sup_monthly':      sup_monthly_raw,
+    'sup_docs':         sup_docs_raw,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False)
 
 today_total = sum(r['TotalSales'] for r in (by_date.get(today_str, {}).get('stores') or []))
-print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f} | רווחית: {len(rivhit_raw)} חודשים | ספקים: {len(sup_docs_raw)} חשבוניות")
+print(f"✓ today.json — {len(by_date)} ימים | היום: ₪{today_total:,.2f} | רווחית: {len(rivhit_raw)} חודשים | חשבוניות רווחית: {len(rivhit_invoices_raw)} | ספקים: {len(sup_docs_raw)} חשבוניות")

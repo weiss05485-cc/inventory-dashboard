@@ -208,7 +208,6 @@ tr:hover td{background:#f8f9ff}
     <button class="nbtn" onclick="showTab('sellers')">👥 מוכרים</button>
     <button class="nbtn" onclick="showTab('payments')">💳 תשלומים</button>
     <button class="nbtn" onclick="showTab('inventory')">📦 מלאי</button>
-    <button class="nbtn" onclick="showTab('suppliers')">🏭 ספקים</button>
     <button class="nbtn" onclick="showTab('accounting')">📋 חשבונאות</button>
   </nav>
 
@@ -344,63 +343,6 @@ tr:hover td{background:#f8f9ff}
     </div>
   </div>
 
-  <!-- ── SUPPLIERS ── -->
-  <div id="tab-suppliers" class="tab-page">
-    <div class="page">
-      <div class="kpi-row" id="sup-kpis"></div>
-      <div class="two-col">
-        <div class="chart-card">
-          <div class="cc-hdr"><span class="cc-title">רכישות לפי ספק</span><span class="cc-sub" id="sup-chart-sub"></span></div>
-          <div class="chart-wrap h300"><canvas id="ch-sup-bar"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="cc-hdr"><span class="cc-title">חלוקת ספקים</span></div>
-          <div class="chart-wrap h300"><canvas id="ch-sup-pie"></canvas></div>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="cc-hdr"><span class="cc-title">מגמת רכישות חודשית</span></div>
-        <div class="chart-wrap h260"><canvas id="ch-sup-trend"></canvas></div>
-      </div>
-      <!-- Invoice table -->
-      <div class="chart-card">
-        <div class="cc-hdr" style="flex-wrap:wrap;gap:10px">
-          <span class="cc-title">📄 פירוט חשבוניות</span>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select id="sup-filter-name" onchange="renderSupplierTable()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Rubik',sans-serif;background:#fff">
-              <option value="">כל הספקים</option>
-            </select>
-            <select id="sup-filter-type" onchange="renderSupplierTable()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Rubik',sans-serif;background:#fff">
-              <option value="">כל הסוגים</option>
-              <option value="חשבון">חשבון</option>
-              <option value="החזרה">החזרה</option>
-              <option value="זיכוי">זיכוי</option>
-            </select>
-            <button class="btn-export" onclick="exportSupplierCSV()" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Rubik',sans-serif">⬇ Excel</button>
-          </div>
-        </div>
-        <div class="tbl-wrap">
-          <table id="sup-docs-tbl">
-            <thead>
-              <tr>
-                <th onclick="sortSupTbl('DocDate')">תאריך ↕</th>
-                <th onclick="sortSupTbl('SupplierName')">ספק ↕</th>
-                <th>מספר חשבונית</th>
-                <th>סוג</th>
-                <th>סניף</th>
-                <th>פריטים</th>
-                <th>יחידות</th>
-                <th onclick="sortSupTbl('TotalAmount')">סכום ↕</th>
-              </tr>
-            </thead>
-            <tbody id="sup-docs-body"></tbody>
-          </table>
-        </div>
-        <div style="text-align:center;padding:8px;font-size:11px;color:var(--muted)" id="sup-tbl-count"></div>
-      </div>
-    </div>
-  </div>
-
   <!-- ── ACCOUNTING ── -->
   <div id="tab-accounting" class="tab-page">
     <div class="page">
@@ -455,7 +397,7 @@ const PAYC={
 // ════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════
-let dailyData=[], byDate={}, rivhit=[], invData={};
+let dailyData=[], byDate={}, rivhit=[], rivhitInv=[], invData={};
 let supMonthly=[], supDocs=[];
 let supSortCol='DocDate', supSortDir=-1;
 let period='2026';
@@ -560,6 +502,7 @@ async function init(){
     dailyData=todayJson.daily||[];
     byDate=todayJson.by_date||{};
     rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
+    rivhitInv=todayJson.rivhit_invoices||[];
     supMonthly=todayJson.sup_monthly||[];
     supDocs=todayJson.sup_docs||[];
     invData=invJson;
@@ -579,7 +522,6 @@ function renderAll(){
   else if(activeTab==='sellers') renderSellers();
   else if(activeTab==='payments') renderPayments();
   else if(activeTab==='inventory') renderInventory();
-  else if(activeTab==='suppliers') renderSuppliers();
   else if(activeTab==='accounting') renderAccounting();
 }
 
@@ -590,7 +532,7 @@ function showTab(id){
   document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','inventory','suppliers','accounting'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','inventory','accounting'].indexOf(id)].classList.add('active');
   activeTab=id;
   renderAll();
 }
@@ -1143,7 +1085,42 @@ function renderAccounting(){
         <tbody id="acc-tbl"></tbody></table>
       </div>
     </div>
-    <div class="synced-note" id="acc-note"></div>`;
+    <div class="synced-note" id="acc-note"></div>
+    <div class="chart-card" id="inv-card">
+      <div class="cc-hdr">
+        <span class="cc-title">חשבוניות רווחית</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input id="inv-search" type="text" placeholder="חיפוש לקוח / מספר..." style="padding:4px 8px;border-radius:6px;border:1px solid #dde;font-family:Rubik;font-size:13px;width:180px" oninput="renderInvTable()">
+          <select id="inv-type-filter" onchange="renderInvTable()" style="padding:4px 8px;border-radius:6px;border:1px solid #dde;font-family:Rubik;font-size:13px">
+            <option value="">כל הסוגים</option>
+            <option value="1">חשבונית מס</option>
+            <option value="2">חשבונית מס קבלה</option>
+            <option value="3">חשבונית זיכוי</option>
+          </select>
+          <select id="inv-paid-filter" onchange="renderInvTable()" style="padding:4px 8px;border-radius:6px;border:1px solid #dde;font-family:Rubik;font-size:13px">
+            <option value="">הכל</option>
+            <option value="0">פתוחות</option>
+            <option value="1">סגורות</option>
+          </select>
+        </div>
+      </div>
+      <div id="inv-kpis" style="display:flex;gap:12px;padding:0 16px 12px;flex-wrap:wrap"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th onclick="invSortBy('HenDate')" style="cursor:pointer">תאריך ⇅</th>
+            <th>סוג</th>
+            <th onclick="invSortBy('HenNum')" style="cursor:pointer">מספר ⇅</th>
+            <th>לקוח / גוף</th>
+            <th onclick="invSortBy('TtlMam')" style="cursor:pointer" class="num">סכום ⇅</th>
+            <th class="num">כולל מע"מ</th>
+            <th>סטטוס</th>
+            <th class="num">יתרה לגבייה</th>
+          </tr></thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+    </div>`;
 
   // Year tabs
   const tabs=document.getElementById('acc-ytabs');
@@ -1182,6 +1159,7 @@ function renderAccounting(){
   });
 
   renderAccYear();
+  renderInvTable();
 }
 
 function renderAccYear(){
@@ -1225,6 +1203,71 @@ function renderAccYear(){
       <td>${r.Year}</td><td>${MHE[r.Month]}${r.Total===best?' ⭐':''}</td>
       <td class="num">${fmt(r.Total)}</td><td>${r.Cnt.toLocaleString()}</td>
       <td>${pctStr(g)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// RIVHIT INVOICE TABLE
+// ════════════════════════════════════════════
+let invSortCol='HenDate', invSortDir=-1;
+function invSortBy(col){
+  if(invSortCol===col) invSortDir*=-1; else{invSortCol=col;invSortDir=-1;}
+  renderInvTable();
+}
+function renderInvTable(){
+  const tbody=document.getElementById('inv-tbody');
+  const kpis=document.getElementById('inv-kpis');
+  if(!tbody||!kpis) return;
+  const search=(document.getElementById('inv-search')?.value||'').trim().toLowerCase();
+  const typeF=document.getElementById('inv-type-filter')?.value||'';
+  const paidF=document.getElementById('inv-paid-filter')?.value||'';
+
+  let rows=[...rivhitInv];
+  if(typeF) rows=rows.filter(r=>String(r.HenType)===typeF);
+  if(paidF!=='') rows=rows.filter(r=>String(r.Sgira)===paidF);
+  if(search) rows=rows.filter(r=>(r.CustName||'').toLowerCase().includes(search)||String(r.HenNum).includes(search));
+
+  rows.sort((a,b)=>{
+    let va=a[invSortCol],vb=b[invSortCol];
+    if(typeof va==='string') return va.localeCompare(vb)*invSortDir;
+    return(va-vb)*invSortDir;
+  });
+
+  // KPIs
+  const total=rows.reduce((s,r)=>s+r.TtlMam,0);
+  const open=rows.filter(r=>!r.Sgira).reduce((s,r)=>s+r.TtlMam,0);
+  const credit=rows.filter(r=>r.HenType===3).reduce((s,r)=>s+r.TtlMam,0);
+  kpis.innerHTML=[
+    {l:'סה"כ מוצג',v:fmt(total),c:'#4f46e5'},
+    {l:'פתוחות (לגבייה)',v:fmt(open),c:'#f59e0b'},
+    {l:'זיכויים',v:fmt(Math.abs(credit)),c:'#ef4444'},
+    {l:'מספר מסמכים',v:rows.length,c:'#10b981'}
+  ].map(k=>`<div style="flex:1;min-width:130px;background:#f8fafc;border-radius:10px;padding:10px 14px;border-right:3px solid ${k.c}">
+    <div style="font-size:11px;color:#8492a6">${k.l}</div>
+    <div style="font-size:18px;font-weight:700;color:#1e2d3d">${typeof k.v==='number'?k.v.toLocaleString():k.v}</div>
+  </div>`).join('');
+
+  const TYPE_BADGE={1:'<span style="background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:20px;font-size:11px">חשבונית מס</span>',
+    2:'<span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:20px;font-size:11px">חשבונית+קבלה</span>',
+    3:'<span style="background:#fef2f2;color:#991b1b;padding:2px 7px;border-radius:20px;font-size:11px">זיכוי</span>',
+    8:'<span style="background:#fffbeb;color:#92400e;padding:2px 7px;border-radius:20px;font-size:11px">חשבון חיוב</span>'};
+
+  tbody.innerHTML=rows.map(r=>{
+    const badge=TYPE_BADGE[r.HenType]||`<span style="background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:20px;font-size:11px">${r.HenTypeName}</span>`;
+    const paid=r.Sgira
+      ?'<span style="color:#16a34a;font-weight:600">✓ שולם</span>'
+      :'<span style="color:#f59e0b;font-weight:600">⏳ פתוח</span>';
+    const balance=r.Sgira?0:(r.TtlMam-r.SgiraSchum);
+    return`<tr>
+      <td>${r.HenDate||''}</td>
+      <td>${badge}</td>
+      <td style="font-weight:600">${r.HenNum}</td>
+      <td>${r.CustName||''}</td>
+      <td class="num" style="font-weight:600;color:${r.TtlMam<0?'#ef4444':'inherit'}">${fmt(r.TtlMam)}</td>
+      <td class="num">${fmt(r.TtlWith)}</td>
+      <td>${paid}</td>
+      <td class="num" style="color:${balance>0?'#f59e0b':'#94a3b8'}">${balance>0?fmt(balance):'—'}</td>
     </tr>`;
   }).join('');
 }
