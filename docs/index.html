@@ -307,6 +307,44 @@ body.emp-mode .price-col{display:none!important}
 </head>
 <body>
 
+<!-- ══════════ LOCK SCREEN ══════════ -->
+<div id="lock-screen" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:40px 36px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="font-size:44px;margin-bottom:12px">🔐</div>
+    <div style="font-size:20px;font-weight:800;color:#312e81;margin-bottom:4px">חסידים סנטר</div>
+    <div style="font-size:13px;color:#8492a6;margin-bottom:28px">מערכת BI — כניסה מורשים בלבד</div>
+    <input id="lock-input" type="password" placeholder="הזן סיסמה" maxlength="20"
+      onkeydown="if(event.key==='Enter')checkPin()"
+      style="width:100%;padding:12px 16px;border:2px solid #e8ecf4;border-radius:10px;font-size:16px;font-family:'Rubik',sans-serif;text-align:center;outline:none;letter-spacing:4px;margin-bottom:12px">
+    <div id="lock-err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div>
+    <button onclick="checkPin()"
+      style="width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Rubik',sans-serif">
+      כניסה
+    </button>
+  </div>
+</div>
+<script>
+(function(){
+  if(sessionStorage.getItem('bi_auth')==='1'){
+    document.getElementById('lock-screen').style.display='none';
+  }
+})();
+function checkPin(){
+  const v=document.getElementById('lock-input').value;
+  if(v==='41254125'){
+    sessionStorage.setItem('bi_auth','1');
+    document.getElementById('lock-screen').style.display='none';
+  } else {
+    const err=document.getElementById('lock-err');
+    err.textContent='סיסמה שגויה, נסה שוב';
+    document.getElementById('lock-input').value='';
+    document.getElementById('lock-input').focus();
+    setTimeout(()=>err.textContent='',3000);
+  }
+}
+</script>
+<!-- ══════════════════════════════════ -->
+
 <!-- STATUS STRIP -->
 <div id="status-strip">
   <div id="status-strip-track">
