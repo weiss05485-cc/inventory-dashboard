@@ -736,6 +736,7 @@ body.emp-mode .price-col{display:none!important}
       <h3 id="sales-table-title"></h3>
       <div style="display:flex;gap:8px">
         <span id="sales-period-label" style="font-size:12px;color:var(--muted);align-self:center"></span>
+        <button class="btn btn-export" onclick="exportSaleReport()">⬇️ דוח מכירות CSV</button>
         <button class="btn btn-export" onclick="exportSaleOrder()">📊 ייצוא הזמנה Excel</button>
       </div>
     </div>
@@ -3144,6 +3145,42 @@ function exportDeptOrder() {
   };
 
   if (!reportLoaded) { loadReportsData(doExport); } else { doExport(); }
+}
+
+function exportSaleReport() {
+  if (!activeSaleItem) return;
+  const range = getSaleDateRange();
+  let items = SALES_DATA.filter(i =>
+    i.dept === activeSaleDept && i.n === activeSaleItem && activeSaleGroups.has(i.g) &&
+    (!range.from || i.ym >= range.from) && (!range.to || i.ym <= range.to)
+  );
+  if (activeSaleShorot !== 'all') items = items.filter(i => getShorot(i.mc) === activeSaleShorot);
+  if (!items.length) { alert('אין נתוני מכירות'); return; }
+
+  const groups = [...activeSaleGroups].sort();
+  const sizes = sortSizes([...new Set(items.map(i => i.sz||'—'))]);
+  const pivot = {};
+  items.forEach(i => {
+    const sz = i.sz||'—';
+    if (!pivot[sz]) pivot[sz] = {};
+    pivot[sz][i.g] = (pivot[sz][i.g]||0) + i.q;
+  });
+
+  const periodLabel = range.from ? `${range.from} עד ${range.to||'היום'}` : 'כל הזמנים';
+  const rows = [
+    [`דוח מכירות: ${activeSaleItem}  |  תקופה: ${periodLabel}`],
+    [],
+    ['מידה', ...groups, 'סה"כ']
+  ];
+  sizes.forEach(sz => {
+    const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
+    rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0)]);
+  });
+  // Total row
+  const totals = groups.map(g => sizes.reduce((s,sz) => s+(pivot[sz]?.[g]||0),0)).map(Math.round);
+  rows.push(['סה"כ', ...totals, totals.reduce((a,b)=>a+b,0)]);
+
+  downloadCSV(rows, `דוח_מכירות_${activeSaleItem}_${range.from||'כלל'}.csv`);
 }
 
 function exportSaleOrder() {
