@@ -307,42 +307,22 @@ body.emp-mode .price-col{display:none!important}
 </head>
 <body>
 
-<!-- ══════════ LOCK SCREEN ══════════ -->
-<div id="lock-screen" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);display:flex;align-items:center;justify-content:center">
+<!-- ══════════ BI PIN OVERLAY ══════════ -->
+<div id="bi-pin-overlay" style="position:fixed;inset:0;z-index:10000;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);display:none;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:20px;padding:40px 36px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)">
-    <div style="font-size:44px;margin-bottom:12px">🔐</div>
-    <div style="font-size:20px;font-weight:800;color:#312e81;margin-bottom:4px">חסידים סנטר</div>
-    <div style="font-size:13px;color:#8492a6;margin-bottom:28px">מערכת BI — כניסה מורשים בלבד</div>
-    <input id="lock-input" type="password" placeholder="הזן סיסמה" maxlength="20"
-      onkeydown="if(event.key==='Enter')checkPin()"
-      style="width:100%;padding:12px 16px;border:2px solid #e8ecf4;border-radius:10px;font-size:16px;font-family:'Rubik',sans-serif;text-align:center;outline:none;letter-spacing:4px;margin-bottom:12px">
-    <div id="lock-err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div>
-    <button onclick="checkPin()"
+    <div style="font-size:44px;margin-bottom:12px">📊</div>
+    <div style="font-size:20px;font-weight:800;color:#312e81;margin-bottom:4px">מערכת BI</div>
+    <div style="font-size:13px;color:#8492a6;margin-bottom:28px">גישה מורשים בלבד</div>
+    <input id="bi-pin-input" type="password" placeholder="הזן קוד" maxlength="20"
+      onkeydown="if(event.key==='Enter')checkBiPin()"
+      style="width:100%;padding:12px 16px;border:2px solid #e8ecf4;border-radius:10px;font-size:18px;font-family:'Rubik',sans-serif;text-align:center;outline:none;letter-spacing:6px;margin-bottom:12px">
+    <div id="bi-pin-err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div>
+    <button onclick="checkBiPin()"
       style="width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Rubik',sans-serif">
       כניסה
     </button>
   </div>
 </div>
-<script>
-(function(){
-  if(sessionStorage.getItem('bi_auth')==='1'){
-    document.getElementById('lock-screen').style.display='none';
-  }
-})();
-function checkPin(){
-  const v=document.getElementById('lock-input').value;
-  if(v==='41254125'){
-    sessionStorage.setItem('bi_auth','1');
-    document.getElementById('lock-screen').style.display='none';
-  } else {
-    const err=document.getElementById('lock-err');
-    err.textContent='סיסמה שגויה, נסה שוב';
-    document.getElementById('lock-input').value='';
-    document.getElementById('lock-input').focus();
-    setTimeout(()=>err.textContent='',3000);
-  }
-}
-</script>
 <!-- ══════════════════════════════════ -->
 
 <!-- STATUS STRIP -->
@@ -1786,9 +1766,31 @@ function doLogout() {
 }
 
 /* ========== PAGE SWITCHING ========== */
+function checkBiPin() {
+  const v = document.getElementById('bi-pin-input').value;
+  if (v === '41254125') {
+    sessionStorage.setItem('bi_auth', '1');
+    document.getElementById('bi-pin-overlay').style.display = 'none';
+    renderToday();
+  } else {
+    const err = document.getElementById('bi-pin-err');
+    err.textContent = 'קוד שגוי, נסה שוב';
+    document.getElementById('bi-pin-input').value = '';
+    document.getElementById('bi-pin-input').focus();
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
+
 function showPage(id) {
   const role = localStorage.getItem('cc_role');
   if (role === 'emp' && !EMP_PAGES.has(id)) return; // block unauthorized pages
+  // BI protection — only PIN holders can access קופות
+  if (id === 'today' && sessionStorage.getItem('bi_auth') !== '1') {
+    const overlay = document.getElementById('bi-pin-overlay');
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('bi-pin-input').focus(), 100);
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
