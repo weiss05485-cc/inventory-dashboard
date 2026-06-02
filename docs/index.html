@@ -3665,17 +3665,30 @@ function exportOrderExcel(){
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
 
-  // גיליון 4: חלוקת מידות
-  const sizeTotal=sizeDist.reduce((s,d)=>s+d.order,0);
-  const ws4=[
-    [`חלוקת מידות – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
+  // גיליון 4: חלוקת מידות לפי קבוצה
+  // לכל קבוצה: מפזרים את ה-toOrder שלה לפי % המידות הגלובלי
+  const ws4rows = [
+    [`חלוקת מידות לפי קבוצה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
     [],
-    ['מידה','נמכר','%',`הזמנה (${tgtQty} יח')`],
-    ...sizeDist.map(d=>[d.sz,d.sold,(d.pct*100).toFixed(1)+'%',d.order]),
-    [],
-    ['סה"כ',sizeDist.reduce((s,d)=>s+d.sold,0),'100%',sizeTotal]
+    ['קבוצה', 'מידה', '% מידה', 'כמות להזמנה'],
   ];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws4),'חלוקת מידות');
+  let grandTotal = 0;
+  summary.forEach(p => {
+    if (p.toOrder <= 0) return;
+    let groupTotal = 0;
+    sizeDist.forEach(d => {
+      const qty = Math.round(d.pct * p.toOrder);
+      if (qty > 0) {
+        ws4rows.push([p.name, d.sz, (d.pct*100).toFixed(1)+'%', qty]);
+        groupTotal += qty;
+      }
+    });
+    ws4rows.push(['', `סה"כ ${p.name}`, '', groupTotal]);
+    ws4rows.push([]);
+    grandTotal += groupTotal;
+  });
+  ws4rows.push(['סה"כ כולל', '', '', grandTotal]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws4rows), 'חלוקת מידות');
 
   XLSX.writeFile(wb,`הזמנה_${group}_${date}.xlsx`);
 }
