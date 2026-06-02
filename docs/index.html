@@ -1060,8 +1060,8 @@ body.emp-mode .price-col{display:none!important}
         <input type="number" id="op-target-months" value="3" step="0.5" min="0.5" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
       </div>
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">יחידות יעד לחלוקה</div>
-        <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">כמות לחלוקה <span id="op-qty-auto-badge" style="display:none;background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:700">← מהמלצה</span></div>
+        <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px" title="מתעדכן אוטומטית לפי ההמלצה המחושבת — שנה ידנית אם תרצה">
       </div>
       <button onclick="runOrderPlanner()" style="padding:8px 22px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;cursor:pointer;font-family:Rubik;font-size:13px;font-weight:700;white-space:nowrap">🔄 חשב המלצה</button>
     </div>
@@ -3445,7 +3445,7 @@ function runOrderPlanner() {
 
   const months    = parseFloat(document.getElementById('op-months').value)        || 4.5;
   const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
-  const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
+  let   tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
   const allMode   = product === '__all__';
 
   // ── aggregate sales ───────────────────────────────────────────────────────
@@ -3508,6 +3508,20 @@ function runOrderPlanner() {
       monthly: Math.round(p.sold / months * 10) / 10,
       target:  Math.round(p.sold / months * tgtMonths)
     })).sort((a, b) => b.toOrder - a.toOrder);
+
+    // ── sync tgtQty with recommendation ──────────────────────────────────────
+    // כמות חלוקת המידות מתעדכנת אוטומטית לפי ההמלצה המחושבת.
+    // המשתמש יכול לשנות ידנית את הכמות בשדה ולחשב מחדש.
+    const calcRecommendation = summary.reduce((s,p)=>s+p.toOrder, 0);
+    if (calcRecommendation > 0) {
+      tgtQty = calcRecommendation;
+      document.getElementById('op-target-qty').value = calcRecommendation;
+      const badge = document.getElementById('op-qty-auto-badge');
+      if (badge) badge.style.display = 'inline';
+    } else {
+      const badge = document.getElementById('op-qty-auto-badge');
+      if (badge) badge.style.display = 'none';
+    }
   }
 
   // ── size distribution ─────────────────────────────────────────────────────
