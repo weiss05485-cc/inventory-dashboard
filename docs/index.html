@@ -1060,8 +1060,8 @@ body.emp-mode .price-col{display:none!important}
         <input type="number" id="op-target-months" value="3" step="0.5" min="0.5" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
       </div>
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">כמות לחלוקה <span id="op-qty-auto-badge" style="display:none;background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:700">← מהמלצה</span></div>
-        <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px" title="מתעדכן אוטומטית לפי ההמלצה המחושבת — שנה ידנית אם תרצה">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">יחידות יעד לחלוקה</div>
+        <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
       </div>
       <button onclick="runOrderPlanner()" style="padding:8px 22px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;cursor:pointer;font-family:Rubik;font-size:13px;font-weight:700;white-space:nowrap">🔄 חשב המלצה</button>
     </div>
@@ -3445,8 +3445,19 @@ function runOrderPlanner() {
 
   const months    = parseFloat(document.getElementById('op-months').value)        || 4.5;
   const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
-  let   tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
+  const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
   const allMode   = product === '__all__';
+
+  // ── filter sales data to the selected period ──────────────────────────────
+  // מחפש את ה-ym המקסימלי בנתונים ומסנן X חודשים אחורה
+  const _toYmNum = ym => { const [y,mo]=String(ym).split('-'); return +y*12 + +mo; };
+  const _maxYmNum = SALES_DATA.reduce((m,i)=>i.ym?Math.max(m,_toYmNum(i.ym)):m, 0);
+  const _cutoff   = _maxYmNum - months;   // items with _toYmNum(ym) > _cutoff are included
+  const filteredSD = SALES_DATA.filter(i => !i.ym || _toYmNum(i.ym) > _cutoff);
+  // date range label (for display)
+  const _minYmNum  = filteredSD.reduce((m,i)=>i.ym?Math.min(m,_toYmNum(i.ym)):m, Infinity);
+  const _ymLabel   = n => { const HEB=['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳']; const y=Math.floor((n-1)/12),mo=n-y*12; return `${HEB[mo]} ${y}`; };
+  const opPeriodLabel = `${_ymLabel(_minYmNum)} – ${_ymLabel(_maxYmNum)}`;
 
   // ── aggregate sales ───────────────────────────────────────────────────────
   const sizeMap  = {};
@@ -3454,8 +3465,8 @@ function runOrderPlanner() {
   // single:  מסכם לפי קבוצה × מידה עבור מוצר בחור
   const salesMap = {};   // used only in single-product mode
   const srcSales = allMode
-    ? SALES_DATA.filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || ''))
-    : SALES_DATA.filter(i => i.n === product);
+    ? filteredSD.filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || ''))
+    : filteredSD.filter(i => i.n === product);
 
   let productTotSoldRaw = 0;  // סה"כ יחידות נמכרות (לKPI) — כולל פריטים ללא מידה
   srcSales.forEach(i => {
@@ -3509,19 +3520,6 @@ function runOrderPlanner() {
       target:  Math.round(p.sold / months * tgtMonths)
     })).sort((a, b) => b.toOrder - a.toOrder);
 
-    // ── sync tgtQty with recommendation ──────────────────────────────────────
-    // כמות חלוקת המידות מתעדכנת אוטומטית לפי ההמלצה המחושבת.
-    // המשתמש יכול לשנות ידנית את הכמות בשדה ולחשב מחדש.
-    const calcRecommendation = summary.reduce((s,p)=>s+p.toOrder, 0);
-    if (calcRecommendation > 0) {
-      tgtQty = calcRecommendation;
-      document.getElementById('op-target-qty').value = calcRecommendation;
-      const badge = document.getElementById('op-qty-auto-badge');
-      if (badge) badge.style.display = 'inline';
-    } else {
-      const badge = document.getElementById('op-qty-auto-badge');
-      if (badge) badge.style.display = 'none';
-    }
   }
 
   // ── size distribution ─────────────────────────────────────────────────────
@@ -3534,7 +3532,7 @@ function runOrderPlanner() {
     : '';
   const sizeDistSrc = allMode ? sizeMap : (() => {
     const gsm = {};
-    SALES_DATA
+    filteredSD                          // ← same period as selected
       .filter(i => i.n && i.n !== 'ללא שם'
         && !OP_EXCLUDE_DEPTS.has(i.dept || '')
         && (productDept ? i.dept === productDept : true)   // אותה מחלקה בלבד
@@ -3549,21 +3547,21 @@ function runOrderPlanner() {
     return {sz, sold, pct, order: Math.round(pct * tgtQty)};
   });
 
-  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold};
+  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold, opPeriodLabel};
   renderOrderPlanner();
 }
 
 function renderOrderPlanner(){
   if(!OP_DATA) return;
-  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold} = OP_DATA;
+  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold, opPeriodLabel} = OP_DATA;
 
   document.getElementById('op-empty').style.display   = 'none';
   document.getElementById('op-results').style.display = 'block';
   document.getElementById('op-export-btn').style.display = allMode ? 'none' : '';
   document.getElementById('op-qty-label').textContent = tgtQty.toLocaleString();
   document.getElementById('op-size-note').textContent = allMode
-    ? `מחושב לפי ${months} חודשי מכר`
-    : `חלוקת מידות לפי מכירות כלל המוצרים · ${months} חודשים`;
+    ? `מחושב לפי ${months} חודשי מכר (${opPeriodLabel})`
+    : `חלוקת מידות לפי מכירות כלל המוצרים · ${months} חודשים (${opPeriodLabel})`;
 
   // hide summary/detail in all-mode
   document.querySelector('#op-results .section:nth-of-type(2)').style.display = allMode ? 'none' : '';
