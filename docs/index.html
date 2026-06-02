@@ -3418,15 +3418,34 @@ function initOrderPlanner() {
   const loadDone = () => {
     if (opPlannerReady) return;
     opPlannerReady = true;
-    const products = [...new Set(SALES_DATA.map(i=>i.n).filter(n=>n&&n!=='ללא שם'))].sort((a,b)=>a.localeCompare(b,'he'));
+
+    // בנה סט שמות מוצרים עם ברקוד GB (^\d{2}GB...)
+    const gbNames = new Set();
+    (SEARCH_DATA || []).forEach(item => {
+      if (item.b && /^\d{2}GB/i.test(String(item.b).trim()) && item.n && item.n !== 'ללא שם')
+        gbNames.add(item.n);
+    });
+    window._opGbNames = gbNames;
+
+    // רשימת מוצרים — רק GB
+    const products = [...new Set(
+      SALES_DATA.filter(i => i.n && i.n !== 'ללא שם' && gbNames.has(i.n)).map(i => i.n)
+    )].sort((a,b) => a.localeCompare(b, 'he'));
+
     const sel = document.getElementById('op-group');
     sel.innerHTML = '<option value="">-- בחר מוצר --</option>' +
-      '<option value="__all__">📊 כל המוצרים (דוח מידות כללי)</option>' +
+      '<option value="__all__">📊 כל המוצרים GB — חלוקת מידות</option>' +
       products.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
   };
-  if (!salesLoaded) { loadSalesData(() => { if (!reportLoaded) loadReportsData(loadDone); else loadDone(); }); }
-  else if (!reportLoaded) { loadReportsData(loadDone); }
-  else loadDone();
+
+  // צריך גם search כדי לזהות ברקודי GB
+  const afterSalesReport = () => loadDone();
+  const afterSearch = () => {
+    if (!salesLoaded) loadSalesData(() => { if (!reportLoaded) loadReportsData(afterSalesReport); else afterSalesReport(); });
+    else if (!reportLoaded) loadReportsData(afterSalesReport);
+    else afterSalesReport();
+  };
+  if (!searchLoaded) loadSearchData(afterSearch); else afterSearch();
 }
 
 function runOrderPlanner() {
@@ -3437,75 +3456,76 @@ function runOrderPlanner() {
   const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
   const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
   const allMode   = product === '__all__';
+  const gbNames   = window._opGbNames || new Set();
 
   // ── aggregate sales ───────────────────────────────────────────────────────
-  // allMode: key = "productName|sz", summary by product name
-  // single:  key = "group|sz",       summary by group
-  const salesMap = {};
   const sizeMap  = {};
+  // allMode: מסכם כל המוצרים GB לפי מידה בלבד (ללא פירוט לפי מוצר)
+  // single:  מסכם לפי קבוצה × מידה עבור מוצר בחור
+  const salesMap = {};   // used only in single-product mode
   const srcSales = allMode
-    ? SALES_DATA.filter(i=>i.n&&i.n!=='ללא שם')
-    : SALES_DATA.filter(i=>i.n===product);
+    ? SALES_DATA.filter(i => i.n && i.n !== 'ללא שם' && (gbNames.size===0 || gbNames.has(i.n)))
+    : SALES_DATA.filter(i => i.n === product);
 
-  srcSales.forEach(i=>{
-    const sz  = i.sz||'—';
-    const grp = allMode ? (i.n||'—') : (i.g||'ללא קבוצה');
-    const key = grp+'|'+sz;
-    salesMap[key] = (salesMap[key]||0) + (i.q||0);
-    sizeMap[sz]   = (sizeMap[sz]  ||0) + (i.q||0);
+  srcSales.forEach(i => {
+    const sz  = i.sz || '—';
+    sizeMap[sz] = (sizeMap[sz] || 0) + (i.q || 0);
+    if (!allMode) {
+      const grp = i.g || 'ללא קבוצה';
+      const key = grp + '|' + sz;
+      salesMap[key] = (salesMap[key] || 0) + (i.q || 0);
+    }
   });
 
-  // ── aggregate stock (UNION with sales — fixes stock discrepancy) ──────────
+  // ── aggregate stock (single-product mode only) ────────────────────────────
   const invMap = {};
-  if (REPORT_DATA) {
-    const srcInv = allMode
-      ? REPORT_DATA.filter(i=>i.n&&i.n!=='ללא שם')
-      : REPORT_DATA.filter(i=>i.n===product);
-    srcInv.forEach(i=>{
-      const sz  = i.sz||'—';
-      const grp = allMode ? (i.n||'—') : (i.g||'ללא קבוצה');
-      const key = grp+'|'+sz;
-      invMap[key] = (invMap[key]||0) + (i.q||0);
+  if (!allMode && REPORT_DATA) {
+    REPORT_DATA.filter(i => i.n === product).forEach(i => {
+      const sz  = i.sz || '—';
+      const key = (i.g || 'ללא קבוצה') + '|' + sz;
+      invMap[key] = (invMap[key] || 0) + (i.q || 0);
     });
   }
 
-  // ── build detail from UNION of sales + inventory keys ────────────────────
-  const allKeys = new Set([...Object.keys(salesMap), ...Object.keys(invMap)]);
-  const detail = [...allKeys].map(key=>{
-    const sepIdx = key.indexOf('|');
-    const grp  = key.substring(0, sepIdx);
-    const sz   = key.substring(sepIdx+1);
-    const sold   = salesMap[key]||0;
-    const stock  = invMap[key]||0;
-    const monthly = sold>0 ? Math.round(sold/months*10)/10 : 0;
-    const target  = Math.round(monthly*tgtMonths);
-    const toOrder = Math.max(0, target-stock);
-    return {name:grp, sz, sold, stock, monthly, target, toOrder};
-  }).filter(d=>d.sold>0||d.stock>0);
+  // ── detail + summary (single-product mode only) ───────────────────────────
+  let detail = [], summary = [];
+  if (!allMode) {
+    const allKeys = new Set([...Object.keys(salesMap), ...Object.keys(invMap)]);
+    detail = [...allKeys].map(key => {
+      const sepIdx = key.indexOf('|');
+      const grp  = key.substring(0, sepIdx);
+      const sz   = key.substring(sepIdx + 1);
+      const sold   = salesMap[key] || 0;
+      const stock  = invMap[key]   || 0;
+      const monthly = sold > 0 ? Math.round(sold / months * 10) / 10 : 0;
+      const target  = Math.round(monthly * tgtMonths);
+      const toOrder = Math.max(0, target - stock);
+      return {name: grp, sz, sold, stock, monthly, target, toOrder};
+    }).filter(d => d.sold > 0 || d.stock > 0);
 
-  // ── summary by group/product ──────────────────────────────────────────────
-  const sumMap = {};
-  detail.forEach(d=>{
-    if(!sumMap[d.name]) sumMap[d.name]={name:d.name,sold:0,stock:0,toOrder:0};
-    sumMap[d.name].sold    += d.sold;
-    sumMap[d.name].stock   += d.stock;
-    sumMap[d.name].toOrder += d.toOrder;
+    const sumMap = {};
+    detail.forEach(d => {
+      if (!sumMap[d.name]) sumMap[d.name] = {name: d.name, sold: 0, stock: 0, toOrder: 0};
+      sumMap[d.name].sold    += d.sold;
+      sumMap[d.name].stock   += d.stock;
+      sumMap[d.name].toOrder += d.toOrder;
+    });
+    summary = Object.values(sumMap).map(p => ({
+      ...p,
+      monthly: Math.round(p.sold / months * 10) / 10,
+      target:  Math.round(p.sold / months * tgtMonths)
+    })).sort((a, b) => b.toOrder - a.toOrder);
+  }
+
+  // ── size distribution (used in BOTH modes) ────────────────────────────────
+  const totalSold = Object.values(sizeMap).reduce((a, b) => a + b, 0);
+  const sizeDist  = sortSizes(Object.keys(sizeMap)).map(sz => {
+    const sold = sizeMap[sz] || 0;
+    const pct  = totalSold > 0 ? sold / totalSold : 0;
+    return {sz, sold, pct, order: Math.round(pct * tgtQty)};
   });
-  const summary = Object.values(sumMap).map(p=>({
-    ...p,
-    monthly: Math.round(p.sold/months*10)/10,
-    target:  Math.round(p.sold/months*tgtMonths)
-  })).sort((a,b)=>b.toOrder-a.toOrder);
 
-  // ── size distribution ─────────────────────────────────────────────────────
-  const totalSold = Object.values(sizeMap).reduce((a,b)=>a+b,0);
-  const sizeDist  = sortSizes(Object.keys(sizeMap)).map(sz=>{
-    const sold = sizeMap[sz]||0;
-    const pct  = totalSold>0 ? sold/totalSold : 0;
-    return {sz, sold, pct, order: Math.round(pct*tgtQty)};
-  });
-
-  OP_DATA = {group: allMode?'כל המוצרים':product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist};
+  OP_DATA = {group: allMode ? 'כל המוצרים GB' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist};
   renderOrderPlanner();
 }
 
@@ -3529,9 +3549,10 @@ function renderOrderPlanner(){
   const totOrder  = allMode ? 0 : summary.reduce((s,p)=>s+p.toOrder,0);
   const numModels = summary.length;
   document.getElementById('op-kpis').innerHTML=(allMode ? [
-    {l:'מוצג',        v:'כל המוצרים',              c:'#4f46e5'},
-    {l:'סה"כ נמכר',   v:totSold.toLocaleString()+' יח\'', c:'#3b82f6'},
-    {l:'מספר מידות',  v:sizeDist.length,             c:'#10b981'},
+    {l:'מוצג',            v:'כל המוצרים GB',                  c:'#4f46e5'},
+    {l:'סה"כ נמכר',       v:totSold.toLocaleString()+' יח\'', c:'#3b82f6'},
+    {l:'מספר מידות',      v:sizeDist.length,                   c:'#10b981'},
+    {l:'סה"כ בהזמנה',     v:sizeDist.reduce((s,d)=>s+d.order,0).toLocaleString()+' יח\'', c:'#f59e0b'},
   ] : [
     {l:'מוצר',        v:group,                    c:'#4f46e5'},
     {l:'סה"כ נמכר',   v:totSold.toLocaleString()+' יח\'', c:'#3b82f6'},
