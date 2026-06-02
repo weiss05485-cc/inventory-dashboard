@@ -3410,6 +3410,7 @@ function exportSaleOrder() {
 }
 
 /* ========== ORDER PLANNER ========== */
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 let OP_DATA = null;
 let opPlannerReady = false;
 
