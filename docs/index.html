@@ -3546,18 +3546,40 @@ function runOrderPlanner() {
         if (sh!=='1' && sh!=='2') return;
         gdBySh[sh][i.sz] = (gdBySh[sh][i.sz]||0) + (i.q||0);
       });
+    // האם המוצר הנבחר קיים בשתי קטגוריות שורה? (רק אז מציגים פיצול)
+    const productShorotTypes = new Set(
+      filteredSD.filter(i=>i.n===product).map(i=>getShorot(i.mc||'')).filter(s=>s==='1'||s==='2')
+    );
+    const splitByShorot = productShorotTypes.size >= 2; // למשל חליפה שיש בה גם 01 וגם 03
+
     const tot2   = Object.values(gdBySh['2']).reduce((s,v)=>s+v, 0);
     const tot1   = Object.values(gdBySh['1']).reduce((s,v)=>s+v, 0);
-    const totAll = tot2+tot1;
-    const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
-    const tqSh1  = tgtQty - tqSh2;
     const mkArr  = (gsm,tot,tq) => sortSizes(Object.keys(gsm)).map(sz => {
       const sold=gsm[sz]||0, pct=tot>0?sold/tot:0;
       return {sz, sold, pct, order:Math.round(pct*tq)};
     });
-    sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2);
-    sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1);
-    sizeDist  = [...sizeDist2, ...sizeDist1]; // combined, for Excel/KPI compat
+
+    if (splitByShorot) {
+      // פיצול שתי שורות / שורה אחת — רק כשהמוצר קיים בשני הסוגים
+      const totAll = tot2+tot1;
+      const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
+      const tqSh1  = tgtQty - tqSh2;
+      sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2);
+      sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1);
+      sizeDist  = [...sizeDist2, ...sizeDist1];
+    } else {
+      // מוצר ללא פיצול שורות (בעקיטשע, ריפס וכו') — טבלה אחת מכל המוצרים
+      const gsmAll = {};
+      filteredSD
+        .filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')&&i.sz&&i.sz!=='—')
+        .forEach(i=>{ gsmAll[i.sz]=(gsmAll[i.sz]||0)+(i.q||0); });
+      const totAll2 = Object.values(gsmAll).reduce((s,v)=>s+v,0);
+      sizeDist  = sortSizes(Object.keys(gsmAll)).map(sz => {
+        const sold=gsmAll[sz]||0, pct=totAll2>0?sold/totAll2:0;
+        return {sz, sold, pct, order:Math.round(pct*tgtQty)};
+      });
+      sizeDist2 = null; sizeDist1 = null;
+    }
   }
 
   OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, sizeDist2, sizeDist1, productTotSold, opPeriodLabel};
