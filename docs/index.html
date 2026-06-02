@@ -3507,34 +3507,52 @@ function runOrderPlanner() {
     })).sort((a, b) => b.toOrder - a.toOrder);
   }
 
-  // ── size distribution (used in BOTH modes) ────────────────────────────────
-  const totalSold = Object.values(sizeMap).reduce((a, b) => a + b, 0);
-  const sizeDist  = sortSizes(Object.keys(sizeMap)).map(sz => {
-    const sold = sizeMap[sz] || 0;
-    const pct  = totalSold > 0 ? sold / totalSold : 0;
+  // ── size distribution ─────────────────────────────────────────────────────
+  // תמיד מחושב לפי מכירות כלל המוצרים — כך האחוז לכל מידה מייצג את הדפוס הכללי
+  // allMode: sizeMap כבר מכיל את כל המוצרים
+  // single:  בונים globalSizeMap נפרד מכל המוצרים
+  const productTotSold = Object.values(sizeMap).reduce((a, b) => a + b, 0); // לKPI של מוצר ספציפי
+  const sizeDistSrc = allMode ? sizeMap : (() => {
+    const gsm = {};
+    SALES_DATA
+      .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || ''))
+      .forEach(i => { const sz = i.sz || '—'; gsm[sz] = (gsm[sz] || 0) + (i.q || 0); });
+    return gsm;
+  })();
+  const totalGlobal = Object.values(sizeDistSrc).reduce((a, b) => a + b, 0);
+  const sizeDist = sortSizes(Object.keys(sizeDistSrc)).map(sz => {
+    const sold = sizeDistSrc[sz] || 0;
+    const pct  = totalGlobal > 0 ? sold / totalGlobal : 0;
     return {sz, sold, pct, order: Math.round(pct * tgtQty)};
   });
 
-  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist};
+  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold};
   renderOrderPlanner();
 }
 
 function renderOrderPlanner(){
   if(!OP_DATA) return;
-  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist} = OP_DATA;
+  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold} = OP_DATA;
 
   document.getElementById('op-empty').style.display   = 'none';
   document.getElementById('op-results').style.display = 'block';
   document.getElementById('op-export-btn').style.display = allMode ? 'none' : '';
   document.getElementById('op-qty-label').textContent = tgtQty.toLocaleString();
-  document.getElementById('op-size-note').textContent = `מחושב לפי ${months} חודשי מכר`;
+  document.getElementById('op-size-note').textContent = allMode
+    ? `מחושב לפי ${months} חודשי מכר`
+    : `חלוקת מידות לפי מכירות כלל המוצרים · ${months} חודשים`;
 
-  // hide summary/detail in all-mode (too many rows)
+  // hide summary/detail in all-mode
   document.querySelector('#op-results .section:nth-of-type(2)').style.display = allMode ? 'none' : '';
   document.querySelector('#op-results .section:nth-of-type(3)').style.display = allMode ? 'none' : '';
 
+  // עדכן כותרת עמודת "נמכר" בטבלת מידות
+  const sizeNmkarTh = document.querySelector('#op-size-tbody')?.closest('table')?.querySelector('thead th:nth-child(2)');
+  if (sizeNmkarTh) sizeNmkarTh.textContent = allMode ? 'נמכר' : 'נמכר (כלל מוצרים)';
+
   // KPIs
-  const totSold   = sizeDist.reduce((s,d)=>s+d.sold,0);
+  // totSold = מוצר ספציפי: נמכר מהמוצר הנבחר בלבד; allMode: כלל מוצרים
+  const totSold   = allMode ? sizeDist.reduce((s,d)=>s+d.sold,0) : (productTotSold || 0);
   const totStock  = allMode ? 0 : summary.reduce((s,p)=>s+p.stock,0);
   const totOrder  = allMode ? 0 : summary.reduce((s,p)=>s+p.toOrder,0);
   const numModels = summary.length;
