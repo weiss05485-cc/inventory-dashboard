@@ -3561,8 +3561,13 @@ function runOrderPlanner() {
       const totAll = tot2+tot1;
       const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
       const tqSh1  = tgtQty - tqSh2;
-      sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2);
-      sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1);
+      // gsmCombined: סה"כ נמכר לפי מידה מכל המוצרים (שתי שורות + שורה אחת ביחד)
+      const gsmCombined = {};
+      ['2','1'].forEach(sh => Object.keys(gdBySh[sh]).forEach(sz => {
+        gsmCombined[sz] = (gsmCombined[sz]||0) + gdBySh[sh][sz];
+      }));
+      sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
+      sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
       sizeDist  = [...sizeDist2, ...sizeDist1];
     } else {
       // מוצר ללא פיצול שורות (בעקיטשע, ריפס וכו') — טבלה אחת מכל המוצרים
@@ -3585,11 +3590,12 @@ function runOrderPlanner() {
 
 function buildSizeTable(dist, label, color) {
   if (!dist || !dist.length) return `<div style="color:var(--muted);font-size:12px;padding:12px">אין נתונים</div>`;
-  const totSold  = dist.reduce((s,d)=>s+d.sold, 0);
+  const hasSoldAll = dist.some(d => d.soldAll !== undefined);
   const totOrder = dist.reduce((s,d)=>s+d.order, 0);
+  const totSoldAll = hasSoldAll ? dist.reduce((s,d)=>s+(d.soldAll||0),0) : dist.reduce((s,d)=>s+d.sold,0);
   const rows = dist.map(d=>`<tr>
     <td><span class="chip size">מ' ${d.sz}</span></td>
-    <td>${d.sold.toLocaleString()}</td>
+    <td>${(hasSoldAll ? (d.soldAll||0) : d.sold).toLocaleString()}</td>
     <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
     <td style="font-weight:700">${d.order.toLocaleString()}</td>
   </tr>`).join('');
@@ -3597,7 +3603,7 @@ function buildSizeTable(dist, label, color) {
     <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th><th>%</th><th>הזמנה</th></tr></thead>
     <tbody>${rows}
       <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
-        <td>סה"כ</td><td>${totSold.toLocaleString()}</td><td>100%</td><td>${totOrder.toLocaleString()}</td>
+        <td>סה"כ</td><td>${totSoldAll.toLocaleString()}</td><td>100%</td><td>${totOrder.toLocaleString()}</td>
       </tr>
     </tbody>
   </table></div>`;
@@ -3679,7 +3685,17 @@ function renderOrderPlanner(){
   if (allMode || !sizeDist2) {
     sizeContainer.innerHTML = buildSizeTable(sizeDist, 'כל המוצרים לפי מידה', '#4f46e5');
   } else {
-    sizeContainer.innerHTML = buildMergedSuitTable(sizeDist2, sizeDist1);
+    sizeContainer.innerHTML =
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="text-align:center;font-weight:700;color:#4f46e5;margin-bottom:6px;font-size:14px">🔷 שתי שורות</div>
+          ${buildSizeTable(sizeDist2,'שתי שורות','#4f46e5')}
+        </div>
+        <div>
+          <div style="text-align:center;font-weight:700;color:#7c3aed;margin-bottom:6px;font-size:14px">🔹 שורה אחת</div>
+          ${buildSizeTable(sizeDist1,'שורה אחת','#7c3aed')}
+        </div>
+      </div>`;
   }
 
   // KPIs
@@ -3807,6 +3823,32 @@ function exportOrderExcel(){
   });
   ws4rows.push(['','','סה"כ כולל',grandTotal]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws4rows),'חלוקת מידות');
+
+  // גיליון 5: הזמנה לפי קבוצות (מודרני, חסידי, קלאסי וכו')
+  if (!allMode && detail && detail.length > 0) {
+    const ws5rows = [
+      [`הזמנה לפי קבוצות – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות  |  ${opPeriodLabel}`],
+      [],
+    ];
+    const grpMap = {};
+    detail.filter(d => d.toOrder > 0 || d.sold > 0).forEach(d => {
+      if (!grpMap[d.name]) grpMap[d.name] = [];
+      grpMap[d.name].push(d);
+    });
+    let grandTotalGrp = 0;
+    Object.keys(grpMap).sort((a,b)=>a.localeCompare(b,'he')).forEach(grpName => {
+      const items = grpMap[grpName].sort((a,b)=>(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
+      const grpTot = items.reduce((s,d)=>s+d.toOrder,0);
+      ws5rows.push([`◆ ${grpName}`,`יעד: ${grpTot.toLocaleString()} יח'`,'','']);
+      ws5rows.push(['מידה','נמכר','במלאי','להזמין']);
+      items.forEach(d=>{ ws5rows.push([d.sz, d.sold, d.stock, d.toOrder]); });
+      ws5rows.push(['','',`סה"כ ${grpName}`,grpTot]);
+      ws5rows.push([]);
+      grandTotalGrp += grpTot;
+    });
+    ws5rows.push(['','','סה"כ כולל',grandTotalGrp]);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws5rows),'הזמנה לפי קבוצות');
+  }
 
   XLSX.writeFile(wb,`הזמנה_${group}_${date}.xlsx`);
 }
