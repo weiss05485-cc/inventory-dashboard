@@ -3593,18 +3593,51 @@ function buildSizeTable(dist, label, color) {
     <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
     <td style="font-weight:700">${d.order.toLocaleString()}</td>
   </tr>`).join('');
-  return `
-    <div style="font-weight:700;color:${color};font-size:13px;margin-bottom:8px;padding:6px 12px;background:${color==='#4f46e5'?'#eef2ff':'#f5f3ff'};border-radius:8px;display:flex;justify-content:space-between">
-      <span>${label}</span><span>${totOrder.toLocaleString()} יח'</span>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th><th>%</th><th>הזמנה</th></tr></thead>
-      <tbody>${rows}
-        <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
-          <td>סה"כ</td><td>${totSold.toLocaleString()}</td><td>100%</td><td>${totOrder.toLocaleString()}</td>
-        </tr>
-      </tbody>
-    </table></div>`;
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th><th>%</th><th>הזמנה</th></tr></thead>
+    <tbody>${rows}
+      <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
+        <td>סה"כ</td><td>${totSold.toLocaleString()}</td><td>100%</td><td>${totOrder.toLocaleString()}</td>
+      </tr>
+    </tbody>
+  </table></div>`;
+}
+
+// טבלה ממוזגת לחליפות: מידה | שתי שורות | שורה אחת | סה"כ
+function buildMergedSuitTable(dist2, dist1) {
+  if (!dist2 && !dist1) return '';
+  const map2 = {}, map1 = {};
+  (dist2||[]).forEach(d=>{ map2[d.sz]=d; });
+  (dist1||[]).forEach(d=>{ map1[d.sz]=d; });
+  const allSizes = sortSizes([...new Set([...Object.keys(map2),...Object.keys(map1)])]);
+  const tot2 = (dist2||[]).reduce((s,d)=>s+d.order,0);
+  const tot1 = (dist1||[]).reduce((s,d)=>s+d.order,0);
+  const rows = allSizes.map(sz=>{
+    const o2=(map2[sz]||{}).order||0, o1=(map1[sz]||{}).order||0, tot=o2+o1;
+    if(!tot) return '';
+    return `<tr>
+      <td><span class="chip size">מ' ${sz}</span></td>
+      <td style="color:#4f46e5;font-weight:600">${o2||'—'}</td>
+      <td style="color:#7c3aed;font-weight:600">${o1||'—'}</td>
+      <td style="font-weight:800">${tot}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>מידה</th>
+      <th style="color:#4f46e5">🔷 שתי שורות</th>
+      <th style="color:#7c3aed">🔹 שורה אחת</th>
+      <th>סה"כ הזמנה</th>
+    </tr></thead>
+    <tbody>${rows}
+      <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
+        <td>סה"כ</td>
+        <td style="color:#4f46e5">${tot2.toLocaleString()}</td>
+        <td style="color:#7c3aed">${tot1.toLocaleString()}</td>
+        <td style="font-weight:800">${(tot2+tot1).toLocaleString()}</td>
+      </tr>
+    </tbody>
+  </table></div>`;
 }
 
 function renderOrderPlanner(){
@@ -3628,11 +3661,7 @@ function renderOrderPlanner(){
   if (allMode || !sizeDist2) {
     sizeContainer.innerHTML = buildSizeTable(sizeDist, 'כל המוצרים לפי מידה', '#4f46e5');
   } else {
-    sizeContainer.innerHTML =
-      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-        <div>${buildSizeTable(sizeDist2, '🔷 שתי שורות', '#4f46e5')}</div>
-        <div>${buildSizeTable(sizeDist1, '🔹 שורה אחת',  '#7c3aed')}</div>
-      </div>`;
+    sizeContainer.innerHTML = buildMergedSuitTable(sizeDist2, sizeDist1);
   }
 
   // KPIs
