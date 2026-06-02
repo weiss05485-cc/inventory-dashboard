@@ -3449,15 +3449,27 @@ function runOrderPlanner() {
   const allMode   = product === '__all__';
 
   // ── filter sales data to the selected period ──────────────────────────────
-  // מחפש את ה-ym המקסימלי בנתונים ומסנן X חודשים אחורה
-  const _toYmNum = ym => { const [y,mo]=String(ym).split('-'); return +y*12 + +mo; };
-  const _maxYmNum = SALES_DATA.reduce((m,i)=>i.ym?Math.max(m,_toYmNum(i.ym)):m, 0);
-  const _cutoff   = _maxYmNum - months;   // items with _toYmNum(ym) > _cutoff are included
-  const filteredSD = SALES_DATA.filter(i => !i.ym || _toYmNum(i.ym) > _cutoff);
-  // date range label (for display)
-  const _minYmNum  = filteredSD.reduce((m,i)=>i.ym?Math.min(m,_toYmNum(i.ym)):m, Infinity);
-  const _ymLabel   = n => { const HEB=['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳']; const y=Math.floor((n-1)/12),mo=n-y*12; return `${HEB[mo]} ${y}`; };
-  const opPeriodLabel = `${_ymLabel(_minYmNum)} – ${_ymLabel(_maxYmNum)}`;
+  // מחפש את ה-ym המקסימלי (פורמט 'YYYY-MM') ומחשב cutoff X חודשים אחורה.
+  // השוואת מחרוזות YYYY-MM עובדת כרצף כרונולוגי — פשוטה ואמינה.
+  const _maxYm = SALES_DATA.reduce((mx,i)=>(i.ym&&i.ym>mx)?i.ym:mx, '');
+  let _cutoffYm = '';
+  if (_maxYm) {
+    const [_fy, _fm] = _maxYm.split('-').map(Number);
+    const _ftot = _fy * 12 + _fm - Math.floor(months);
+    const _fcy  = Math.floor((_ftot - 1) / 12);
+    const _fcm  = _ftot - _fcy * 12;
+    _cutoffYm   = `${_fcy}-${String(_fcm).padStart(2, '0')}`;
+  }
+  // פריט נכנס אם: אין לו ym  OR  ym > cutoff  (כלומר: אחרי חלון הזמן)
+  const filteredSD = _maxYm
+    ? SALES_DATA.filter(i => !i.ym || i.ym > _cutoffYm)
+    : SALES_DATA;
+  // תווית טווח תאריכים לתצוגה
+  const _minYm  = filteredSD.reduce((mn,i)=>(i.ym&&(!mn||i.ym<mn))?i.ym:mn, '');
+  const _HEB    = ['','ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
+  const _ymLbl  = ym => { if(!ym) return ''; const [yy,mm]=ym.split('-').map(Number); return `${_HEB[mm]} ${yy}`; };
+  const opPeriodLabel = `${_ymLbl(_minYm)} – ${_ymLbl(_maxYm)}`;
+  console.log('[OP] months='+months+' maxYm='+_maxYm+' cutoff='+_cutoffYm+' filteredSD='+filteredSD.length+'/'+SALES_DATA.length);
 
   // ── aggregate sales ───────────────────────────────────────────────────────
   const sizeMap  = {};
