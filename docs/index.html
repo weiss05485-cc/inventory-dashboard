@@ -3546,11 +3546,8 @@ function runOrderPlanner() {
         if (sh!=='1' && sh!=='2') return;
         gdBySh[sh][i.sz] = (gdBySh[sh][i.sz]||0) + (i.q||0);
       });
-    // האם המוצר הנבחר קיים בשתי קטגוריות שורה? (רק אז מציגים פיצול)
-    const productShorotTypes = new Set(
-      filteredSD.filter(i=>i.n===product).map(i=>getShorot(i.mc||'')).filter(s=>s==='1'||s==='2')
-    );
-    const splitByShorot = productShorotTypes.size >= 2; // למשל חליפה שיש בה גם 01 וגם 03
+    // פיצול שתי-שורות/שורה-אחת רלוונטי רק לחליפות — לא לבעקיטשע, ריפס וכו'
+    const splitByShorot = product.includes('חליפה');
 
     const tot2   = Object.values(gdBySh['2']).reduce((s,v)=>s+v, 0);
     const tot1   = Object.values(gdBySh['1']).reduce((s,v)=>s+v, 0);
