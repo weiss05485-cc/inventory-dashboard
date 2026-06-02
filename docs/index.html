@@ -3610,31 +3610,49 @@ function buildMergedSuitTable(dist2, dist1) {
   (dist2||[]).forEach(d=>{ map2[d.sz]=d; });
   (dist1||[]).forEach(d=>{ map1[d.sz]=d; });
   const allSizes = sortSizes([...new Set([...Object.keys(map2),...Object.keys(map1)])]);
-  const tot2 = (dist2||[]).reduce((s,d)=>s+d.order,0);
-  const tot1 = (dist1||[]).reduce((s,d)=>s+d.order,0);
+  const tot2sold  = (dist2||[]).reduce((s,d)=>s+d.sold,0);
+  const tot1sold  = (dist1||[]).reduce((s,d)=>s+d.sold,0);
+  const tot2order = (dist2||[]).reduce((s,d)=>s+d.order,0);
+  const tot1order = (dist1||[]).reduce((s,d)=>s+d.order,0);
   const rows = allSizes.map(sz=>{
-    const o2=(map2[sz]||{}).order||0, o1=(map1[sz]||{}).order||0, tot=o2+o1;
-    if(!tot) return '';
+    const d2=map2[sz]||{sold:0,order:0}, d1=map1[sz]||{sold:0,order:0};
+    const totSold=d2.sold+d1.sold, totOrder=d2.order+d1.order;
+    if(!totSold && !totOrder) return '';
     return `<tr>
       <td><span class="chip size">מ' ${sz}</span></td>
-      <td style="color:#4f46e5;font-weight:600">${o2||'—'}</td>
-      <td style="color:#7c3aed;font-weight:600">${o1||'—'}</td>
-      <td style="font-weight:800">${tot}</td>
+      <td style="color:#4f46e5">${d2.sold||'—'}</td>
+      <td style="color:#7c3aed">${d1.sold||'—'}</td>
+      <td style="font-weight:700">${totSold||'—'}</td>
+      <td style="color:#4f46e5;font-weight:600">${d2.order||'—'}</td>
+      <td style="color:#7c3aed;font-weight:600">${d1.order||'—'}</td>
+      <td style="font-weight:800">${totOrder||'—'}</td>
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>מידה</th>
-      <th style="color:#4f46e5">🔷 שתי שורות</th>
-      <th style="color:#7c3aed">🔹 שורה אחת</th>
-      <th>סה"כ הזמנה</th>
-    </tr></thead>
+    <thead>
+      <tr>
+        <th rowspan="2" style="vertical-align:middle">מידה</th>
+        <th colspan="3" style="text-align:center;background:#eef2ff;border-bottom:2px solid #c7d2fe">📦 נמכר (כלל המוצרים)</th>
+        <th colspan="3" style="text-align:center;background:#f5f3ff;border-bottom:2px solid #ddd6fe">🛒 להזמין</th>
+      </tr>
+      <tr>
+        <th style="color:#4f46e5;background:#eef2ff">🔷 שתי שורות</th>
+        <th style="color:#7c3aed;background:#eef2ff">🔹 שורה אחת</th>
+        <th style="background:#eef2ff">סה"כ</th>
+        <th style="color:#4f46e5;background:#f5f3ff">🔷 שתי שורות</th>
+        <th style="color:#7c3aed;background:#f5f3ff">🔹 שורה אחת</th>
+        <th style="background:#f5f3ff">סה"כ</th>
+      </tr>
+    </thead>
     <tbody>${rows}
       <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
         <td>סה"כ</td>
-        <td style="color:#4f46e5">${tot2.toLocaleString()}</td>
-        <td style="color:#7c3aed">${tot1.toLocaleString()}</td>
-        <td style="font-weight:800">${(tot2+tot1).toLocaleString()}</td>
+        <td style="color:#4f46e5">${tot2sold.toLocaleString()}</td>
+        <td style="color:#7c3aed">${tot1sold.toLocaleString()}</td>
+        <td style="font-weight:800">${(tot2sold+tot1sold).toLocaleString()}</td>
+        <td style="color:#4f46e5">${tot2order.toLocaleString()}</td>
+        <td style="color:#7c3aed">${tot1order.toLocaleString()}</td>
+        <td style="font-weight:800">${(tot2order+tot1order).toLocaleString()}</td>
       </tr>
     </tbody>
   </table></div>`;
