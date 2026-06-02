@@ -3665,36 +3665,54 @@ function exportOrderExcel(){
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
 
-  // גיליון 4: חלוקת מידות לפי קבוצה
-  // מחלק את tgtQty (יעד ידני) לפי יחס מכירות בין קבוצות × % מידות גלובלי
-  // לא תלוי ב-toOrder — תמיד יציג הזמנה גם אם יש מלאי מספיק
-  const ws4rows = [
-    [`טופס הזמנה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
-    [],
-    ['קבוצה', 'מידה', '% מידה', 'כמות להזמנה'],
-  ];
-  const totalSoldAll = summary.reduce((s, p) => s + p.sold, 0);
-  let grandTotal = 0;
-  summary.forEach(p => {
-    // כמות לקבוצה = tgtQty × (מכירות הקבוצה / סה"כ מכירות)
-    const grpQty = totalSoldAll > 0
-      ? Math.round(tgtQty * p.sold / totalSoldAll)
-      : Math.round(tgtQty / summary.length);
-    if (grpQty <= 0) return;
-    let groupTotal = 0;
-    sizeDist.forEach(d => {
-      const qty = Math.round(d.pct * grpQty);
-      if (qty > 0) {
-        ws4rows.push([p.name, d.sz, (d.pct*100).toFixed(1)+'%', qty]);
-        groupTotal += qty;
-      }
-    });
-    ws4rows.push(['', `סה"כ ${p.name}`, '', groupTotal]);
-    ws4rows.push([]);
-    grandTotal += groupTotal;
+  // גיליון 4: חלוקת מידות לפי שורה אחת / שתי שורות (לפי mc)
+  // מחלק tgtQty לפי יחס מכירות שורה × % מידות גלובלי לכל שורה בנפרד
+  const shorotDef=[{key:'2',label:'שתי שורות'},{key:'1',label:'שורה אחת'}];
+
+  // מכירות המוצר הנבחר לפי שורה
+  const salesByShorot={'1':0,'2':0};
+  SALES_DATA.filter(i=>i.n===group).forEach(i=>{
+    const sh=getShorot(i.mc||'');
+    if(sh==='1'||sh==='2') salesByShorot[sh]+=(i.q||0);
   });
-  ws4rows.push(['סה"כ כולל', '', '', grandTotal]);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws4rows), 'חלוקת מידות');
+  const totalShorotSold=salesByShorot['1']+salesByShorot['2'];
+
+  // מכירות גלובליות (כל המוצרים) לפי שורה × מידה — לחישוב % נפרד לכל שורה
+  const globalByShorot={'1':{},'2':{}};
+  SALES_DATA.filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')&&i.sz&&i.sz!=='—')
+    .forEach(i=>{
+      const sh=getShorot(i.mc||'');
+      if(sh!=='1'&&sh!=='2') return;
+      globalByShorot[sh][i.sz]=(globalByShorot[sh][i.sz]||0)+(i.q||0);
+    });
+
+  const ws4rows=[
+    [`טופס הזמנה לפי שורה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
+    [],
+  ];
+  let grandTotal=0;
+  shorotDef.forEach(({key,label})=>{
+    const shorotQty=totalShorotSold>0
+      ? Math.round(tgtQty*salesByShorot[key]/totalShorotSold)
+      : Math.round(tgtQty/2);
+    if(shorotQty<=0) return;
+    const gMap=globalByShorot[key];
+    const gTotal=Object.values(gMap).reduce((a,b)=>a+b,0);
+    ws4rows.push([`◆ ${label}`,`יעד: ${shorotQty.toLocaleString()} יח'`,'','']);
+    ws4rows.push(['מידה','נמכר כלל המוצרים','%','כמות להזמנה']);
+    let sTotal=0;
+    sortSizes(Object.keys(gMap)).forEach(sz=>{
+      const sold=gMap[sz]||0;
+      const pct=gTotal>0?sold/gTotal:0;
+      const qty=Math.round(pct*shorotQty);
+      if(qty>0){ws4rows.push([sz,sold,(pct*100).toFixed(1)+'%',qty]);sTotal+=qty;}
+    });
+    ws4rows.push(['','',`סה"כ ${label}`,sTotal]);
+    ws4rows.push([]);
+    grandTotal+=sTotal;
+  });
+  ws4rows.push(['','','סה"כ כולל',grandTotal]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws4rows),'חלוקת מידות');
 
   XLSX.writeFile(wb,`הזמנה_${group}_${date}.xlsx`);
 }
