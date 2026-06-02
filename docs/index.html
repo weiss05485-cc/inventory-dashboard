@@ -1046,8 +1046,8 @@ body.emp-mode .price-col{display:none!important}
   <div class="section" style="margin-bottom:16px">
     <div style="padding:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">קבוצה</div>
-        <select id="op-group" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;min-width:180px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">מוצר</div>
+        <select id="op-group" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;min-width:220px">
           <option value="">-- טוען... --</option>
         </select>
       </div>
@@ -1070,7 +1070,7 @@ body.emp-mode .price-col{display:none!important}
   <!-- Empty state -->
   <div id="op-empty" style="text-align:center;padding:60px 20px;color:var(--muted)">
     <div style="font-size:48px">📦</div>
-    <div style="font-size:16px;font-weight:600;margin-top:12px;color:var(--text)">בחר קבוצה ולחץ "חשב המלצה"</div>
+    <div style="font-size:16px;font-weight:600;margin-top:12px;color:var(--text)">בחר מוצר ולחץ "חשב המלצה"</div>
     <div style="font-size:13px;margin-top:8px">המערכת תחשב המלצת הזמנה לפי קצב מכר ומלאי נוכחי</div>
   </div>
 
@@ -1101,11 +1101,11 @@ body.emp-mode .price-col{display:none!important}
 
     <!-- Summary by product -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header"><h3>📊 סיכום לפי מוצר</h3></div>
+      <div class="section-header"><h3>📊 סיכום לפי קבוצה</h3></div>
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>מוצר</th>
+            <th>קבוצה</th>
             <th>נמכר</th>
             <th>במלאי</th>
             <th>קצב/חודש</th>
@@ -1119,11 +1119,11 @@ body.emp-mode .price-col{display:none!important}
 
     <!-- Detail by product + size -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header"><h3>🔍 פירוט לפי מוצר ומידה</h3></div>
+      <div class="section-header"><h3>🔍 פירוט לפי קבוצה ומידה</h3></div>
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>מוצר</th>
+            <th>קבוצה</th>
             <th>מידה</th>
             <th>נמכר</th>
             <th>במלאי</th>
@@ -3417,10 +3417,10 @@ function initOrderPlanner() {
   const loadDone = () => {
     if (opPlannerReady) return;
     opPlannerReady = true;
-    const groups = [...new Set(SALES_DATA.map(i=>i.g).filter(g=>g&&g!=='ללא קבוצה'&&g!=='ללא דוגמא'))].sort((a,b)=>a.localeCompare(b,'he'));
+    const products = [...new Set(SALES_DATA.map(i=>i.n).filter(n=>n&&n!=='ללא שם'))].sort((a,b)=>a.localeCompare(b,'he'));
     const sel = document.getElementById('op-group');
-    sel.innerHTML = '<option value="">-- בחר קבוצה --</option>' +
-      groups.map(g=>`<option>${escHtml(g)}</option>`).join('');
+    sel.innerHTML = '<option value="">-- בחר מוצר --</option>' +
+      products.map(n=>`<option>${escHtml(n)}</option>`).join('');
   };
   if (!salesLoaded) { loadSalesData(() => { if (!reportLoaded) loadReportsData(loadDone); else loadDone(); }); }
   else if (!reportLoaded) { loadReportsData(loadDone); }
@@ -3428,46 +3428,50 @@ function initOrderPlanner() {
 }
 
 function runOrderPlanner() {
-  const group = document.getElementById('op-group').value;
-  if (!group) { alert('בחר קבוצה'); return; }
+  const product = document.getElementById('op-group').value;
+  if (!product) { alert('בחר מוצר'); return; }
 
-  const months      = parseFloat(document.getElementById('op-months').value)       || 4.5;
-  const tgtMonths   = parseFloat(document.getElementById('op-target-months').value) || 3;
-  const tgtQty      = parseInt  (document.getElementById('op-target-qty').value)   || 1000;
+  const months    = parseFloat(document.getElementById('op-months').value)        || 4.5;
+  const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
+  const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
 
-  // ── aggregate sales by (name, size) ──────────────────────────────────────
-  const salesMap = {};   // "name|sz" → total sold
+  // ── aggregate sales by (group, size) — all variants of the product ────────
+  const salesMap = {};   // "group|sz" → total sold
   const sizeMap  = {};   // sz → total sold (for size distribution)
-  SALES_DATA.filter(i=>i.g===group).forEach(i=>{
+  SALES_DATA.filter(i=>i.n===product).forEach(i=>{
     const sz  = i.sz||'—';
-    const key = (i.n||'—')+'|'+sz;
+    const grp = i.g||'ללא קבוצה';
+    const key = grp+'|'+sz;
     salesMap[key] = (salesMap[key]||0) + (i.q||0);
     sizeMap[sz]   = (sizeMap[sz]  ||0) + (i.q||0);
   });
 
-  // ── aggregate stock by (name, size) from REPORT_DATA ─────────────────────
+  // ── aggregate stock by (group, size) from REPORT_DATA ────────────────────
   const invMap = {};
   if (REPORT_DATA) {
-    REPORT_DATA.filter(i=>i.g===group).forEach(i=>{
+    REPORT_DATA.filter(i=>i.n===product).forEach(i=>{
       const sz  = i.sz||'—';
-      const key = (i.n||'—')+'|'+sz;
+      const grp = i.g||'ללא קבוצה';
+      const key = grp+'|'+sz;
       invMap[key] = (invMap[key]||0) + (i.q||0);
     });
   }
 
-  // ── build detail records ─────────────────────────────────────────────────
+  // ── build detail records (group × size) ──────────────────────────────────
   const detail = Object.entries(salesMap)
     .filter(([,sold])=>sold>0)
     .map(([key,sold])=>{
-      const [name,sz] = key.split('|');
+      const sepIdx = key.indexOf('|');
+      const grp = key.substring(0, sepIdx);
+      const sz  = key.substring(sepIdx+1);
       const stock   = invMap[key]||0;
       const monthly = Math.round(sold/months*10)/10;
       const target  = Math.round(monthly*tgtMonths);
       const toOrder = Math.max(0, target-stock);
-      return {name, sz, sold, stock, monthly, target, toOrder};
+      return {name:grp, sz, sold, stock, monthly, target, toOrder};
     });
 
-  // ── summary by product ────────────────────────────────────────────────────
+  // ── summary by group ──────────────────────────────────────────────────────
   const sumMap = {};
   detail.forEach(d=>{
     if(!sumMap[d.name]) sumMap[d.name]={name:d.name,sold:0,stock:0,toOrder:0};
@@ -3481,7 +3485,7 @@ function runOrderPlanner() {
     target:  Math.round(p.sold/months*tgtMonths)
   })).sort((a,b)=>b.toOrder-a.toOrder);
 
-  // ── size distribution ─────────────────────────────────────────────────────
+  // ── size distribution (all groups combined) ───────────────────────────────
   const totalSold = Object.values(sizeMap).reduce((a,b)=>a+b,0);
   const sizeDist  = sortSizes(Object.keys(sizeMap)).map(sz=>{
     const sold = sizeMap[sz]||0;
@@ -3489,7 +3493,7 @@ function runOrderPlanner() {
     return {sz, sold, pct, order: Math.round(pct*tgtQty)};
   });
 
-  OP_DATA = {group, months, tgtMonths, tgtQty, detail, summary, sizeDist};
+  OP_DATA = {group:product, months, tgtMonths, tgtQty, detail, summary, sizeDist};
   renderOrderPlanner();
 }
 
@@ -3509,7 +3513,7 @@ function renderOrderPlanner(){
   const totOrder  = summary.reduce((s,p)=>s+p.toOrder,0);
   const numModels = summary.length;
   document.getElementById('op-kpis').innerHTML=[
-    {l:'קבוצה',       v:group,                    c:'#4f46e5'},
+    {l:'מוצר',        v:group,                    c:'#4f46e5'},
     {l:'סה"כ נמכר',   v:totSold.toLocaleString()+' יח\'', c:'#3b82f6'},
     {l:'מלאי נוכחי',  v:totStock.toLocaleString()+' יח\'',c:'#10b981'},
     {l:'המלצה כוללת', v:totOrder.toLocaleString()+' יח\'',c:'#ef4444'},
@@ -3580,7 +3584,7 @@ function exportOrderExcel(){
   const ws1=[
     [`המלצת הזמנה – ${group}  |  מכר: ${months} חודשים  |  יעד: ${tgtMonths} חודשים`],
     [],
-    ['מוצר','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
+    ['קבוצה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
     ...summary.map(p=>[p.name,p.sold,p.stock,p.monthly,p.target,p.toOrder]),
     [],
     ['סה"כ',summary.reduce((s,p)=>s+p.sold,0),summary.reduce((s,p)=>s+p.stock,0),'',
@@ -3594,7 +3598,7 @@ function exportOrderExcel(){
   const ws2=[
     [`פירוט הזמנה – ${group} – לפי מוצר ומידה`],
     [],
-    ['מוצר','מידה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
+    ['קבוצה','מידה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
     ...detSorted.map(d=>[d.name,d.sz,d.sold,d.stock,d.monthly,d.target,d.toOrder])
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws2),'פירוט מוצר ומידה');
@@ -3604,7 +3608,7 @@ function exportOrderExcel(){
   const ws3=[
     [`טופס הזמנה – ${group} (ניתן לערוך את עמודת "כמות להזמנה")`],
     [],
-    ['מוצר','מידה','נמכר','במלאי','כמות להזמנה'],
+    ['קבוצה','מידה','נמכר','במלאי','כמות להזמנה'],
     ...orderOnly.map(d=>[d.name,d.sz,d.sold,d.stock,d.toOrder])
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
