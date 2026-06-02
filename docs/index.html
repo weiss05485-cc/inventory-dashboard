@@ -3457,8 +3457,11 @@ function runOrderPlanner() {
     ? SALES_DATA.filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || ''))
     : SALES_DATA.filter(i => i.n === product);
 
+  let productTotSoldRaw = 0;  // סה"כ יחידות נמכרות (לKPI) — כולל פריטים ללא מידה
   srcSales.forEach(i => {
-    const sz  = i.sz || '—';
+    productTotSoldRaw += (i.q || 0);
+    const sz = i.sz;
+    if (!sz || sz === '—') return;  // דלג על פריטים ללא מידה
     sizeMap[sz] = (sizeMap[sz] || 0) + (i.q || 0);
     if (!allMode) {
       const grp = i.g || 'ללא קבוצה';
@@ -3511,12 +3514,12 @@ function runOrderPlanner() {
   // תמיד מחושב לפי מכירות כלל המוצרים — כך האחוז לכל מידה מייצג את הדפוס הכללי
   // allMode: sizeMap כבר מכיל את כל המוצרים
   // single:  בונים globalSizeMap נפרד מכל המוצרים
-  const productTotSold = Object.values(sizeMap).reduce((a, b) => a + b, 0); // לKPI של מוצר ספציפי
+  const productTotSold = productTotSoldRaw; // לKPI — כולל פריטים ללא מידה
   const sizeDistSrc = allMode ? sizeMap : (() => {
     const gsm = {};
     SALES_DATA
-      .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || ''))
-      .forEach(i => { const sz = i.sz || '—'; gsm[sz] = (gsm[sz] || 0) + (i.q || 0); });
+      .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || '') && i.sz && i.sz !== '—')
+      .forEach(i => { gsm[i.sz] = (gsm[i.sz] || 0) + (i.q || 0); });
     return gsm;
   })();
   const totalGlobal = Object.values(sizeDistSrc).reduce((a, b) => a + b, 0);
