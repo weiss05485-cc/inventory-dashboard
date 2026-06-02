@@ -3666,18 +3666,24 @@ function exportOrderExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
 
   // גיליון 4: חלוקת מידות לפי קבוצה
-  // לכל קבוצה: מפזרים את ה-toOrder שלה לפי % המידות הגלובלי
+  // מחלק את tgtQty (יעד ידני) לפי יחס מכירות בין קבוצות × % מידות גלובלי
+  // לא תלוי ב-toOrder — תמיד יציג הזמנה גם אם יש מלאי מספיק
   const ws4rows = [
-    [`חלוקת מידות לפי קבוצה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
+    [`טופס הזמנה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
     [],
     ['קבוצה', 'מידה', '% מידה', 'כמות להזמנה'],
   ];
+  const totalSoldAll = summary.reduce((s, p) => s + p.sold, 0);
   let grandTotal = 0;
   summary.forEach(p => {
-    if (p.toOrder <= 0) return;
+    // כמות לקבוצה = tgtQty × (מכירות הקבוצה / סה"כ מכירות)
+    const grpQty = totalSoldAll > 0
+      ? Math.round(tgtQty * p.sold / totalSoldAll)
+      : Math.round(tgtQty / summary.length);
+    if (grpQty <= 0) return;
     let groupTotal = 0;
     sizeDist.forEach(d => {
-      const qty = Math.round(d.pct * p.toOrder);
+      const qty = Math.round(d.pct * grpQty);
       if (qty > 0) {
         ws4rows.push([p.name, d.sz, (d.pct*100).toFixed(1)+'%', qty]);
         groupTotal += qty;
