@@ -1083,20 +1083,10 @@ body.emp-mode .price-col{display:none!important}
     <!-- Size distribution -->
     <div class="section" style="margin-bottom:16px">
       <div class="section-header">
-        <h3>📐 חלוקת מידות ויחידות יעד</h3>
+        <h3>📐 חלוקת מידות ויחידות יעד — <span id="op-qty-label">0</span> יח'</h3>
         <span id="op-size-note" style="font-size:11px;color:var(--muted)"></span>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>מידה</th>
-            <th>נמכר</th>
-            <th>%</th>
-            <th>הזמנה (<span id="op-qty-label">1000</span> יח')</th>
-          </tr></thead>
-          <tbody id="op-size-tbody"></tbody>
-        </table>
-      </div>
+      <div id="op-size-container" style="padding:12px 16px 16px"></div>
     </div>
 
     <!-- Summary by product -->
@@ -3534,38 +3524,73 @@ function runOrderPlanner() {
 
   }
 
-  // ── size distribution ─────────────────────────────────────────────────────
-  // מחושב לפי מכירות כל המוצרים באותה מחלקה בלבד —
-  // כך מידות ממחלקות אחרות (ילדים, אביזרים...) לא מזהמות את הפילוג
-  const productTotSold = productTotSoldRaw; // לKPI — כולל פריטים ללא מידה
-  // מצא את המחלקה של המוצר הנבחר
-  const productDept = !allMode
-    ? ((SALES_DATA.find(i => i.n === product) || {}).dept || '')
-    : '';
-  const sizeDistSrc = allMode ? sizeMap : (() => {
-    const gsm = {};
-    filteredSD                          // ← same period as selected
-      .filter(i => i.n && i.n !== 'ללא שם'
-        && !OP_EXCLUDE_DEPTS.has(i.dept || '')
-        && (productDept ? i.dept === productDept : true)   // אותה מחלקה בלבד
-        && i.sz && i.sz !== '—')
-      .forEach(i => { gsm[i.sz] = (gsm[i.sz] || 0) + (i.q || 0); });
-    return gsm;
-  })();
-  const totalGlobal = Object.values(sizeDistSrc).reduce((a, b) => a + b, 0);
-  const sizeDist = sortSizes(Object.keys(sizeDistSrc)).map(sz => {
-    const sold = sizeDistSrc[sz] || 0;
-    const pct  = totalGlobal > 0 ? sold / totalGlobal : 0;
-    return {sz, sold, pct, order: Math.round(pct * tgtQty)};
-  });
+  // ── size distribution — split by שורה type, ALL products (no dept filter) ──
+  const productTotSold = productTotSoldRaw;
 
-  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold, opPeriodLabel};
+  let sizeDist, sizeDist2, sizeDist1;
+  if (allMode) {
+    // allMode: combined, no שורה split needed
+    const totalGlobal = Object.values(sizeMap).reduce((a,b)=>a+b, 0);
+    sizeDist  = sortSizes(Object.keys(sizeMap)).map(sz => {
+      const sold=sizeMap[sz]||0, pct=totalGlobal>0?sold/totalGlobal:0;
+      return {sz, sold, pct, order:Math.round(pct*tgtQty)};
+    });
+    sizeDist2 = null; sizeDist1 = null;
+  } else {
+    // single-product: מפצל לשתי שורות / שורה אחת מכל המוצרים (ללא פילטר מחלקה)
+    const gdBySh = {'2':{}, '1':{}};
+    filteredSD
+      .filter(i => i.n && i.n!=='ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz!=='—')
+      .forEach(i => {
+        const sh = getShorot(i.mc||'');
+        if (sh!=='1' && sh!=='2') return;
+        gdBySh[sh][i.sz] = (gdBySh[sh][i.sz]||0) + (i.q||0);
+      });
+    const tot2   = Object.values(gdBySh['2']).reduce((s,v)=>s+v, 0);
+    const tot1   = Object.values(gdBySh['1']).reduce((s,v)=>s+v, 0);
+    const totAll = tot2+tot1;
+    const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
+    const tqSh1  = tgtQty - tqSh2;
+    const mkArr  = (gsm,tot,tq) => sortSizes(Object.keys(gsm)).map(sz => {
+      const sold=gsm[sz]||0, pct=tot>0?sold/tot:0;
+      return {sz, sold, pct, order:Math.round(pct*tq)};
+    });
+    sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2);
+    sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1);
+    sizeDist  = [...sizeDist2, ...sizeDist1]; // combined, for Excel/KPI compat
+  }
+
+  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, sizeDist2, sizeDist1, productTotSold, opPeriodLabel};
   renderOrderPlanner();
+}
+
+function buildSizeTable(dist, label, color) {
+  if (!dist || !dist.length) return `<div style="color:var(--muted);font-size:12px;padding:12px">אין נתונים</div>`;
+  const totSold  = dist.reduce((s,d)=>s+d.sold, 0);
+  const totOrder = dist.reduce((s,d)=>s+d.order, 0);
+  const rows = dist.map(d=>`<tr>
+    <td><span class="chip size">מ' ${d.sz}</span></td>
+    <td>${d.sold.toLocaleString()}</td>
+    <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
+    <td style="font-weight:700">${d.order.toLocaleString()}</td>
+  </tr>`).join('');
+  return `
+    <div style="font-weight:700;color:${color};font-size:13px;margin-bottom:8px;padding:6px 12px;background:${color==='#4f46e5'?'#eef2ff':'#f5f3ff'};border-radius:8px;display:flex;justify-content:space-between">
+      <span>${label}</span><span>${totOrder.toLocaleString()} יח'</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th><th>%</th><th>הזמנה</th></tr></thead>
+      <tbody>${rows}
+        <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
+          <td>סה"כ</td><td>${totSold.toLocaleString()}</td><td>100%</td><td>${totOrder.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table></div>`;
 }
 
 function renderOrderPlanner(){
   if(!OP_DATA) return;
-  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, productTotSold, opPeriodLabel} = OP_DATA;
+  const {group, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, sizeDist2, sizeDist1, productTotSold, opPeriodLabel} = OP_DATA;
 
   document.getElementById('op-empty').style.display   = 'none';
   document.getElementById('op-results').style.display = 'block';
@@ -3579,9 +3604,17 @@ function renderOrderPlanner(){
   document.querySelector('#op-results .section:nth-of-type(2)').style.display = allMode ? 'none' : '';
   document.querySelector('#op-results .section:nth-of-type(3)').style.display = allMode ? 'none' : '';
 
-  // עדכן כותרת עמודת "נמכר" בטבלת מידות
-  const sizeNmkarTh = document.querySelector('#op-size-tbody')?.closest('table')?.querySelector('thead th:nth-child(2)');
-  if (sizeNmkarTh) sizeNmkarTh.textContent = allMode ? 'נמכר' : 'נמכר (כלל מוצרים)';
+  // Size distribution — two sections or combined
+  const sizeContainer = document.getElementById('op-size-container');
+  if (allMode || !sizeDist2) {
+    sizeContainer.innerHTML = buildSizeTable(sizeDist, 'כל המוצרים לפי מידה', '#4f46e5');
+  } else {
+    sizeContainer.innerHTML =
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>${buildSizeTable(sizeDist2, '🔷 שתי שורות', '#4f46e5')}</div>
+        <div>${buildSizeTable(sizeDist1, '🔹 שורה אחת',  '#7c3aed')}</div>
+      </div>`;
+  }
 
   // KPIs
   // totSold = מוצר ספציפי: נמכר מהמוצר הנבחר בלבד; allMode: כלל מוצרים
@@ -3605,21 +3638,6 @@ function renderOrderPlanner(){
     <div style="font-size:20px;font-weight:800;color:#1e2233">${k.v}</div>
   </div>`).join('');
 
-  // Size distribution table
-  const sizeTotal = sizeDist.reduce((s,d)=>s+d.order,0);
-  document.getElementById('op-size-tbody').innerHTML =
-    sizeDist.map(d=>`<tr>
-      <td><span class="chip size">מ' ${d.sz}</span></td>
-      <td>${d.sold.toLocaleString()}</td>
-      <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
-      <td style="font-weight:700">${d.order.toLocaleString()}</td>
-    </tr>`).join('') +
-    `<tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
-      <td>סה"כ</td>
-      <td>${sizeDist.reduce((s,d)=>s+d.sold,0).toLocaleString()}</td>
-      <td>100%</td>
-      <td>${sizeTotal.toLocaleString()}</td>
-    </tr>`;
 
   // Summary by product
   document.getElementById('op-summary-tbody').innerHTML=summary.map(p=>`<tr>
@@ -3695,50 +3713,27 @@ function exportOrderExcel(){
   ];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
 
-  // גיליון 4: חלוקת מידות לפי שורה אחת / שתי שורות (לפי mc)
-  // מחלק tgtQty לפי יחס מכירות שורה × % מידות גלובלי לכל שורה בנפרד
-  const shorotDef=[{key:'2',label:'שתי שורות'},{key:'1',label:'שורה אחת'}];
-
-  // מכירות המוצר הנבחר לפי שורה
-  const salesByShorot={'1':0,'2':0};
-  SALES_DATA.filter(i=>i.n===group).forEach(i=>{
-    const sh=getShorot(i.mc||'');
-    if(sh==='1'||sh==='2') salesByShorot[sh]+=(i.q||0);
-  });
-  const totalShorotSold=salesByShorot['1']+salesByShorot['2'];
-
-  // מכירות גלובליות (כל המוצרים) לפי שורה × מידה — לחישוב % נפרד לכל שורה
-  // אותה מחלקה כמו המוצר הנבחר — למנוע זיהום ממחלקות אחרות
-  const exportProductDept = (SALES_DATA.find(i=>i.n===group)||{}).dept||'';
-  const globalByShorot={'1':{},'2':{}};
-  SALES_DATA.filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')
-      &&(exportProductDept?i.dept===exportProductDept:true)&&i.sz&&i.sz!=='—')
-    .forEach(i=>{
-      const sh=getShorot(i.mc||'');
-      if(sh!=='1'&&sh!=='2') return;
-      globalByShorot[sh][i.sz]=(globalByShorot[sh][i.sz]||0)+(i.q||0);
-    });
-
+  // גיליון 4: חלוקת מידות לפי שורה אחת / שתי שורות
+  // שימוש ב-sizeDist2/1 שנבנו ב-runOrderPlanner (כולל פילטר תקופה, כל המוצרים)
+  const {sizeDist2, sizeDist1, opPeriodLabel} = OP_DATA;
+  const shorotDef4 = [
+    {label:'שתי שורות', dist:sizeDist2},
+    {label:'שורה אחת',  dist:sizeDist1},
+  ];
   const ws4rows=[
-    [`טופס הזמנה לפי שורה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות`],
+    [`טופס הזמנה לפי שורה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות  |  ${opPeriodLabel}`],
     [],
   ];
   let grandTotal=0;
-  shorotDef.forEach(({key,label})=>{
-    const shorotQty=totalShorotSold>0
-      ? Math.round(tgtQty*salesByShorot[key]/totalShorotSold)
-      : Math.round(tgtQty/2);
+  shorotDef4.forEach(({label,dist})=>{
+    if(!dist||!dist.length) return;
+    const shorotQty=dist.reduce((s,d)=>s+d.order,0);
     if(shorotQty<=0) return;
-    const gMap=globalByShorot[key];
-    const gTotal=Object.values(gMap).reduce((a,b)=>a+b,0);
     ws4rows.push([`◆ ${label}`,`יעד: ${shorotQty.toLocaleString()} יח'`,'','']);
     ws4rows.push(['מידה','נמכר כלל המוצרים','%','כמות להזמנה']);
     let sTotal=0;
-    sortSizes(Object.keys(gMap)).forEach(sz=>{
-      const sold=gMap[sz]||0;
-      const pct=gTotal>0?sold/gTotal:0;
-      const qty=Math.round(pct*shorotQty);
-      if(qty>0){ws4rows.push([sz,sold,(pct*100).toFixed(1)+'%',qty]);sTotal+=qty;}
+    dist.forEach(d=>{
+      if(d.order>0){ws4rows.push([d.sz,d.sold,(d.pct*100).toFixed(1)+'%',d.order]);sTotal+=d.order;}
     });
     ws4rows.push(['','',`סה"כ ${label}`,sTotal]);
     ws4rows.push([]);
