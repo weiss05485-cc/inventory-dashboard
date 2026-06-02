@@ -3511,14 +3511,20 @@ function runOrderPlanner() {
   }
 
   // ── size distribution ─────────────────────────────────────────────────────
-  // תמיד מחושב לפי מכירות כלל המוצרים — כך האחוז לכל מידה מייצג את הדפוס הכללי
-  // allMode: sizeMap כבר מכיל את כל המוצרים
-  // single:  בונים globalSizeMap נפרד מכל המוצרים
+  // מחושב לפי מכירות כל המוצרים באותה מחלקה בלבד —
+  // כך מידות ממחלקות אחרות (ילדים, אביזרים...) לא מזהמות את הפילוג
   const productTotSold = productTotSoldRaw; // לKPI — כולל פריטים ללא מידה
+  // מצא את המחלקה של המוצר הנבחר
+  const productDept = !allMode
+    ? ((SALES_DATA.find(i => i.n === product) || {}).dept || '')
+    : '';
   const sizeDistSrc = allMode ? sizeMap : (() => {
     const gsm = {};
     SALES_DATA
-      .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept || '') && i.sz && i.sz !== '—')
+      .filter(i => i.n && i.n !== 'ללא שם'
+        && !OP_EXCLUDE_DEPTS.has(i.dept || '')
+        && (productDept ? i.dept === productDept : true)   // אותה מחלקה בלבד
+        && i.sz && i.sz !== '—')
       .forEach(i => { gsm[i.sz] = (gsm[i.sz] || 0) + (i.q || 0); });
     return gsm;
   })();
@@ -3678,8 +3684,11 @@ function exportOrderExcel(){
   const totalShorotSold=salesByShorot['1']+salesByShorot['2'];
 
   // מכירות גלובליות (כל המוצרים) לפי שורה × מידה — לחישוב % נפרד לכל שורה
+  // אותה מחלקה כמו המוצר הנבחר — למנוע זיהום ממחלקות אחרות
+  const exportProductDept = (SALES_DATA.find(i=>i.n===group)||{}).dept||'';
   const globalByShorot={'1':{},'2':{}};
-  SALES_DATA.filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')&&i.sz&&i.sz!=='—')
+  SALES_DATA.filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')
+      &&(exportProductDept?i.dept===exportProductDept:true)&&i.sz&&i.sz!=='—')
     .forEach(i=>{
       const sh=getShorot(i.mc||'');
       if(sh!=='1'&&sh!=='2') return;
