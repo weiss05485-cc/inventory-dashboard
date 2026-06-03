@@ -29,7 +29,14 @@ except Exception as e:
     if any(x in err for x in ('20009', 'connect', 'Connection timed out',
                                'unavailable', 'does not exist', 'timeout',
                                'OperationalError')):
-        print(f"[SKIP] DB unavailable — {err[:120]}")
+        import time
+        data_file = 'docs/today.json'
+        if os.path.exists(data_file):
+            age_hours = (time.time() - os.path.getmtime(data_file)) / 3600
+            if age_hours > 2:
+                print(f"[ALERT] DB unavailable כבר {age_hours:.1f} שעות! שולח התראה.")
+                raise  # נכשל → GitHub שולח מייל
+        print(f"[SKIP] DB unavailable (פחות מ-2 שעות) — {err[:120]}")
         print("Sync skipped. No files written. Exiting with code 0.")
         sys.exit(0)
     raise
