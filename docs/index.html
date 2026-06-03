@@ -3657,7 +3657,7 @@ function runOrderPlanner() {
           byGroup[grp] = qty; allocated += qty;
         }
       });
-      // ── ניכוי עודף מלאי לפי קבוצה ──────────────────────────────────────────
+      // ── ניכוי עודף מלאי לפי קבוצה + חלוקה מחדש לשמירת סה"כ = orderQty ──────
       Object.keys(byGroup).forEach(grp => {
         const grpSold    = (salesByShSzGrp[sh]?.[sz]?.[grp]) || 0;
         const monthlyRate = months > 0 ? grpSold / months : 0;
@@ -3666,6 +3666,24 @@ function runOrderPlanner() {
         const excess     = Math.max(0, currentStk - targetStk);
         byGroup[grp]     = Math.max(0, byGroup[grp] - Math.round(excess));
       });
+      // חלק מחדש את היחידות שנחסכו כדי לשמור על סה"כ = orderQty
+      const adjTotal = Object.values(byGroup).reduce((s,v)=>s+v, 0);
+      const deficit  = orderQty - adjTotal;
+      if (deficit > 0) {
+        const freeGrps  = groups.filter(g => byGroup[g] > 0);
+        const freeTotal = freeGrps.reduce((s,g)=>s+(grpSales[g]||0), 0);
+        let reAllocd = 0;
+        freeGrps.forEach((grp, idx) => {
+          if (idx === freeGrps.length - 1) {
+            byGroup[grp] += deficit - reAllocd;        // שארית — ללא ניתוק
+          } else {
+            const extra = freeTotal > 0 ? Math.round(deficit * (grpSales[grp]||0) / freeTotal) : 0;
+            byGroup[grp] += extra; reAllocd += extra;
+          }
+        });
+        // אם כל הקבוצות אפס — תן הכל לקבוצה הראשונה
+        if (!freeGrps.length && groups.length) byGroup[groups[0]] = deficit;
+      }
       return byGroup;
     };
 
@@ -3692,16 +3710,14 @@ function runOrderPlanner() {
         .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz !== '—')
         .forEach(i => { gsmCombined[i.sz] = (gsmCombined[i.sz]||0) + (i.q||0); });
       sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => {
-        const byGroup  = mkByGroup('2', d.sz, d.order);
-        const adjOrder = Object.keys(byGroup).length > 0 ? Object.values(byGroup).reduce((s,v)=>s+v,0) : d.order;
-        const stock    = Object.values(stockByShSzGrp['2']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
-        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, rawOrder: d.order, order: adjOrder, stock};
+        const byGroup = mkByGroup('2', d.sz, d.order);
+        const stock   = Object.values(stockByShSzGrp['2']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
+        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, stock};
       });
       sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => {
-        const byGroup  = mkByGroup('1', d.sz, d.order);
-        const adjOrder = Object.keys(byGroup).length > 0 ? Object.values(byGroup).reduce((s,v)=>s+v,0) : d.order;
-        const stock    = Object.values(stockByShSzGrp['1']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
-        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, rawOrder: d.order, order: adjOrder, stock};
+        const byGroup = mkByGroup('1', d.sz, d.order);
+        const stock   = Object.values(stockByShSzGrp['1']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
+        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, stock};
       });
       sizeDist  = [...sizeDist2, ...sizeDist1];
     } else {
@@ -3718,15 +3734,10 @@ function runOrderPlanner() {
         stockBySzNS[sz] = (stockBySzNS[sz]||0) + (invMap[key]||0);
       });
       sizeDist = sortSizes(Object.keys(gsmAll)).map(sz => {
-        const sold = gsmAll[sz]||0, pct = totAll2>0?sold/totAll2:0;
-        const rawOrder = Math.round(pct*tgtQty);
-        const stock    = stockBySzNS[sz] || 0;
-        // קצב חודשי לפי מכירות מוצר נבחר (sizeMap)
-        const prodSold    = sizeMap[sz] || 0;
-        const monthlyRate = months > 0 ? prodSold / months : 0;
-        const excess      = Math.max(0, stock - monthlyRate * tgtMonths);
-        const order       = Math.max(0, rawOrder - Math.round(excess));
-        return {sz, sold, pct, order, rawOrder, stock};
+        const sold  = gsmAll[sz]||0, pct = totAll2>0?sold/totAll2:0;
+        const order = Math.round(pct*tgtQty);
+        const stock = stockBySzNS[sz] || 0;
+        return {sz, sold, pct, order, stock};
       });
       sizeDist2 = null; sizeDist1 = null;
     }
@@ -3742,16 +3753,10 @@ function buildSizeTable(dist, label, color) {
   if (!dist || !dist.length) return `<div style="color:var(--muted);font-size:12px;padding:12px">אין נתונים</div>`;
   const hasSoldAll = dist.some(d => d.soldAll !== undefined);
   const hasStock   = dist.some(d => (d.stock||0) > 0);
-  const hasAdj     = dist.some(d => d.rawOrder !== undefined && d.rawOrder !== d.order);
   const totOrder   = dist.reduce((s,d)=>s+d.order, 0);
-  const totRaw     = hasAdj ? dist.reduce((s,d)=>s+(d.rawOrder !== undefined ? d.rawOrder : d.order), 0) : totOrder;
   const totSoldAll = hasSoldAll ? dist.reduce((s,d)=>s+(d.soldAll||0),0) : dist.reduce((s,d)=>s+d.sold,0);
   const totStock   = dist.reduce((s,d)=>s+(d.stock||0),0);
   const rows = dist.map(d => {
-    const wasAdj = d.rawOrder !== undefined && d.rawOrder !== d.order;
-    const orderCell = wasAdj
-      ? `<span style="font-weight:700;color:#16a34a">${d.order.toLocaleString()}</span>&nbsp;<span style="font-size:10px;color:#94a3b8;text-decoration:line-through">${(d.rawOrder||0).toLocaleString()}</span>`
-      : `<span style="font-weight:700">${d.order.toLocaleString()}</span>`;
     const stockCell = hasStock
       ? `<td style="color:#0369a1;font-size:12px;text-align:center">${(d.stock||0) > 0 ? (d.stock||0).toLocaleString() : '—'}</td>`
       : '';
@@ -3760,19 +3765,16 @@ function buildSizeTable(dist, label, color) {
       <td>${(hasSoldAll ? (d.soldAll||0) : d.sold).toLocaleString()}</td>
       ${stockCell}
       <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
-      <td>${orderCell}</td>
+      <td style="font-weight:700">${d.order.toLocaleString()}</td>
     </tr>`;
   }).join('');
   const stockTh  = hasStock ? `<th style="color:#0369a1">📦 במלאי</th>` : '';
   const stockTot = hasStock ? `<td style="color:#0369a1;text-align:center">${totStock.toLocaleString()}</td>` : '';
-  const orderTotCell = (hasAdj && totRaw !== totOrder)
-    ? `<span style="color:#16a34a">${totOrder.toLocaleString()}</span>&nbsp;<span style="font-size:10px;color:#94a3b8;text-decoration:line-through">${totRaw.toLocaleString()}</span>`
-    : totOrder.toLocaleString();
   return `<div class="table-wrap"><table>
     <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th>${stockTh}<th>%</th><th>הזמנה</th></tr></thead>
     <tbody>${rows}
       <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
-        <td>סה"כ</td><td>${totSoldAll.toLocaleString()}</td>${stockTot}<td>100%</td><td>${orderTotCell}</td>
+        <td>סה"כ</td><td>${totSoldAll.toLocaleString()}</td>${stockTot}<td>100%</td><td>${totOrder.toLocaleString()}</td>
       </tr>
     </tbody>
   </table></div>`;
