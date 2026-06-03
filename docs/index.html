@@ -2132,7 +2132,7 @@ function showPage(id) {
   if (id === 'reports')  renderReports();
   if (id === 'sales')    renderSales();
   if (id === 'today')    renderToday();
-  if (id === 'orders')   { renderOrdersPage(); if (getGHToken()) syncOrdersFromGitHub(); }
+  if (id === 'orders')   { renderOrdersPage(); syncOrdersFromGitHub(); }
   if (id === 'planner')  initOrderPlanner();
 }
 
