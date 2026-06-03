@@ -3538,13 +3538,17 @@ function runOrderPlanner() {
     sizeDist2 = null; sizeDist1 = null;
   } else {
     // single-product: מפצל לשתי שורות / שורה אחת מכל המוצרים (ללא פילטר מחלקה)
-    const gdBySh = {'2':{}, '1':{}};
+    const gdBySh    = {'2':{}, '1':{}};
+    const gdByShGrp = {'2':{}, '1':{}};  // [שורה][sz][קבוצה] = qty
     filteredSD
       .filter(i => i.n && i.n!=='ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz!=='—')
       .forEach(i => {
         const sh = getShorot(i.mc||'');
         if (sh!=='1' && sh!=='2') return;
         gdBySh[sh][i.sz] = (gdBySh[sh][i.sz]||0) + (i.q||0);
+        const grp = i.g || 'ללא קבוצה';
+        if (!gdByShGrp[sh][i.sz]) gdByShGrp[sh][i.sz] = {};
+        gdByShGrp[sh][i.sz][grp] = (gdByShGrp[sh][i.sz][grp]||0) + (i.q||0);
       });
     // פיצול שתי-שורות/שורה-אחת רלוונטי רק לחליפות — לא לבעקיטשע, ריפס וכו'
     const splitByShorot = product.includes('חליפה');
@@ -3555,6 +3559,23 @@ function runOrderPlanner() {
       const sold=gsm[sz]||0, pct=tot>0?sold/tot:0;
       return {sz, sold, pct, order:Math.round(pct*tq)};
     });
+    // מחלק הזמנה לפי קבוצות ביחס למכירות — הסכום = order בדיוק
+    const mkByGroup = (sh, sz, orderQty) => {
+      const grpSales = gdByShGrp[sh][sz] || {};
+      const totSz = Object.values(grpSales).reduce((s,v)=>s+v, 0);
+      if (!totSz || !orderQty) return {};
+      const groups = Object.keys(grpSales).sort((a,b)=>grpSales[b]-grpSales[a]);
+      const byGroup = {}; let allocated = 0;
+      groups.forEach((grp, idx) => {
+        if (idx === groups.length-1) {
+          byGroup[grp] = Math.max(0, orderQty - allocated);
+        } else {
+          const qty = Math.round(orderQty * grpSales[grp] / totSz);
+          byGroup[grp] = qty; allocated += qty;
+        }
+      });
+      return byGroup;
+    };
 
     if (splitByShorot) {
       // פיצול שתי שורות / שורה אחת — רק כשהמוצר קיים בשני הסוגים
@@ -3566,8 +3587,12 @@ function runOrderPlanner() {
       filteredSD
         .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz !== '—')
         .forEach(i => { gsmCombined[i.sz] = (gsmCombined[i.sz]||0) + (i.q||0); });
-      sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
-      sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
+      sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => ({
+        ...d, soldAll: gsmCombined[d.sz]||0, byGroup: mkByGroup('2', d.sz, d.order)
+      }));
+      sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => ({
+        ...d, soldAll: gsmCombined[d.sz]||0, byGroup: mkByGroup('1', d.sz, d.order)
+      }));
       sizeDist  = [...sizeDist2, ...sizeDist1];
     } else {
       // מוצר ללא פיצול שורות (בעקיטשע, ריפס וכו') — טבלה אחת מכל המוצרים
@@ -3584,7 +3609,9 @@ function runOrderPlanner() {
     }
   }
 
-  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, sizeDist2, sizeDist1, productTotSold, opPeriodLabel};
+  const _allGrp = arr => arr ? [...new Set(arr.flatMap(d=>Object.keys(d.byGroup||{})))].sort((a,b)=>a.localeCompare(b,'he')) : [];
+  OP_DATA = {group: allMode ? 'כל המוצרים' : product, allMode, months, tgtMonths, tgtQty, detail, summary, sizeDist, sizeDist2, sizeDist1, productTotSold, opPeriodLabel,
+             allGroups2: _allGrp(sizeDist2), allGroups1: _allGrp(sizeDist1)};
   renderOrderPlanner();
 }
 
@@ -3759,99 +3786,56 @@ function exportOrderExcel(){
   if(!OP_DATA){alert('לחץ "חשב המלצה" קודם');return;}
   if(typeof XLSX==='undefined'){alert('ספריית Excel לא נטענה');return;}
   const {group, allMode, months, tgtMonths, tgtQty, detail, summary,
-         sizeDist, sizeDist2, sizeDist1, opPeriodLabel} = OP_DATA;
+         sizeDist2, sizeDist1, allGroups2, allGroups1, opPeriodLabel} = OP_DATA;
   const wb   = XLSX.utils.book_new();
   const date = new Date().toLocaleDateString('he-IL').replace(/\//g,'-');
-  const title= `${group}  |  מכר: ${months} חודשים  |  יעד: ${tgtMonths} חודשים  |  תקופה: ${opPeriodLabel}`;
+  const title= `${group}  |  יעד: ${tgtQty.toLocaleString()} יח'  |  תקופה: ${opPeriodLabel}`;
 
-  /* ── גיליון 1: סיכום לפי קבוצה ── */
-  const ws1 = [
-    [`המלצת הזמנה – ${title}`], [],
-    ['קבוצה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
-    ...summary.map(p=>[p.name, p.sold, p.stock, p.monthly, p.target, p.toOrder]),
-    [],
-    ['סה"כ',
-      summary.reduce((s,p)=>s+p.sold,0),
-      summary.reduce((s,p)=>s+p.stock,0), '',
-      summary.reduce((s,p)=>s+p.target,0),
-      summary.reduce((s,p)=>s+p.toOrder,0)]
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), 'סיכום לפי קבוצה');
+  /* ── helper: בונה גיליון מידות + עמודות קבוצות ── */
+  const buildGroupSheet = (dist, groups, sheetLabel) => {
+    if(!dist || !dist.length) return null;
+    const totalOrder = dist.reduce((s,d)=>s+d.order, 0);
+    const rows = [];
+    rows.push([`${sheetLabel} – ${title}`]);
+    rows.push([`סה"כ להזמין: ${totalOrder.toLocaleString()} יח'`]);
+    rows.push([]);
+    // כותרות: מידה | קבוצה1 | קבוצה2 | ... | סה"כ
+    rows.push(['מידה', ...groups, 'סה"כ']);
+    dist.forEach(d => {
+      if(d.order <= 0) return;
+      const grpVals = groups.map(g => (d.byGroup&&d.byGroup[g]) ? d.byGroup[g] : null);
+      rows.push([d.sz, ...grpVals, d.order]);
+    });
+    // שורת סיכום
+    const grpTotals = groups.map(g =>
+      dist.reduce((s,d)=>s+((d.byGroup&&d.byGroup[g])||0), 0)
+    );
+    rows.push(['סה"כ', ...grpTotals, totalOrder]);
+    return rows;
+  };
 
-  /* ── גיליון 2: פירוט קבוצה × מידה ── */
-  const detSorted = detail
-    .filter(d => d.sold>0 || d.stock>0)
-    .sort((a,b) => a.name.localeCompare(b.name,'he') || (parseInt(a.sz)||0)-(parseInt(b.sz)||0));
-  const ws2 = [
-    [`פירוט הזמנה – ${title}`], [],
-    ['קבוצה','מידה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
-    ...detSorted.map(d=>[d.name, d.sz, d.sold, d.stock, d.monthly, d.target, d.toOrder])
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), 'פירוט קבוצה ומידה');
-
-  /* ── גיליון 3: חלוקת מידות – שתי שורות ושורה אחת ── */
-  const ws3rows = [
-    [`חלוקת מידות לפי שורה – ${title}`], [],
-  ];
-  let grandTotalShorot = 0;
-  [{label:'🔷 שתי שורות', dist:sizeDist2},
-   {label:'🔹 שורה אחת',  dist:sizeDist1}].forEach(({label, dist})=>{
-    if(!dist || !dist.length) return;
-    const shorotQty = dist.reduce((s,d)=>s+d.order, 0);
-    ws3rows.push([`◆ ${label}`, `יעד: ${shorotQty.toLocaleString()} יח'`, '', '', '']);
-    ws3rows.push(['מידה', 'נמכר כלל המוצרים', 'יחס %', 'כמות להזמנה', '']);
-    let sTotal = 0;
+  /* ── גיליון 1: חלוקת מידות (כמו המסך) — שתי שורות ושורה אחת ── */
+  const ws1rows = [`חלוקת מידות לפי שורה – ${title}`, ''].map(t=>[t]);
+  [{label:'שתי שורות', dist:sizeDist2}, {label:'שורה אחת', dist:sizeDist1}].forEach(({label, dist})=>{
+    if(!dist||!dist.length) return;
+    const tot = dist.reduce((s,d)=>s+d.order,0);
+    ws1rows.push([`◆ ${label}  |  סה"כ: ${tot.toLocaleString()} יח'`, '', '', '']);
+    ws1rows.push(['מידה', 'נמכר (כלל מוצרים)', 'יחס %', 'הזמנה']);
     dist.forEach(d=>{
-      if(d.order > 0){
-        ws3rows.push([d.sz, d.soldAll||d.sold, (d.pct*100).toFixed(1)+'%', d.order, '']);
-        sTotal += d.order;
-      }
+      if(d.order>0) ws1rows.push([d.sz, d.soldAll||d.sold, (d.pct*100).toFixed(1)+'%', d.order]);
     });
-    ws3rows.push(['', '', `סה"כ ${label}`, sTotal, '']);
-    ws3rows.push([]);
-    grandTotalShorot += sTotal;
+    ws1rows.push(['סה"כ', '', '100%', tot]);
+    ws1rows.push([]);
   });
-  ws3rows.push(['', '', 'סה"כ כולל', grandTotalShorot, '']);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3rows), 'חלוקת מידות לפי שורה');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1rows), 'חלוקת מידות');
 
-  /* ── גיליון 4: הזמנה לפי קבוצות × מידה ── */
-  if(!allMode && detail && detail.length > 0){
-    const ws4rows = [
-      [`הזמנה לפי קבוצות ומידות – ${title}`], [],
-    ];
-    const grpMap = {};
-    detail.filter(d => d.toOrder>0 || d.sold>0).forEach(d=>{
-      if(!grpMap[d.name]) grpMap[d.name] = [];
-      grpMap[d.name].push(d);
-    });
-    let grandTotalGrp = 0;
-    Object.keys(grpMap).sort((a,b)=>a.localeCompare(b,'he')).forEach(grpName=>{
-      const items   = grpMap[grpName].sort((a,b)=>(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
-      const grpTot  = items.reduce((s,d)=>s+d.toOrder, 0);
-      const grpSold = items.reduce((s,d)=>s+d.sold,    0);
-      ws4rows.push([`◆ ${grpName}`, `נמכר: ${grpSold}`, `יעד: ${grpTot} יח'`, '', '']);
-      ws4rows.push(['מידה', 'נמכר', 'במלאי', 'להזמין', '']);
-      items.forEach(d=>{ ws4rows.push([d.sz, d.sold, d.stock, d.toOrder, '']); });
-      ws4rows.push(['', '', `סה"כ ${grpName}`, grpTot, '']);
-      ws4rows.push([]);
-      grandTotalGrp += grpTot;
-    });
-    ws4rows.push(['', '', 'סה"כ כולל', grandTotalGrp, '']);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws4rows), 'הזמנה לפי קבוצות');
-  }
+  /* ── גיליון 2: שתי שורות לפי קבוצות ── */
+  const ws2rows = buildGroupSheet(sizeDist2, allGroups2||[], 'שתי שורות');
+  if(ws2rows) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2rows), 'שתי שורות לפי קבוצות');
 
-  /* ── גיליון 5: טופס הזמנה (ניתן לעריכה) ── */
-  const orderOnly = detail.filter(d=>d.toOrder>0)
-    .sort((a,b)=>a.name.localeCompare(b.name,'he')||(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
-  const ws5 = [
-    [`טופס הזמנה – ${title}`],
-    [`(ניתן לערוך את עמודת "כמות להזמנה")`], [],
-    ['קבוצה', 'מידה', 'נמכר', 'במלאי', 'כמות להזמנה'],
-    ...orderOnly.map(d=>[d.name, d.sz, d.sold, d.stock, d.toOrder]),
-    [],
-    ['', '', '', 'סה"כ', orderOnly.reduce((s,d)=>s+d.toOrder, 0)]
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws5), 'טופס הזמנה');
+  /* ── גיליון 3: שורה אחת לפי קבוצות ── */
+  const ws3rows = buildGroupSheet(sizeDist1, allGroups1||[], 'שורה אחת');
+  if(ws3rows) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3rows), 'שורה אחת לפי קבוצות');
 
   XLSX.writeFile(wb, `הזמנה_${group}_${date}.xlsx`);
 }
