@@ -1079,6 +1079,11 @@ body.emp-mode .price-col{display:none!important}
           </div>
         </div>
       </div>
+      <!-- בחירת קבוצות להזמנה -->
+      <div id="op-grp-filter-wrap" style="display:none;flex-direction:column;padding:6px 12px;background:#f0fdf4;border-radius:10px;border:1.5px solid #86efac;min-width:180px">
+        <div style="font-size:10px;font-weight:800;color:#16a34a;margin-bottom:5px">🏷️ סנן קבוצות (ריק = הכל)</div>
+        <div id="op-grp-filter-pills" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      </div>
       <button onclick="runOrderPlanner()" style="padding:8px 22px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;cursor:pointer;font-family:Rubik;font-size:13px;font-weight:700;white-space:nowrap">🔄 חשב המלצה</button>
     </div>
   </div>
@@ -3438,16 +3443,33 @@ function initOrderPlanner() {
     sel.innerHTML = '<option value="">-- בחר מוצר --</option>' +
       '<option value="__all__">📊 כל המוצרים — חלוקת מידות</option>' +
       products.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
-    // הצג/הסתר שדות פיצול ידני לפי בחירת מוצר
+    // הצג/הסתר שדות פיצול ידני + קבוצות לפי בחירת מוצר
     sel.addEventListener('change', () => {
-      const show = sel.value.includes('חליפה');
-      const wrap = document.getElementById('op-sh-split');
-      wrap.style.display = show ? 'flex' : 'none';
-      wrap.style.flexDirection = show ? 'column' : '';
-      if (!show) {
+      const val = sel.value;
+      const isChalipha = val.includes('חליפה');
+      const shWrap = document.getElementById('op-sh-split');
+      shWrap.style.display = isChalipha ? 'flex' : 'none';
+      shWrap.style.flexDirection = isChalipha ? 'column' : '';
+      if (!isChalipha) {
         document.getElementById('op-qty-sh2').value = '';
         document.getElementById('op-qty-sh1').value = '';
       }
+      // אכלס קבוצות
+      const grpWrap  = document.getElementById('op-grp-filter-wrap');
+      const grpPills = document.getElementById('op-grp-filter-pills');
+      if (val && val !== '__all__' && SALES_DATA) {
+        const groups = [...new Set(
+          SALES_DATA.filter(i => i.n === val && i.g && i.g !== 'ללא קבוצה').map(i => i.g)
+        )].sort((a,b) => a.localeCompare(b,'he'));
+        if (groups.length > 1) {
+          grpWrap.style.display = 'flex';
+          grpPills.innerHTML = groups.map(g =>
+            `<label style="display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;background:#dcfce7;border:1.5px solid #86efac;cursor:pointer;font-size:12px;font-weight:700;color:#15803d">
+              <input type="checkbox" name="op-grp-cb" value="${escHtml(g)}" checked style="accent-color:#16a34a"> ${escHtml(g)}
+            </label>`
+          ).join('');
+        } else { grpWrap.style.display = 'none'; grpPills.innerHTML = ''; }
+      } else { grpWrap.style.display = 'none'; grpPills.innerHTML = ''; }
     });
   };
 
@@ -3464,6 +3486,12 @@ function runOrderPlanner() {
   const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
   const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
   const allMode   = product === '__all__';
+
+  // קבוצות נבחרות — null = הכל, Set = רק אלה
+  const _grpCBs = [...document.querySelectorAll('input[name="op-grp-cb"]')];
+  const selectedGroups = _grpCBs.length > 0
+    ? new Set(_grpCBs.filter(c=>c.checked).map(c=>c.value))
+    : null;
 
   // ── filter sales data to the selected period ──────────────────────────────
   // מחפש את ה-ym המקסימלי (פורמט 'YYYY-MM') ומחשב cutoff X חודשים אחורה.
@@ -3499,12 +3527,14 @@ function runOrderPlanner() {
 
   let productTotSoldRaw = 0;  // סה"כ יחידות נמכרות (לKPI) — כולל פריטים ללא מידה
   srcSales.forEach(i => {
+    const grp = i.g || 'ללא קבוצה';
+    // סנן לפי קבוצות נבחרות (רק במוד מוצר בודד)
+    if (!allMode && selectedGroups && !selectedGroups.has(grp)) return;
     productTotSoldRaw += (i.q || 0);
     const sz = i.sz;
     if (!sz || sz === '—') return;  // דלג על פריטים ללא מידה
     sizeMap[sz] = (sizeMap[sz] || 0) + (i.q || 0);
     if (!allMode) {
-      const grp = i.g || 'ללא קבוצה';
       const key = grp + '|' + sz;
       salesMap[key] = (salesMap[key] || 0) + (i.q || 0);
     }
@@ -3588,7 +3618,12 @@ function runOrderPlanner() {
     });
     // מחלק הזמנה לפי קבוצות ביחס למכירות — הסכום = order בדיוק
     const mkByGroup = (sh, sz, orderQty) => {
-      const grpSales = gdByShGrp[sh][sz] || {};
+      const grpSalesAll = gdByShGrp[sh][sz] || {};
+      // סנן לפי קבוצות נבחרות
+      const grpSales = {};
+      Object.keys(grpSalesAll).forEach(g => {
+        if (!selectedGroups || selectedGroups.has(g)) grpSales[g] = grpSalesAll[g];
+      });
       const totSz = Object.values(grpSales).reduce((s,v)=>s+v, 0);
       if (!totSz || !orderQty) return {};
       const groups = Object.keys(grpSales).sort((a,b)=>grpSales[b]-grpSales[a]);
