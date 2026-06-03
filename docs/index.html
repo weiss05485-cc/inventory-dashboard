@@ -3561,11 +3561,11 @@ function runOrderPlanner() {
       const totAll = tot2+tot1;
       const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
       const tqSh1  = tgtQty - tqSh2;
-      // gsmCombined: סה"כ נמכר לפי מידה מכל המוצרים (שתי שורות + שורה אחת ביחד)
+      // gsmCombined: סה"כ נמכר לפי מידה מכל המוצרים — כולל mc ריק/לא מוכר (כמו Arnet)
       const gsmCombined = {};
-      ['2','1'].forEach(sh => Object.keys(gdBySh[sh]).forEach(sz => {
-        gsmCombined[sz] = (gsmCombined[sz]||0) + gdBySh[sh][sz];
-      }));
+      filteredSD
+        .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz !== '—')
+        .forEach(i => { gsmCombined[i.sz] = (gsmCombined[i.sz]||0) + (i.q||0); });
       sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
       sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => ({...d, soldAll: gsmCombined[d.sz]||0}));
       sizeDist  = [...sizeDist2, ...sizeDist1];
