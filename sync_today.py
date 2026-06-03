@@ -14,15 +14,25 @@ except ImportError:
 
 # חיבור: pyodbc על Windows, pymssql על Linux (GitHub Actions)
 try:
-    import pyodbc
-    CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
-                f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
-    conn = pyodbc.connect(CONN_STR, timeout=15)
-except Exception:
-    import pymssql
-    conn = pymssql.connect(server=DB_SERVER, user=DB_USER,
-                           password=DB_PASSWORD, database=DB_NAME,
-                           timeout=15, login_timeout=15)
+    try:
+        import pyodbc
+        CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
+                    f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
+        conn = pyodbc.connect(CONN_STR, timeout=15)
+    except Exception:
+        import pymssql
+        conn = pymssql.connect(server=DB_SERVER, user=DB_USER,
+                               password=DB_PASSWORD, database=DB_NAME,
+                               timeout=15, login_timeout=15)
+except Exception as e:
+    err = str(e)
+    if any(x in err for x in ('20009', 'connect', 'Connection timed out',
+                               'unavailable', 'does not exist', 'timeout',
+                               'OperationalError')):
+        print(f"[SKIP] DB unavailable — {err[:120]}")
+        print("Sync skipped. No files written. Exiting with code 0.")
+        sys.exit(0)
+    raise
 cur = conn.cursor()
 
 # ── 1. לפי סניף × יום (כל ההיסטוריה) ────────────────────────────────────

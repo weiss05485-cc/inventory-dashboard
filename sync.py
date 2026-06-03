@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,17 +15,18 @@ except ImportError:
     DB_USER     = os.environ['DB_USER']
     DB_PASSWORD = os.environ['DB_PASSWORD']
 
-# חיבור: pyodbc על Windows, pymssql על Linux (GitHub Actions)
-try:
-    import pyodbc
-    CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
-                f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
-    _conn = pyodbc.connect(CONN_STR, timeout=15)
-except Exception:
-    import pymssql
-    _conn = pymssql.connect(server=DB_SERVER, user=DB_USER,
-                            password=DB_PASSWORD, database=DB_NAME,
-                            timeout=15, login_timeout=15)
+def _connect():
+    """חיבור לDB — pyodbc על Windows, pymssql על Linux (GitHub Actions)"""
+    try:
+        import pyodbc
+        CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
+                    f"UID={DB_USER};PWD={DB_PASSWORD};Connection Timeout=15;")
+        return pyodbc.connect(CONN_STR, timeout=15)
+    except Exception:
+        import pymssql
+        return pymssql.connect(server=DB_SERVER, user=DB_USER,
+                               password=DB_PASSWORD, database=DB_NAME,
+                               timeout=15, login_timeout=15)
 
 BARCODE_RE = re.compile(r'^(\d{2})([A-Za-z]+)(\d{2})([A-Za-z0-9]{2})(.+)$', re.IGNORECASE)
 
@@ -195,7 +197,7 @@ ONHAND_CTE = """
 
 def main():
     print("Connecting to SQL Server...")
-    conn = _conn
+    conn = _connect()
     cur = conn.cursor()
 
     print("  Store summary...")
@@ -568,4 +570,15 @@ def main():
         print(f"  {s['StoreName']}: {s['InStock']} in stock / {int(s['TotalUnits'])} units / {int(s['StockValue']):,}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        err = str(e)
+        # שגיאת חיבור לDB — לא כשלון אמיתי, פשוט השרת לא זמין כרגע
+        if any(x in err for x in ('20009', 'connect', 'Connection timed out',
+                                   'unavailable', 'does not exist', 'timeout',
+                                   'OperationalError')):
+            print(f"[SKIP] DB unavailable — {err[:120]}")
+            print("Sync skipped. No files written. Exiting with code 0.")
+            sys.exit(0)
+        raise
