@@ -1063,6 +1063,22 @@ body.emp-mode .price-col{display:none!important}
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">יחידות יעד לחלוקה</div>
         <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
       </div>
+      <!-- שדות ידניים לפיצול שורות — מוצגים רק לחליפות -->
+      <div id="op-sh-split" style="display:none;gap:10px;align-items:flex-end;padding:6px 12px;background:#f0f0ff;border-radius:10px;border:1.5px solid #c7d2fe">
+        <div style="font-size:11px;font-weight:800;color:#4f46e5;margin-bottom:2px">פיצול ידני (ריק = אוטומטי)</div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <div>
+            <div style="font-size:10px;color:#4f46e5;font-weight:700;margin-bottom:3px">🔷 שתי שורות</div>
+            <input type="number" id="op-qty-sh2" placeholder="אוטומטי" step="10" min="0"
+              style="padding:6px 8px;border-radius:7px;border:1.5px solid #a5b4fc;font-family:Rubik;font-size:13px;width:95px;color:#4f46e5;font-weight:700">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#7c3aed;font-weight:700;margin-bottom:3px">🔹 שורה אחת</div>
+            <input type="number" id="op-qty-sh1" placeholder="אוטומטי" step="10" min="0"
+              style="padding:6px 8px;border-radius:7px;border:1.5px solid #c4b5fd;font-family:Rubik;font-size:13px;width:95px;color:#7c3aed;font-weight:700">
+          </div>
+        </div>
+      </div>
       <button onclick="runOrderPlanner()" style="padding:8px 22px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;cursor:pointer;font-family:Rubik;font-size:13px;font-weight:700;white-space:nowrap">🔄 חשב המלצה</button>
     </div>
   </div>
@@ -3422,6 +3438,17 @@ function initOrderPlanner() {
     sel.innerHTML = '<option value="">-- בחר מוצר --</option>' +
       '<option value="__all__">📊 כל המוצרים — חלוקת מידות</option>' +
       products.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+    // הצג/הסתר שדות פיצול ידני לפי בחירת מוצר
+    sel.addEventListener('change', () => {
+      const show = sel.value.includes('חליפה');
+      const wrap = document.getElementById('op-sh-split');
+      wrap.style.display = show ? 'flex' : 'none';
+      wrap.style.flexDirection = show ? 'column' : '';
+      if (!show) {
+        document.getElementById('op-qty-sh2').value = '';
+        document.getElementById('op-qty-sh1').value = '';
+      }
+    });
   };
 
   if (!salesLoaded) { loadSalesData(() => { if (!reportLoaded) loadReportsData(loadDone); else loadDone(); }); }
@@ -3580,8 +3607,20 @@ function runOrderPlanner() {
     if (splitByShorot) {
       // פיצול שתי שורות / שורה אחת — רק כשהמוצר קיים בשני הסוגים
       const totAll = tot2+tot1;
-      const tqSh2  = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
-      const tqSh1  = tgtQty - tqSh2;
+      // בדוק אם הוזנו ערכים ידניים
+      const _manSh2 = parseInt(document.getElementById('op-qty-sh2').value)||0;
+      const _manSh1 = parseInt(document.getElementById('op-qty-sh1').value)||0;
+      let tqSh2, tqSh1;
+      if (_manSh2 > 0 && _manSh1 > 0) {
+        tqSh2 = _manSh2; tqSh1 = _manSh1;          // שניהם ידניים
+      } else if (_manSh2 > 0) {
+        tqSh2 = _manSh2; tqSh1 = tgtQty - _manSh2; // רק שתי שורות ידני
+      } else if (_manSh1 > 0) {
+        tqSh1 = _manSh1; tqSh2 = tgtQty - _manSh1; // רק שורה אחת ידנית
+      } else {
+        tqSh2 = totAll>0 ? Math.round(tgtQty*tot2/totAll) : Math.round(tgtQty/2);
+        tqSh1 = tgtQty - tqSh2;                     // אוטומטי לפי יחס מכירות
+      }
       // gsmCombined: סה"כ נמכר לפי מידה מכל המוצרים — כולל mc ריק/לא מוכר (כמו Arnet)
       const gsmCombined = {};
       filteredSD
