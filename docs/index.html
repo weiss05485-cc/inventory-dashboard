@@ -1656,22 +1656,34 @@ function compPreset(period, preset) {
 }
 
 // ── לוח שנה עברי ── בנה מפה: תווית עברית → {from, to} לפי נתוני TODAY_DATA ──
+// ממיר שנה עברית מספרית לאותיות: 5786 → תשפ״ו
+function numToHebYear(y) {
+  const mod = y % 1000;
+  const H = ['','ק','ר','ש','ת','תק','תר','תש','תת','תתק'];
+  const T = ['','י','כ','ל','מ','נ','ס','ע','פ','צ'];
+  const U = ['','א','ב','ג','ד','ה','ו','ז','ח','ט'];
+  const h = Math.floor(mod/100), t = Math.floor((mod%100)/10), u = mod%10;
+  let s = H[h];
+  if (t===1 && u===5) s += 'טו';       // ט״ו במקום יה
+  else if (t===1 && u===6) s += 'טז';  // ט״ז במקום יו
+  else s += T[t] + U[u];
+  return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
+}
+
 function buildHebrewMonthMap() {
   if (!TODAY_DATA || !TODAY_DATA.by_date) return {};
-  const hebMon = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
-  const hebYr  = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {year:'numeric'});
-  const map = {};   // key: "חודש שנה" → {from, to, sortKey}
-  // גם שנות עברית שלמות
+  const hebMon   = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
+  const hebYrNum = new Intl.DateTimeFormat('en-u-ca-hebrew',    {year:'numeric'}); // מחזיר 5786
+  const map = {};
   const yrMap = {};
 
   Object.keys(TODAY_DATA.by_date).sort().forEach(dateStr => {
-    const d = new Date(dateStr + 'T12:00:00');
+    const d   = new Date(dateStr + 'T12:00:00');
     const mon = hebMon.format(d);
-    const yr  = hebYr.format(d);
+    const yr  = numToHebYear(parseInt(hebYrNum.format(d), 10)); // תשפ״ו
     const key = mon + ' ' + yr;
     if (!map[key]) map[key] = {from: dateStr, to: dateStr, sortKey: dateStr, yr};
     else           map[key].to = dateStr;
-    // שנה שלמה
     if (!yrMap[yr]) yrMap[yr] = {from: dateStr, to: dateStr};
     else            yrMap[yr].to = dateStr;
   });
