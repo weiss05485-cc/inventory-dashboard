@@ -325,6 +325,32 @@ except Exception as e:
     sup_monthly_raw = []
     sup_docs_raw    = []
 
+# ── 8. שעות פעילות — 90 ימים אחרונים לפי שעה × סניף ────────────────────────
+print("שולף שעות פעילות...")
+cur.execute("""
+    SELECT
+        DATEPART(HOUR, t.SaleTime)          AS Hour,
+        st.StoreName,
+        COUNT(DISTINCT t.TransactionID)     AS Transactions,
+        CAST(ISNULL(SUM(t.Total),0) AS DECIMAL(18,2)) AS TotalSales
+    FROM [Transaction] t
+    JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+    WHERE t.Status > -1
+      AND t.TransactionType NOT IN (14, 21)
+      AND t.SaleTime >= DATEADD(DAY, -90, GETDATE())
+    GROUP BY DATEPART(HOUR, t.SaleTime), st.StoreID, st.StoreName
+    ORDER BY Hour, st.StoreName
+""")
+cols = [d[0] for d in cur.description]
+hours_raw = []
+for r in cur.fetchall():
+    d = dict(zip(cols, r))
+    d['Hour']         = int(d['Hour'])
+    d['Transactions'] = int(d['Transactions'])
+    d['TotalSales']   = round(float(d['TotalSales']), 2)
+    hours_raw.append(d)
+print(f"  {len(hours_raw)} שורות שעות")
+
 conn.close()
 
 today_str = datetime.now().strftime('%Y-%m-%d')
@@ -337,6 +363,7 @@ out = {
     'rivhit_invoices':  rivhit_invoices_raw,
     'sup_monthly':      sup_monthly_raw,
     'sup_docs':         sup_docs_raw,
+    'hours_by_store':   hours_raw,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:

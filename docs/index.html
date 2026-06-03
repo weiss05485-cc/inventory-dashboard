@@ -928,6 +928,24 @@ body.emp-mode .price-col{display:none!important}
       </div>
     </div>
 
+    <!-- ── שעות פעילות ── -->
+    <div id="today-hours-section" style="display:none;margin-top:20px">
+      <div class="section">
+        <div class="section-header">
+          <h3>🕐 שעות פעילות — 90 ימים אחרונים</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:var(--muted)">הצג לפי:</label>
+            <select id="hours-metric" onchange="renderHoursCharts()"
+              style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);font-size:12px;font-family:Rubik">
+              <option value="trans">עסקאות</option>
+              <option value="sales">מכירות ₪</option>
+            </select>
+          </div>
+        </div>
+        <div id="hours-charts-wrap" style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;padding:16px"></div>
+      </div>
+    </div>
+
     <!-- ── COMPARE PANEL ── -->
     <div id="today-compare-panel" style="display:none">
       <div id="today-synced-label-cmp" style="font-size:11px;color:var(--muted);margin-bottom:14px"></div>
@@ -1367,6 +1385,7 @@ function renderToday() {
       });
       document.getElementById('today-synced-label-cmp').textContent = 'עודכן: ' + data.synced;
       switchTodayMode(_todayMode);
+      renderHoursCharts();
     })
     .catch(() => {
       document.getElementById('today-loading').style.display = 'none';
@@ -1653,6 +1672,109 @@ function compPreset(period, preset) {
   }
   document.getElementById('comp-' + period + '-from').value = fromDate;
   document.getElementById('comp-' + period + '-to').value = toDate;
+}
+
+// ── שעות פעילות ───────────────────────────────────────────────────────────
+let _hoursCharts = {};  // {storeName: Chart instance}
+
+function renderHoursCharts() {
+  if (!TODAY_DATA || !TODAY_DATA.hours_by_store || !TODAY_DATA.hours_by_store.length) return;
+  const metric  = document.getElementById('hours-metric')?.value || 'trans';
+  const section = document.getElementById('today-hours-section');
+  const wrap    = document.getElementById('hours-charts-wrap');
+  if (!section || !wrap) return;
+  section.style.display = '';
+
+  const data = TODAY_DATA.hours_by_store;
+  // מיין לפי שם סניף
+  const stores = [...new Set(data.map(r => r.StoreName))].sort();
+
+  // צבעים לפי שעה — gradient כחול בוקר → כתום שיא → סגול ערב
+  const hourColor = h => {
+    if (h < 8)  return 'rgba(148,163,184,0.8)';  // לפני פתיחה
+    if (h < 11) return 'rgba(96,165,250,0.85)';  // בוקר — כחול
+    if (h < 14) return 'rgba(34,197,94,0.85)';   // צהריים — ירוק
+    if (h < 17) return 'rgba(251,146,60,0.85)';  // אחר צהריים — כתום
+    if (h < 20) return 'rgba(239,68,68,0.85)';   // ערב — אדום
+    return 'rgba(167,139,250,0.85)';              // לילה — סגול
+  };
+
+  // הרס עוגות קודמות
+  Object.values(_hoursCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+  _hoursCharts = {};
+  wrap.innerHTML = '';
+
+  stores.forEach(store => {
+    const storeRows = data.filter(r => r.StoreName === store);
+    // בנה מערך 24 שעות
+    const hours = Array.from({length: 24}, (_, h) => h);
+    const vals  = hours.map(h => {
+      const row = storeRows.find(r => r.Hour === h);
+      return row ? (metric === 'trans' ? row.Transactions : row.TotalSales) : 0;
+    });
+    // הסר שעות בלי פעילות בכלל
+    const activeHours = hours.filter(h => vals[h] > 0);
+    if (!activeHours.length) return;
+
+    const labels  = activeHours.map(h => `${h}:00`);
+    const values  = activeHours.map(h => vals[h]);
+    const colors  = activeHours.map(h => hourColor(h));
+    const total   = values.reduce((s,v) => s+v, 0);
+
+    // container לעוגה
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;min-width:220px';
+    div.innerHTML = `
+      <div style="font-weight:700;font-size:14px;color:var(--navy)">${store}</div>
+      <div style="position:relative;width:200px;height:200px"><canvas id="hchart-${store.replace(/\s/g,'_')}"></canvas></div>
+      <div style="font-size:11px;color:var(--muted)">
+        סה"כ: ${total.toLocaleString()} ${metric==='trans'?'עסקאות':'₪'}
+      </div>`;
+    wrap.appendChild(div);
+
+    const ctx = document.getElementById('hchart-' + store.replace(/\s/g,'_'));
+    if (!ctx) return;
+    _hoursCharts[store] = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        cutout: '55%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                const val = metric === 'trans'
+                  ? `${ctx.parsed} עסקאות`
+                  : `₪${ctx.parsed.toLocaleString()}`;
+                return ` ${ctx.label}  ${val}  (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // מקרא שעות
+  const legendDiv = document.createElement('div');
+  legendDiv.style.cssText = 'width:100%;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 16px 8px';
+  [
+    {label:'לפני פתיחה (<8)',  color:'rgba(148,163,184,0.8)'},
+    {label:'בוקר (8-11)',      color:'rgba(96,165,250,0.85)'},
+    {label:'צהריים (11-14)',   color:'rgba(34,197,94,0.85)'},
+    {label:'אחה"צ (14-17)',    color:'rgba(251,146,60,0.85)'},
+    {label:'ערב (17-20)',      color:'rgba(239,68,68,0.85)'},
+    {label:'לילה (20+)',       color:'rgba(167,139,250,0.85)'},
+  ].forEach(({label, color}) => {
+    const s = document.createElement('span');
+    s.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text)';
+    s.innerHTML = `<span style="width:12px;height:12px;border-radius:3px;background:${color};display:inline-block"></span>${label}`;
+    legendDiv.appendChild(s);
+  });
+  wrap.appendChild(legendDiv);
 }
 
 // ── לוח שנה עברי ── בנה מפה: תווית עברית → {from, to} לפי נתוני TODAY_DATA ──
