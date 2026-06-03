@@ -3758,99 +3758,102 @@ function renderOrderPlanner(){
 function exportOrderExcel(){
   if(!OP_DATA){alert('לחץ "חשב המלצה" קודם');return;}
   if(typeof XLSX==='undefined'){alert('ספריית Excel לא נטענה');return;}
-  const {group,months,tgtMonths,tgtQty,detail,summary,sizeDist}=OP_DATA;
-  const wb=XLSX.utils.book_new();
-  const date=new Date().toLocaleDateString('he-IL').replace(/\//g,'-');
+  const {group, allMode, months, tgtMonths, tgtQty, detail, summary,
+         sizeDist, sizeDist2, sizeDist1, opPeriodLabel} = OP_DATA;
+  const wb   = XLSX.utils.book_new();
+  const date = new Date().toLocaleDateString('he-IL').replace(/\//g,'-');
+  const title= `${group}  |  מכר: ${months} חודשים  |  יעד: ${tgtMonths} חודשים  |  תקופה: ${opPeriodLabel}`;
 
-  // גיליון 1: סיכום לפי מוצר
-  const ws1=[
-    [`המלצת הזמנה – ${group}  |  מכר: ${months} חודשים  |  יעד: ${tgtMonths} חודשים`],
-    [],
+  /* ── גיליון 1: סיכום לפי קבוצה ── */
+  const ws1 = [
+    [`המלצת הזמנה – ${title}`], [],
     ['קבוצה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
-    ...summary.map(p=>[p.name,p.sold,p.stock,p.monthly,p.target,p.toOrder]),
+    ...summary.map(p=>[p.name, p.sold, p.stock, p.monthly, p.target, p.toOrder]),
     [],
-    ['סה"כ',summary.reduce((s,p)=>s+p.sold,0),summary.reduce((s,p)=>s+p.stock,0),'',
-     summary.reduce((s,p)=>s+p.target,0),summary.reduce((s,p)=>s+p.toOrder,0)]
+    ['סה"כ',
+      summary.reduce((s,p)=>s+p.sold,0),
+      summary.reduce((s,p)=>s+p.stock,0), '',
+      summary.reduce((s,p)=>s+p.target,0),
+      summary.reduce((s,p)=>s+p.toOrder,0)]
   ];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws1),'סיכום לפי מוצר');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), 'סיכום לפי קבוצה');
 
-  // גיליון 2: פירוט מוצר ומידה
-  const detSorted=detail.filter(d=>d.sold>0)
-    .sort((a,b)=>a.name.localeCompare(b.name,'he')||(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
-  const ws2=[
-    [`פירוט הזמנה – ${group} – לפי מוצר ומידה`],
-    [],
+  /* ── גיליון 2: פירוט קבוצה × מידה ── */
+  const detSorted = detail
+    .filter(d => d.sold>0 || d.stock>0)
+    .sort((a,b) => a.name.localeCompare(b.name,'he') || (parseInt(a.sz)||0)-(parseInt(b.sz)||0));
+  const ws2 = [
+    [`פירוט הזמנה – ${title}`], [],
     ['קבוצה','מידה','נמכר','במלאי','קצב/חודש','יעד מלאי','להזמין'],
-    ...detSorted.map(d=>[d.name,d.sz,d.sold,d.stock,d.monthly,d.target,d.toOrder])
+    ...detSorted.map(d=>[d.name, d.sz, d.sold, d.stock, d.monthly, d.target, d.toOrder])
   ];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws2),'פירוט מוצר ומידה');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), 'פירוט קבוצה ומידה');
 
-  // גיליון 3: טופס הזמנה (ניתן לעריכה)
-  const orderOnly=detail.filter(d=>d.toOrder>0).sort((a,b)=>b.toOrder-a.toOrder);
-  const ws3=[
-    [`טופס הזמנה – ${group} (ניתן לערוך את עמודת "כמות להזמנה")`],
-    [],
-    ['קבוצה','מידה','נמכר','במלאי','כמות להזמנה'],
-    ...orderOnly.map(d=>[d.name,d.sz,d.sold,d.stock,d.toOrder])
+  /* ── גיליון 3: חלוקת מידות – שתי שורות ושורה אחת ── */
+  const ws3rows = [
+    [`חלוקת מידות לפי שורה – ${title}`], [],
   ];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws3),'טופס הזמנה');
-
-  // גיליון 4: חלוקת מידות לפי שורה אחת / שתי שורות
-  // שימוש ב-sizeDist2/1 שנבנו ב-runOrderPlanner (כולל פילטר תקופה, כל המוצרים)
-  const {sizeDist2, sizeDist1, opPeriodLabel} = OP_DATA;
-  const shorotDef4 = [
-    {label:'שתי שורות', dist:sizeDist2},
-    {label:'שורה אחת',  dist:sizeDist1},
-  ];
-  const ws4rows=[
-    [`טופס הזמנה לפי שורה – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות  |  ${opPeriodLabel}`],
-    [],
-  ];
-  let grandTotal=0;
-  shorotDef4.forEach(({label,dist})=>{
-    if(!dist||!dist.length) return;
-    const shorotQty=dist.reduce((s,d)=>s+d.order,0);
-    if(shorotQty<=0) return;
-    ws4rows.push([`◆ ${label}`,`יעד: ${shorotQty.toLocaleString()} יח'`,'','']);
-    ws4rows.push(['מידה','נמכר כלל המוצרים','%','כמות להזמנה']);
-    let sTotal=0;
+  let grandTotalShorot = 0;
+  [{label:'🔷 שתי שורות', dist:sizeDist2},
+   {label:'🔹 שורה אחת',  dist:sizeDist1}].forEach(({label, dist})=>{
+    if(!dist || !dist.length) return;
+    const shorotQty = dist.reduce((s,d)=>s+d.order, 0);
+    ws3rows.push([`◆ ${label}`, `יעד: ${shorotQty.toLocaleString()} יח'`, '', '', '']);
+    ws3rows.push(['מידה', 'נמכר כלל המוצרים', 'יחס %', 'כמות להזמנה', '']);
+    let sTotal = 0;
     dist.forEach(d=>{
-      if(d.order>0){ws4rows.push([d.sz,d.sold,(d.pct*100).toFixed(1)+'%',d.order]);sTotal+=d.order;}
+      if(d.order > 0){
+        ws3rows.push([d.sz, d.soldAll||d.sold, (d.pct*100).toFixed(1)+'%', d.order, '']);
+        sTotal += d.order;
+      }
     });
-    ws4rows.push(['','',`סה"כ ${label}`,sTotal]);
-    ws4rows.push([]);
-    grandTotal+=sTotal;
+    ws3rows.push(['', '', `סה"כ ${label}`, sTotal, '']);
+    ws3rows.push([]);
+    grandTotalShorot += sTotal;
   });
-  ws4rows.push(['','','סה"כ כולל',grandTotal]);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws4rows),'חלוקת מידות');
+  ws3rows.push(['', '', 'סה"כ כולל', grandTotalShorot, '']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3rows), 'חלוקת מידות לפי שורה');
 
-  // גיליון 5: הזמנה לפי קבוצות (מודרני, חסידי, קלאסי וכו')
-  if (!allMode && detail && detail.length > 0) {
-    const ws5rows = [
-      [`הזמנה לפי קבוצות – ${group}  |  יעד: ${tgtQty.toLocaleString()} יחידות  |  ${opPeriodLabel}`],
-      [],
+  /* ── גיליון 4: הזמנה לפי קבוצות × מידה ── */
+  if(!allMode && detail && detail.length > 0){
+    const ws4rows = [
+      [`הזמנה לפי קבוצות ומידות – ${title}`], [],
     ];
     const grpMap = {};
-    detail.filter(d => d.toOrder > 0 || d.sold > 0).forEach(d => {
-      if (!grpMap[d.name]) grpMap[d.name] = [];
+    detail.filter(d => d.toOrder>0 || d.sold>0).forEach(d=>{
+      if(!grpMap[d.name]) grpMap[d.name] = [];
       grpMap[d.name].push(d);
     });
     let grandTotalGrp = 0;
-    Object.keys(grpMap).sort((a,b)=>a.localeCompare(b,'he')).forEach(grpName => {
-      const items = grpMap[grpName].sort((a,b)=>(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
-      const grpTot = items.reduce((s,d)=>s+d.toOrder,0);
-      ws5rows.push([`◆ ${grpName}`,`יעד: ${grpTot.toLocaleString()} יח'`,'','']);
-      ws5rows.push(['מידה','נמכר','במלאי','להזמין']);
-      items.forEach(d=>{ ws5rows.push([d.sz, d.sold, d.stock, d.toOrder]); });
-      ws5rows.push(['','',`סה"כ ${grpName}`,grpTot]);
-      ws5rows.push([]);
+    Object.keys(grpMap).sort((a,b)=>a.localeCompare(b,'he')).forEach(grpName=>{
+      const items   = grpMap[grpName].sort((a,b)=>(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
+      const grpTot  = items.reduce((s,d)=>s+d.toOrder, 0);
+      const grpSold = items.reduce((s,d)=>s+d.sold,    0);
+      ws4rows.push([`◆ ${grpName}`, `נמכר: ${grpSold}`, `יעד: ${grpTot} יח'`, '', '']);
+      ws4rows.push(['מידה', 'נמכר', 'במלאי', 'להזמין', '']);
+      items.forEach(d=>{ ws4rows.push([d.sz, d.sold, d.stock, d.toOrder, '']); });
+      ws4rows.push(['', '', `סה"כ ${grpName}`, grpTot, '']);
+      ws4rows.push([]);
       grandTotalGrp += grpTot;
     });
-    ws5rows.push(['','','סה"כ כולל',grandTotalGrp]);
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws5rows),'הזמנה לפי קבוצות');
+    ws4rows.push(['', '', 'סה"כ כולל', grandTotalGrp, '']);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws4rows), 'הזמנה לפי קבוצות');
   }
 
-  XLSX.writeFile(wb,`הזמנה_${group}_${date}.xlsx`);
+  /* ── גיליון 5: טופס הזמנה (ניתן לעריכה) ── */
+  const orderOnly = detail.filter(d=>d.toOrder>0)
+    .sort((a,b)=>a.name.localeCompare(b.name,'he')||(parseInt(a.sz)||0)-(parseInt(b.sz)||0));
+  const ws5 = [
+    [`טופס הזמנה – ${title}`],
+    [`(ניתן לערוך את עמודת "כמות להזמנה")`], [],
+    ['קבוצה', 'מידה', 'נמכר', 'במלאי', 'כמות להזמנה'],
+    ...orderOnly.map(d=>[d.name, d.sz, d.sold, d.stock, d.toOrder]),
+    [],
+    ['', '', '', 'סה"כ', orderOnly.reduce((s,d)=>s+d.toOrder, 0)]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws5), 'טופס הזמנה');
+
+  XLSX.writeFile(wb, `הזמנה_${group}_${date}.xlsx`);
 }
 
 /* ========== REPORTS ========== */
