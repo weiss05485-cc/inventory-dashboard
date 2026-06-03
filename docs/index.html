@@ -935,6 +935,13 @@ body.emp-mode .price-col{display:none!important}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="section" style="padding:16px">
           <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:10px">📅 תקופה א</div>
+          <!-- לוח עברי -->
+          <div style="margin-bottom:8px">
+            <select id="comp-a-heb" onchange="setHebrewPeriod('a',this.value)"
+              style="width:100%;padding:5px 8px;border:1.5px solid #c7d2fe;border-radius:8px;font-family:Rubik;font-size:13px;background:#eef2ff;color:var(--navy);cursor:pointer">
+              <option value="">🗓️ בחר לפי לוח עברי...</option>
+            </select>
+          </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
             <input type="date" id="comp-a-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
@@ -949,6 +956,13 @@ body.emp-mode .price-col{display:none!important}
         </div>
         <div class="section" style="padding:16px">
           <div style="font-size:14px;font-weight:700;color:#7c3aed;margin-bottom:10px">📅 תקופה ב</div>
+          <!-- לוח עברי -->
+          <div style="margin-bottom:8px">
+            <select id="comp-b-heb" onchange="setHebrewPeriod('b',this.value)"
+              style="width:100%;padding:5px 8px;border:1.5px solid #ddd6fe;border-radius:8px;font-family:Rubik;font-size:13px;background:#f5f3ff;color:#7c3aed;cursor:pointer">
+              <option value="">🗓️ בחר לפי לוח עברי...</option>
+            </select>
+          </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
             <input type="date" id="comp-b-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
@@ -1377,6 +1391,7 @@ function switchTodayMode(mode) {
     tabC.style.color = 'var(--navy)'; tabC.style.borderBottomColor = 'var(--navy)'; tabC.style.fontWeight = '700';
     tabS.style.color = 'var(--muted)'; tabS.style.borderBottomColor = 'transparent'; tabS.style.fontWeight = '600';
     panelS.style.display = 'none'; panelC.style.display = '';
+    populateHebrewSelects();  // עדכן רשימת חודשים עבריים
   }
 }
 
@@ -1638,6 +1653,63 @@ function compPreset(period, preset) {
   }
   document.getElementById('comp-' + period + '-from').value = fromDate;
   document.getElementById('comp-' + period + '-to').value = toDate;
+}
+
+// ── לוח שנה עברי ── בנה מפה: תווית עברית → {from, to} לפי נתוני TODAY_DATA ──
+function buildHebrewMonthMap() {
+  if (!TODAY_DATA || !TODAY_DATA.by_date) return {};
+  const hebMon = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
+  const hebYr  = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {year:'numeric'});
+  const map = {};   // key: "חודש שנה" → {from, to, sortKey}
+  // גם שנות עברית שלמות
+  const yrMap = {};
+
+  Object.keys(TODAY_DATA.by_date).sort().forEach(dateStr => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const mon = hebMon.format(d);
+    const yr  = hebYr.format(d);
+    const key = mon + ' ' + yr;
+    if (!map[key]) map[key] = {from: dateStr, to: dateStr, sortKey: dateStr, yr};
+    else           map[key].to = dateStr;
+    // שנה שלמה
+    if (!yrMap[yr]) yrMap[yr] = {from: dateStr, to: dateStr};
+    else            yrMap[yr].to = dateStr;
+  });
+
+  return {months: map, years: yrMap};
+}
+
+function populateHebrewSelects() {
+  const {months, years} = buildHebrewMonthMap();
+  // מיון: החדש ביותר קודם
+  const monthEntries = Object.entries(months).sort((a,b) => b[1].sortKey.localeCompare(a[1].sortKey));
+  const yearEntries  = Object.entries(years).sort((a,b)  => b[1].from.localeCompare(a[1].from));
+
+  ['a','b'].forEach(p => {
+    const sel = document.getElementById('comp-' + p + '-heb');
+    if (!sel) return;
+    let html = `<option value="">🗓️ בחר לפי לוח עברי...</option>`;
+    // שנות שלמות
+    if (yearEntries.length) {
+      html += `<optgroup label="── שנה עברית שלמה ──">`;
+      yearEntries.forEach(([yr, {from, to}]) =>
+        html += `<option value="${from}|${to}">📆 ${yr}</option>`);
+      html += `</optgroup>`;
+    }
+    // חודשים
+    html += `<optgroup label="── חודש עברי ──">`;
+    monthEntries.forEach(([label, {from, to}]) =>
+      html += `<option value="${from}|${to}">${label}</option>`);
+    html += `</optgroup>`;
+    sel.innerHTML = html;
+  });
+}
+
+function setHebrewPeriod(period, val) {
+  if (!val) return;
+  const [from, to] = val.split('|');
+  document.getElementById('comp-' + period + '-from').value = from;
+  document.getElementById('comp-' + period + '-to').value   = to;
 }
 
 function _aggregatePeriod(fromDate, toDate) {
