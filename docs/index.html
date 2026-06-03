@@ -4741,7 +4741,13 @@ function saveGHToken() {
   localStorage.setItem('gh_orders_token', token);
   _ghSha = null;
   document.getElementById('gh-token-modal').style.display = 'none';
-  syncOrdersFromGitHub(true);
+  // אם יש הזמנות מקומיות — העלה אותן קודם, אחרת סנכרן מ-GitHub
+  const existingLocal = getOrders();
+  if (existingLocal.length > 0) {
+    saveOrdersToGitHub(existingLocal);
+  } else {
+    syncOrdersFromGitHub(true);
+  }
 }
 
 function openGHTokenModal() {
@@ -4759,10 +4765,18 @@ async function syncOrdersFromGitHub(force) {
     const r = await fetch(GH_RAW_URL + '?v=' + Date.now());
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const data = await r.json();
-    if (Array.isArray(data)) {
+    if (!Array.isArray(data)) return;
+    const local = getOrders();
+    if (data.length === 0 && local.length > 0) {
+      // GitHub ריק אבל יש הזמנות מקומיות — העלה את המקומיות ל-GitHub
+      await saveOrdersToGitHub(local);
+    } else if (data.length > 0) {
+      // GitHub יש נתונים — השתמש בהם כמקור האמת
       localStorage.setItem('cc_orders', JSON.stringify(data));
       renderOrdersPage();
       showOrderSyncStatus('מסונכרן ✓', true);
+    } else {
+      showOrderSyncStatus('');
     }
   } catch(e) { showOrderSyncStatus(''); }
 }
