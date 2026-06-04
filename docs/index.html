@@ -475,6 +475,9 @@ body.emp-mode .price-col{display:none!important}
   <div class="search-hint">לדוגמה: "חורף", "וועסט", "25S44", "ירושלמי" — החיפוש מבין ברקודים אוטומטית</div>
 </div>
 <div class="container">
+  <div style="margin-bottom:12px">
+    <div class="dept-filter" id="search-dept-filter"></div>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
     <span id="search-count" style="color:var(--muted);font-size:13px"></span>
     <button class="btn btn-export" onclick="exportSearch()">⬇️ ייצוא CSV</button>
@@ -1294,6 +1297,7 @@ let chartStatus = null, chartDeptOv = null, chartDeptFull = null;
 
 let searchResults = [];
 let searchSortCol = null, searchSortDir = 1;
+let activeSearchDept = 'all';
 let lowSortCol = null, lowSortDir = 1;
 
 let selectedShortageStore = null;
@@ -1357,6 +1361,7 @@ function loadSearchData(cb) {
       searchLoaded = true;
       document.getElementById('search-loading').style.display = 'none';
       document.getElementById('search-section').style.display = 'block';
+      buildSearchDeptFilter();
       cb();
     })
     .catch(() => {
@@ -2229,6 +2234,23 @@ function renderDeptOvChart(store) {
 }
 
 /* ========== SEARCH ========== */
+function buildSearchDeptFilter() {
+  const wrap = document.getElementById('search-dept-filter');
+  if (!wrap) return;
+  const depts = ['all', ...new Set(SEARCH_DATA.map(i => i.d || 'ללא מחלקה').filter(Boolean)).values()].sort((a,b) => a === 'all' ? -1 : a.localeCompare(b, 'he'));
+  wrap.innerHTML = depts.map(d =>
+    `<button class="pill ${d === activeSearchDept ? 'active' : ''}" onclick="switchSearchDept('${d}')">
+      ${d === 'all' ? 'כל המחלקות' : d}
+    </button>`
+  ).join('');
+}
+
+function switchSearchDept(d) {
+  activeSearchDept = d;
+  buildSearchDeptFilter();
+  doSearch();
+}
+
 function doSearch() {
   if (!searchLoaded) return;
   const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
@@ -2237,18 +2259,19 @@ function doSearch() {
   // Build store header if needed
   document.getElementById('th-stores').colSpan = 1;
 
-  if (!q) {
+  if (!q && activeSearchDept === 'all') {
     searchResults = [];
-    document.getElementById('search-count').textContent = 'הכנס מילת חיפוש למעלה';
+    document.getElementById('search-count').textContent = 'הכנס מילת חיפוש או בחר מחלקה';
     document.getElementById('search-body').innerHTML = '';
     document.getElementById('search-summary').innerHTML = '';
     return;
   }
 
   const terms = q.split(/\s+/).filter(Boolean);
-  searchResults = SEARCH_DATA.filter(item =>
-    terms.every(t => item._idx.includes(t))
-  );
+  searchResults = SEARCH_DATA.filter(item => {
+    if (activeSearchDept !== 'all' && (item.d || 'ללא מחלקה') !== activeSearchDept) return false;
+    return terms.length === 0 || terms.every(t => item._idx.includes(t));
+  });
 
   renderSearchResults();
 }
