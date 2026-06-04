@@ -387,34 +387,7 @@ body.emp-mode .price-col{display:none!important}
   </div>
 </div>
 
-<!-- GitHub Token Modal -->
-<div id="gh-token-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:20px;padding:28px;max-width:460px;width:92vw;direction:rtl;font-family:'Rubik',sans-serif;box-shadow:0 24px 60px rgba(0,0,0,.3)">
-    <h3 style="margin:0 0 6px;color:var(--primary);font-size:17px">☁️ שמירת הזמנות בענן</h3>
-    <p style="font-size:12px;color:var(--muted);margin:0 0 16px">הכנס GitHub Token פעם אחת — ההזמנות יסתנכרנו בין כל המכשירים</p>
-    <div style="background:#f0f4ff;border-radius:10px;padding:12px 14px;font-size:12px;margin-bottom:16px;line-height:2;color:#374151">
-      1. כנס ל־ <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--primary);font-weight:600">github.com/settings/tokens</a><br>
-      2. לחץ <strong>Generate new token (fine-grained)</strong><br>
-      3. Repository access → <strong>Only selected → inventory-dashboard</strong><br>
-      4. Permissions → Contents → <strong>Read and write</strong><br>
-      5. לחץ Generate → העתק את הטוקן
-    </div>
-    <input id="gh-token-input" type="password" placeholder="github_pat_..."
-      style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;margin-bottom:4px;box-sizing:border-box;direction:ltr;font-family:monospace">
-    <div id="gh-token-error" style="font-size:11px;color:#ef4444;min-height:16px;margin-bottom:8px"></div>
-    <div style="display:flex;gap:10px">
-      <button onclick="saveGHToken()"
-        style="flex:1;padding:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-        שמור וסנכרן
-      </button>
-      <button onclick="document.getElementById('gh-token-modal').style.display='none'"
-        style="padding:10px 18px;background:#f1f5f9;color:var(--muted);border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;cursor:pointer">
-        ביטול
-      </button>
-    </div>
-    <div id="gh-token-current" style="margin-top:10px;font-size:11px;color:var(--muted);text-align:center"></div>
-  </div>
-</div>
+<!-- Cloud sync via Google Apps Script (no token needed) -->
 
 <!-- LOGIN OVERLAY -->
 <div id="login-overlay">
@@ -1046,12 +1019,7 @@ body.emp-mode .price-col{display:none!important}
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span id="orders-sync-status" style="font-size:11px;color:var(--muted)"></span>
-      <button onclick="openGHTokenModal()"
-        id="gh-token-btn"
-        style="padding:6px 12px;background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:8px;cursor:pointer;font-size:11px;color:var(--primary);font-family:'Rubik',sans-serif;font-weight:600">
-        ☁️ חיבור ענן
-      </button>
-      <button onclick="clearAllOrders()" id="clear-orders-btn"
+<button onclick="clearAllOrders()" id="clear-orders-btn"
         style="display:none;padding:8px 16px;border:1.5px solid var(--red);border-radius:10px;background:#fff;color:var(--red);cursor:pointer;font-family:'Rubik',sans-serif;font-size:12px;font-weight:600">
         🗑️ נקה הכל (מנהל)
       </button>
@@ -4720,58 +4688,21 @@ function generateOrderPDF(order) {
 /* ========== ORDERS PAGE ========== */
 let _ordersFilter = 'all';
 
-// ── GitHub Orders Persistence ─────────────────────────────────────────────
-const GH_REPO    = 'weiss05485-cc/inventory-dashboard';
-const GH_PATH    = 'docs/orders.json';
-const GH_API_URL = `https://api.github.com/repos/${GH_REPO}/contents/${GH_PATH}`;
-const GH_RAW_URL = `https://raw.githubusercontent.com/${GH_REPO}/master/${GH_PATH}`;
-let _ghSha = null;
-let _ghSaving = false;
-
-function getGHToken() { return localStorage.getItem('gh_orders_token') || ''; }
-
-function saveGHToken() {
-  const token = document.getElementById('gh-token-input').value.trim();
-  const errEl = document.getElementById('gh-token-error');
-  if (!token) { errEl.textContent = 'יש להכניס טוקן'; return; }
-  if (!token.startsWith('github_pat_') && !token.startsWith('ghp_') && token.length < 20) {
-    errEl.textContent = 'נראה שהטוקן לא תקין'; return;
-  }
-  errEl.textContent = '';
-  localStorage.setItem('gh_orders_token', token);
-  _ghSha = null;
-  document.getElementById('gh-token-modal').style.display = 'none';
-  // אם יש הזמנות מקומיות — העלה אותן קודם, אחרת סנכרן מ-GitHub
-  const existingLocal = getOrders();
-  if (existingLocal.length > 0) {
-    saveOrdersToGitHub(existingLocal);
-  } else {
-    syncOrdersFromGitHub(true);
-  }
-}
-
-function openGHTokenModal() {
-  const existing = getGHToken();
-  const cur = document.getElementById('gh-token-current');
-  if (cur) cur.textContent = existing ? '✓ טוקן כבר מוגדר — הכנס חדש להחליף' : '';
-  document.getElementById('gh-token-input').value = '';
-  document.getElementById('gh-token-error').textContent = '';
-  document.getElementById('gh-token-modal').style.display = 'flex';
-}
+// ── Apps Script Orders Persistence (ללא טוקן — עובד על כל מכשיר) ──────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz47zKfJrAFgYrfz8Aim7GBvIMsjjQPatB6nlmZso12BolT3vU_XS6PA87xRLJl-K95qQ/exec';
+let _gasSaving = false;
 
 async function syncOrdersFromGitHub(force) {
   showOrderSyncStatus('מסנכרן...');
   try {
-    const r = await fetch(GH_RAW_URL + '?v=' + Date.now());
+    const r = await fetch(GAS_URL + '?v=' + Date.now());
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const data = await r.json();
     if (!Array.isArray(data)) return;
     const local = getOrders();
     if (data.length === 0 && local.length > 0) {
-      // GitHub ריק אבל יש הזמנות מקומיות — העלה את המקומיות ל-GitHub
       await saveOrdersToGitHub(local);
     } else if (data.length > 0) {
-      // GitHub יש נתונים — השתמש בהם כמקור האמת
       localStorage.setItem('cc_orders', JSON.stringify(data));
       renderOrdersPage();
       showOrderSyncStatus('מסונכרן ✓', true);
@@ -4782,40 +4713,21 @@ async function syncOrdersFromGitHub(force) {
 }
 
 async function saveOrdersToGitHub(orders) {
-  const token = getGHToken();
-  if (!token) return;
-  if (_ghSaving) return;
-  _ghSaving = true;
+  if (_gasSaving) return;
+  _gasSaving = true;
   showOrderSyncStatus('שומר...');
   try {
-    if (!_ghSha) {
-      const ir = await fetch(GH_API_URL, { headers: { Authorization: `token ${token}` } });
-      if (ir.ok) { const info = await ir.json(); _ghSha = info.sha; }
-    }
-    const jsonStr  = JSON.stringify(orders, null, 2);
-    const content  = btoa(unescape(encodeURIComponent(jsonStr)));
-    const body     = { message: 'עדכון הזמנות', content };
-    if (_ghSha) body.sha = _ghSha;
-    const resp = await fetch(GH_API_URL, {
-      method: 'PUT',
-      headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+    const resp = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(orders)
     });
     if (resp.ok) {
-      const result = await resp.json();
-      _ghSha = result.content?.sha;
       showOrderSyncStatus('נשמר ✓', true);
-    } else if (resp.status === 422 || resp.status === 409) {
-      _ghSha = null;
-      setTimeout(() => { _ghSaving = false; saveOrdersToGitHub(orders); }, 1500);
-      return;
     } else {
-      const err = await resp.json().catch(()=>({}));
-      console.warn('GH save error', resp.status, err.message);
       showOrderSyncStatus('שגיאת שמירה', false, true);
     }
   } catch(e) { showOrderSyncStatus('אין חיבור', false, true); }
-  _ghSaving = false;
+  _gasSaving = false;
 }
 
 function showOrderSyncStatus(msg, success, error) {
