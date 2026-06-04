@@ -162,18 +162,40 @@ ONHAND_CTE = """
         WHERE dd.DocType IN (5, 7, 3) AND dd.Status = 1
           AND dd.DocDate >= CAST(N'2025-12-31' AS DATE)
     ),
-    OnHand AS (
-        SELECT ItemID, StoreID, SUM(Qty) AS Qty
-        FROM RawMov
-        GROUP BY ItemID, StoreID
+    NewItemsMov AS (
+        -- פריטים שלא נספרו ב-31/12: מחשבים רק מ-01/01/2026
+        SELECT ist.ItemID, t.StoreID, te.Qty * -1 AS Qty
+        FROM TransactionEntry te
+        JOIN [Transaction] t ON te.TransactionID = t.TransactionID
+        JOIN ItemStore ist ON ist.ItemStoreID = te.ItemStoreID
+        WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
+          AND te.TransactionEntryType NOT IN (4, 10, 12, 16)
+          AND t.SaleTime >= CAST(N'2026-01-01' AS DATE)
+          AND NOT EXISTS (SELECT 1 FROM Dec31Baseline db WHERE db.ItemID = ist.ItemID AND db.StoreID = t.StoreID)
         UNION ALL
-        SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
-        FROM ItemMovementForQuickOnHandView v
-        WHERE NOT EXISTS (
-            SELECT 1 FROM Dec31Baseline db
-            WHERE db.ItemID = v.ItemID AND db.StoreID = v.StoreID
-        )
-        GROUP BY v.ItemID, v.StoreID
+        SELECT sde.ItemID, sd.StoreID,
+               (CASE WHEN sd.Type = 2 THEN sde.Qty * -1
+                     WHEN sd.Type = 3 THEN sde.SentQty * -1
+                     ELSE sde.Qty END)
+        FROM SuppliersDocsEntry sde
+        JOIN SuppliersDocs sd ON sd.ID = sde.ID
+        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
+          AND sd.Type NOT IN (5, 6)
+          AND (sd.DocStatus IN (7, 8, 9, 10) OR (sd.Type = 3 AND sd.DocStatus = 4))
+          AND sd.DateT >= CAST(N'2026-01-01' AS DATE)
+          AND NOT EXISTS (SELECT 1 FROM Dec31Baseline db WHERE db.ItemID = sde.ItemID AND db.StoreID = sd.StoreID)
+        UNION ALL
+        SELECT sde.ItemID, sd.ToStoreID, sde.Qty
+        FROM SuppliersDocsEntry sde
+        JOIN SuppliersDocs sd ON sd.ID = sde.ID
+        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 5
+          AND sd.DateT >= CAST(N'2026-01-01' AS DATE)
+          AND NOT EXISTS (SELECT 1 FROM Dec31Baseline db WHERE db.ItemID = sde.ItemID AND db.StoreID = sd.ToStoreID)
+    ),
+    OnHand AS (
+        SELECT ItemID, StoreID, SUM(Qty) AS Qty FROM RawMov GROUP BY ItemID, StoreID
+        UNION ALL
+        SELECT ItemID, StoreID, SUM(Qty) AS Qty FROM NewItemsMov GROUP BY ItemID, StoreID
     )
 """
 
@@ -204,6 +226,7 @@ def main():
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
         WHERE ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
         GROUP BY st.StoreID, st.StoreName, st.Code, st.Sort
         ORDER BY st.Sort
     """)
@@ -227,6 +250,7 @@ def main():
           AND oh.Qty >= 0 AND oh.Qty <= ist.ReorderPoint
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
         ORDER BY (oh.Qty - ist.ReorderPoint) ASC, st.Sort
     """)
 
@@ -248,6 +272,7 @@ def main():
         WHERE oh.Qty > 0
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
         GROUP BY d.Name, st.StoreName, st.Sort
         HAVING SUM(oh.Qty) > 0
         ORDER BY SUM(oh.Qty * ISNULL(ist.AVGCost, 0)) DESC
@@ -272,6 +297,7 @@ def main():
         WHERE oh.Qty > 0
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
     """)
 
     # Group by barcode → one item with per-store quantities
@@ -408,6 +434,7 @@ def main():
           AND t.SaleTime >= DATEADD(MONTH, -13, GETDATE())
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
         GROUP BY im.Name, im.BarcodeNumber, d.Name, ig.ItemGroupName,
                  st.StoreName, CONVERT(VARCHAR(7), t.SaleTime, 120)
     """)
@@ -456,6 +483,7 @@ def main():
         WHERE oh.Qty >= 0
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
+          AND im.BarcodeNumber NOT IN ('180','240')
         GROUP BY im.Name, im.BarcodeNumber, d.Name, ig.ItemGroupName, st.StoreName, st.Sort
         ORDER BY st.Sort
     """)
