@@ -110,26 +110,22 @@ def serial(obj):
 
 ONHAND_CTE = """
     WITH Dec31Inv AS (
-        -- Latest completed physical inventory per store on 31/12/2025
         SELECT pi.StoreID, pi.PhysicalInventoryID,
                ROW_NUMBER() OVER (PARTITION BY pi.StoreID ORDER BY pi.OpenTime DESC) AS rn
         FROM PhysicalInventory pi
         WHERE CAST(pi.OpenTime AS DATE) = CAST(N'2025-12-31' AS DATE) AND pi.Status = 2
     ),
     Dec31Baseline AS (
-        -- Items that WERE counted on Dec 31: QuantityCounted is the baseline
+        -- רק פריטים שנספרו בפועל (Qty > 0) — פריטים שנרשמו 0 לא נספרו באמת
         SELECT pie.ItemID, pie.StoreID, SUM(pie.QuantityCounted) AS Qty
         FROM PhysicalInventoryEntry pie
         JOIN Dec31Inv d ON d.PhysicalInventoryID = pie.PhysicalInventoryID AND d.rn = 1
         GROUP BY pie.ItemID, pie.StoreID
+        HAVING SUM(pie.QuantityCounted) > 0
     ),
     RawMov AS (
-        -- Baseline: Dec 31 physical count
         SELECT ItemID, StoreID, Qty FROM Dec31Baseline
-
         UNION ALL
-
-        -- Sales from Dec 31 — only for items that were counted on Dec 31
         SELECT ist.ItemID, t.StoreID, te.Qty * -1
         FROM TransactionEntry te
         JOIN [Transaction] t ON te.TransactionID = t.TransactionID
@@ -138,10 +134,7 @@ ONHAND_CTE = """
         WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
           AND te.TransactionEntryType NOT IN (4, 10, 12, 16)
           AND t.SaleTime >= CAST(N'2025-12-31' AS DATE)
-
         UNION ALL
-
-        -- Supplier receipts from Dec 31 — Dec31 items only
         SELECT sde.ItemID, sd.StoreID,
                (CASE WHEN sd.Type = 2 THEN sde.Qty * -1
                      WHEN sd.Type = 3 THEN sde.SentQty * -1
@@ -152,20 +145,14 @@ ONHAND_CTE = """
         WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
           AND sd.Type NOT IN (5, 6) AND sd.DocStatus IN (7, 8, 9, 10)
           AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
-
         UNION ALL
-
-        -- Transfer receipts from Dec 31 — Dec31 items only
         SELECT sde.ItemID, sd.ToStoreID, sde.Qty
         FROM SuppliersDocsEntry sde
         JOIN SuppliersDocs sd ON sd.ID = sde.ID
         JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.ToStoreID
         WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 5
           AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
-
         UNION ALL
-
-        -- Deliveries / returns from Dec 31 — Dec31 items only
         SELECT dpl.ItemID, dd.StoreID,
                dpl.Quantity * (CASE WHEN dd.DocType = 7 THEN 1 ELSE -1 END)
         FROM DocumentPLULine dpl
@@ -177,14 +164,12 @@ ONHAND_CTE = """
           AND dd.DocDate >= CAST(N'2025-12-31' AS DATE)
     ),
     OnHand AS (
-        -- Items IN Dec 31 inventory: Dec 31 count + movements from Dec 31
+        -- פריטים שנספרו ב-31/12: ספירה + תנועות מאז
         SELECT ItemID, StoreID, SUM(Qty) AS Qty
         FROM RawMov
         GROUP BY ItemID, StoreID
-
         UNION ALL
-
-        -- Items NOT in Dec 31 inventory: fall back to original view
+        -- פריטים שלא נספרו (או נרשמו 0): חישוב ארנט ישירות
         SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
         FROM ItemMovementForQuickOnHandView v
         WHERE NOT EXISTS (
