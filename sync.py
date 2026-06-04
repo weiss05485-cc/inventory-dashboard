@@ -109,89 +109,11 @@ def serial(obj):
     return str(obj)
 
 ONHAND_CTE = """
-    WITH Dec31Inv AS (
-        -- Latest completed physical inventory per store on 31/12/2025
-        SELECT pi.StoreID, pi.PhysicalInventoryID,
-               ROW_NUMBER() OVER (PARTITION BY pi.StoreID ORDER BY pi.OpenTime DESC) AS rn
-        FROM PhysicalInventory pi
-        WHERE CAST(pi.OpenTime AS DATE) = CAST(N'2025-12-31' AS DATE) AND pi.Status = 2
-    ),
-    Dec31Baseline AS (
-        -- Items that WERE counted on Dec 31: QuantityCounted is the baseline
-        SELECT pie.ItemID, pie.StoreID, SUM(pie.QuantityCounted) AS Qty
-        FROM PhysicalInventoryEntry pie
-        JOIN Dec31Inv d ON d.PhysicalInventoryID = pie.PhysicalInventoryID AND d.rn = 1
-        GROUP BY pie.ItemID, pie.StoreID
-    ),
-    RawMov AS (
-        -- Baseline: Dec 31 physical count
-        SELECT ItemID, StoreID, Qty FROM Dec31Baseline
-
-        UNION ALL
-
-        -- Sales from Dec 31 — only for items that were counted on Dec 31
-        SELECT ist.ItemID, t.StoreID, te.Qty * -1
-        FROM TransactionEntry te
-        JOIN [Transaction] t ON te.TransactionID = t.TransactionID
-        JOIN ItemStore ist ON ist.ItemStoreID = te.ItemStoreID
-        JOIN Dec31Baseline db ON db.ItemID = ist.ItemID AND db.StoreID = t.StoreID
-        WHERE te.Status > -1 AND t.Status > -1 AND ist.Status > -1
-          AND te.TransactionEntryType NOT IN (4, 10, 12, 16)
-          AND t.SaleTime >= CAST(N'2025-12-31' AS DATE)
-
-        UNION ALL
-
-        -- Supplier receipts from Dec 31 — Dec31 items only
-        SELECT sde.ItemID, sd.StoreID,
-               (CASE WHEN sd.Type = 2 THEN sde.Qty * -1
-                     WHEN sd.Type = 3 THEN sde.SentQty * -1
-                     ELSE sde.Qty END)
-        FROM SuppliersDocsEntry sde
-        JOIN SuppliersDocs sd ON sd.ID = sde.ID
-        JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.StoreID
-        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
-          AND sd.Type NOT IN (5, 6) AND sd.DocStatus IN (7, 8, 9, 10)
-          AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
-
-        UNION ALL
-
-        -- Transfer receipts from Dec 31 — Dec31 items only
-        SELECT sde.ItemID, sd.ToStoreID, sde.Qty
-        FROM SuppliersDocsEntry sde
-        JOIN SuppliersDocs sd ON sd.ID = sde.ID
-        JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.ToStoreID
-        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 5
-          AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
-
-        UNION ALL
-
-        -- Deliveries / returns from Dec 31 — Dec31 items only
-        SELECT dpl.ItemID, dd.StoreID,
-               dpl.Quantity * (CASE WHEN dd.DocType = 7 THEN 1 ELSE -1 END)
-        FROM DocumentPLULine dpl
-        JOIN DataDocument dd ON dpl.DocNumber = dd.Number
-                             AND dpl.DocType = dd.DocType
-                             AND dpl.DocStatus = dd.Status
-        JOIN Dec31Baseline db ON db.ItemID = dpl.ItemID AND db.StoreID = dd.StoreID
-        WHERE dd.DocType IN (5, 7, 3) AND dd.Status = 1
-          AND dd.DocDate >= CAST(N'2025-12-31' AS DATE)
-    ),
-    OnHand AS (
-        -- Items IN Dec 31 inventory: Dec 31 count + movements from Dec 31
+    WITH OnHand AS (
+        -- זהה ל-View שארנט משתמש בו — תמיד תואם 100%
         SELECT ItemID, StoreID, SUM(Qty) AS Qty
-        FROM RawMov
+        FROM ItemMovementForQuickOnHandView
         GROUP BY ItemID, StoreID
-
-        UNION ALL
-
-        -- Items NOT in Dec 31 inventory: fall back to original view
-        SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
-        FROM ItemMovementForQuickOnHandView v
-        WHERE NOT EXISTS (
-            SELECT 1 FROM Dec31Baseline db
-            WHERE db.ItemID = v.ItemID AND db.StoreID = v.StoreID
-        )
-        GROUP BY v.ItemID, v.StoreID
     )
 """
 
