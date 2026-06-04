@@ -141,7 +141,8 @@ ONHAND_CTE = """
         JOIN SuppliersDocs sd ON sd.ID = sde.ID
         JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.StoreID
         WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
-          AND sd.Type NOT IN (5, 6) AND sd.DocStatus IN (7, 8, 9, 10)
+          AND sd.Type NOT IN (5, 6)
+          AND (sd.DocStatus IN (7, 8, 9, 10) OR (sd.Type = 3 AND sd.DocStatus = 4))
           AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
         UNION ALL
         SELECT sde.ItemID, sd.ToStoreID, sde.Qty
