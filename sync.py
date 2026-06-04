@@ -116,12 +116,10 @@ ONHAND_CTE = """
         WHERE CAST(pi.OpenTime AS DATE) = CAST(N'2025-12-31' AS DATE) AND pi.Status = 2
     ),
     Dec31Baseline AS (
-        -- רק פריטים שנספרו בפועל (Qty > 0) — פריטים שנרשמו 0 לא נספרו באמת
         SELECT pie.ItemID, pie.StoreID, SUM(pie.QuantityCounted) AS Qty
         FROM PhysicalInventoryEntry pie
         JOIN Dec31Inv d ON d.PhysicalInventoryID = pie.PhysicalInventoryID AND d.rn = 1
         GROUP BY pie.ItemID, pie.StoreID
-        HAVING SUM(pie.QuantityCounted) > 0
     ),
     RawMov AS (
         SELECT ItemID, StoreID, Qty FROM Dec31Baseline
@@ -164,12 +162,10 @@ ONHAND_CTE = """
           AND dd.DocDate >= CAST(N'2025-12-31' AS DATE)
     ),
     OnHand AS (
-        -- פריטים שנספרו ב-31/12: ספירה + תנועות מאז
         SELECT ItemID, StoreID, SUM(Qty) AS Qty
         FROM RawMov
         GROUP BY ItemID, StoreID
         UNION ALL
-        -- פריטים שלא נספרו (או נרשמו 0): חישוב ארנט ישירות
         SELECT v.ItemID, v.StoreID, SUM(v.Qty) AS Qty
         FROM ItemMovementForQuickOnHandView v
         WHERE NOT EXISTS (
