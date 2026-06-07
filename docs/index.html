@@ -1011,10 +1011,10 @@ body.emp-mode .price-col{display:none!important}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
-            <input type="date" id="comp-a-from" oninput="updateHebLabel('a-from',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-a-from" oninput="updateHebLabel('a-from',this.value);syncHebPickerFromGreg('a','from')" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
             <span id="heb-a-from" style="font-size:11px;color:var(--primary);font-weight:600;white-space:nowrap"></span>
             <label style="font-size:12px;color:var(--muted)">עד-</label>
-            <input type="date" id="comp-a-to" oninput="updateHebLabel('a-to',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-a-to" oninput="updateHebLabel('a-to',this.value);syncHebPickerFromGreg('a','to')" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
             <span id="heb-a-to" style="font-size:11px;color:var(--primary);font-weight:600;white-space:nowrap"></span>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
@@ -1043,10 +1043,10 @@ body.emp-mode .price-col{display:none!important}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
-            <input type="date" id="comp-b-from" oninput="updateHebLabel('b-from',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-b-from" oninput="updateHebLabel('b-from',this.value);syncHebPickerFromGreg('b','from')" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
             <span id="heb-b-from" style="font-size:11px;color:#7c3aed;font-weight:600;white-space:nowrap"></span>
             <label style="font-size:12px;color:var(--muted)">עד-</label>
-            <input type="date" id="comp-b-to" oninput="updateHebLabel('b-to',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-b-to" oninput="updateHebLabel('b-to',this.value);syncHebPickerFromGreg('b','to')" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
             <span id="heb-b-to" style="font-size:11px;color:#7c3aed;font-weight:600;white-space:nowrap"></span>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
@@ -1774,6 +1774,8 @@ function compPreset(period, preset) {
   }
   document.getElementById('comp-' + period + '-from').value = fromDate;
   document.getElementById('comp-' + period + '-to').value = toDate;
+  syncHebPickerFromGreg(period, 'from'); updateHebLabel(period+'-from', fromDate);
+  syncHebPickerFromGreg(period, 'to');   updateHebLabel(period+'-to', toDate);
 }
 
 // ── שעות פעילות ───────────────────────────────────────────────────────────
@@ -1934,28 +1936,44 @@ function buildHebCalIndex() {
   });
 }
 
-// ממלא את בוררי השנה ובוחר כברירת מחדל את השנה הנוכחית, כדי שהחודשים זמינים מיד
-function populateHebPickers() {
+// ממלא בורר שנה אחד (אם עוד לא מאוכלס)
+function _fillHebYearSelect(ys) {
+  if (ys && ys.options.length <= 1) {
+    ys.innerHTML = '<option value="">שנה</option>' +
+      HEB_CAL_YEARS.map(y => `<option value="${y}">${numToHebYear(y)}</option>`).join('');
+  }
+}
+
+// מסנכרן בורר עברי אחד מהתאריך הלועזי הקיים (כדי שהבורר תמיד ישקף את מה שמושווה)
+function syncHebPickerFromGreg(p, w) {
   buildHebCalIndex();
-  // השנה העברית הנוכחית (אם בטווח) — אחרת האחרונה
-  const now = new Date();
-  const curHebYr = parseInt(_hebYrF.format(now), 10);
-  const defYr = HEB_CAL_YEARS.includes(curHebYr) ? curHebYr : HEB_CAL_YEARS[HEB_CAL_YEARS.length-1];
-  const curHebMon = _hebMonF.format(now);
+  const ys = document.getElementById('hp-'+p+'-'+w+'-y');
+  if (!ys) return;
+  _fillHebYearSelect(ys);
+  const g = document.getElementById('comp-'+p+'-'+w).value;
+  if (!g) return;                          // אין תאריך → השאר ריק
+  const d   = new Date(g + 'T12:00:00');
+  const y   = parseInt(_hebYrF.format(d), 10);
+  const m   = _hebMonF.format(d);
+  const day = parseInt(_hebDayF.format(d), 10);
+  if (!HEB_CAL[y] || !HEB_CAL[y][m]) return;
+  ys.value = String(y);                                   hebYearChanged(p, w);
+  document.getElementById('hp-'+p+'-'+w+'-m').value = m;  hebMonthChanged(p, w);
+  document.getElementById('hp-'+p+'-'+w+'-d').value = String(day);
+}
+
+// מסנכרן את כל ארבעת הבוררים + מעדכן תוויות עבריות
+function syncAllHebPickers() {
+  buildHebCalIndex();
   ['a','b'].forEach(p => ['from','to'].forEach(w => {
-    const ys = document.getElementById('hp-'+p+'-'+w+'-y');
-    if (ys && ys.options.length <= 1) {
-      ys.innerHTML = '<option value="">שנה</option>' +
-        HEB_CAL_YEARS.map(y => `<option value="${y}">${numToHebYear(y)}</option>`).join('');
-      ys.value = String(defYr);   // ברירת מחדל: השנה הנוכחית
-      hebYearChanged(p, w);        // טען מיד את חודשי השנה
-      const ms = document.getElementById('hp-'+p+'-'+w+'-m');
-      if (ms && HEB_CAL[defYr] && HEB_CAL[defYr][curHebMon]) {
-        ms.value = curHebMon;      // ברירת מחדל: החודש הנוכחי
-        hebMonthChanged(p, w);     // טען מיד את ימי החודש (התאריך ייקבע רק בבחירת יום)
-      }
-    }
+    syncHebPickerFromGreg(p, w);
+    updateHebLabel(p+'-'+w, document.getElementById('comp-'+p+'-'+w).value);
   }));
+}
+
+// נקרא בכניסה ללשונית השוואה
+function populateHebPickers() {
+  syncAllHebPickers();
 }
 
 function hebYearChanged(p, w) {
@@ -2141,6 +2159,7 @@ function quickCompare(preset) {
   document.getElementById('comp-a-to').value   = aTo;
   document.getElementById('comp-b-from').value = bFrom;
   document.getElementById('comp-b-to').value   = bTo;
+  syncAllHebPickers();   // עדכן את הבורר העברי שישקף את התאריכים החדשים
   renderComparison();
 }
 
