@@ -993,12 +993,21 @@ body.emp-mode .price-col{display:none!important}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="section" style="padding:16px">
           <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:10px">📅 תקופה א</div>
-          <!-- לוח עברי -->
-          <div style="margin-bottom:8px">
-            <select id="comp-a-heb" onchange="setHebrewPeriod('a',this.value)"
-              style="width:100%;padding:5px 8px;border:1.5px solid #c7d2fe;border-radius:8px;font-family:Rubik;font-size:13px;background:#eef2ff;color:var(--navy);cursor:pointer">
-              <option value="">🗓️ בחר לפי לוח עברי...</option>
-            </select>
+          <!-- בורר לוח עברי -->
+          <div style="margin-bottom:10px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">🗓️ בחירה לפי לוח עברי (יום · חודש · שנה)</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+              <label style="font-size:11px;color:var(--muted);min-width:26px">מ-</label>
+              <select id="hp-a-from-d" onchange="hebDayChanged('a','from')" style="flex:1;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">יום</option></select>
+              <select id="hp-a-from-m" onchange="hebMonthChanged('a','from')" style="flex:2;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">חודש</option></select>
+              <select id="hp-a-from-y" onchange="hebYearChanged('a','from')" style="flex:1.4;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">שנה</option></select>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <label style="font-size:11px;color:var(--muted);min-width:26px">עד-</label>
+              <select id="hp-a-to-d" onchange="hebDayChanged('a','to')" style="flex:1;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">יום</option></select>
+              <select id="hp-a-to-m" onchange="hebMonthChanged('a','to')" style="flex:2;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">חודש</option></select>
+              <select id="hp-a-to-y" onchange="hebYearChanged('a','to')" style="flex:1.4;min-width:0;padding:4px 6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">שנה</option></select>
+            </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
@@ -1016,12 +1025,21 @@ body.emp-mode .price-col{display:none!important}
         </div>
         <div class="section" style="padding:16px">
           <div style="font-size:14px;font-weight:700;color:#7c3aed;margin-bottom:10px">📅 תקופה ב</div>
-          <!-- לוח עברי -->
-          <div style="margin-bottom:8px">
-            <select id="comp-b-heb" onchange="setHebrewPeriod('b',this.value)"
-              style="width:100%;padding:5px 8px;border:1.5px solid #ddd6fe;border-radius:8px;font-family:Rubik;font-size:13px;background:#f5f3ff;color:#7c3aed;cursor:pointer">
-              <option value="">🗓️ בחר לפי לוח עברי...</option>
-            </select>
+          <!-- בורר לוח עברי -->
+          <div style="margin-bottom:10px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px">🗓️ בחירה לפי לוח עברי (יום · חודש · שנה)</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+              <label style="font-size:11px;color:var(--muted);min-width:26px">מ-</label>
+              <select id="hp-b-from-d" onchange="hebDayChanged('b','from')" style="flex:1;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">יום</option></select>
+              <select id="hp-b-from-m" onchange="hebMonthChanged('b','from')" style="flex:2;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">חודש</option></select>
+              <select id="hp-b-from-y" onchange="hebYearChanged('b','from')" style="flex:1.4;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">שנה</option></select>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <label style="font-size:11px;color:var(--muted);min-width:26px">עד-</label>
+              <select id="hp-b-to-d" onchange="hebDayChanged('b','to')" style="flex:1;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">יום</option></select>
+              <select id="hp-b-to-m" onchange="hebMonthChanged('b','to')" style="flex:2;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">חודש</option></select>
+              <select id="hp-b-to-y" onchange="hebYearChanged('b','to')" style="flex:1.4;min-width:0;padding:4px 6px;border:1px solid #ddd6fe;border-radius:6px;font-size:12px;font-family:Rubik;background:#fff"><option value="">שנה</option></select>
+            </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
@@ -1491,7 +1509,7 @@ function switchTodayMode(mode) {
     tabC.style.color = 'var(--navy)'; tabC.style.borderBottomColor = 'var(--navy)'; tabC.style.fontWeight = '700';
     tabS.style.color = 'var(--muted)'; tabS.style.borderBottomColor = 'transparent'; tabS.style.fontWeight = '600';
     panelS.style.display = 'none'; panelC.style.display = '';
-    populateHebrewSelects();  // עדכן רשימת חודשים עבריים
+    populateHebPickers();  // מילוי בוררי לוח עברי (שנה/חודש/יום)
   }
 }
 
@@ -1886,65 +1904,87 @@ function hebDayLetters(n) {
   return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
 }
 
-function buildHebrewMonthMap() {
-  if (!TODAY_DATA || !TODAY_DATA.by_date) return {};
-  const hebMon   = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
-  const hebDay   = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric'}); // יום עברי באותיות (ט״ו)
-  const hebYrNum = new Intl.DateTimeFormat('en-u-ca-hebrew',    {year:'numeric'}); // מחזיר 5786
-  const map = {};
-  const yrMap = {};
-
-  Object.keys(TODAY_DATA.by_date).sort().forEach(dateStr => {
-    const d   = new Date(dateStr + 'T12:00:00');
-    const mon = hebMon.format(d);
-    const yr  = numToHebYear(parseInt(hebYrNum.format(d), 10)); // תשפ״ו
-    const key = mon + ' ' + yr;
-    if (!map[key]) map[key] = {from: dateStr, to: dateStr, sortKey: dateStr, yr, days: []};
-    else           map[key].to = dateStr;
-    map[key].days.push({date: dateStr, label: hebDayLetters(parseInt(hebDay.format(d),10)) + ' ב' + mon}); // יום בודד: "ט״ו בכסלו"
-    if (!yrMap[yr]) yrMap[yr] = {from: dateStr, to: dateStr};
-    else            yrMap[yr].to = dateStr;
+// ── לוח שנה עברי מלא — מיפוי הפוך: (שנה,חודש,יום) עברי → תאריך לועזי ──
+let HEB_CAL = null, HEB_CAL_YEARS = [], HEB_CAL_MONTHS = {};
+function _isoLocal(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function buildHebCalIndex() {
+  if (HEB_CAL) return;
+  HEB_CAL = {};
+  const monFirst = {};
+  const hebMon = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
+  const hebDay = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric'});
+  const hebYr  = new Intl.DateTimeFormat('en-u-ca-hebrew',    {year:'numeric'});
+  const end = new Date('2027-12-31T12:00:00');
+  for (let d = new Date('2022-09-01T12:00:00'); d <= end; d.setDate(d.getDate()+1)) {
+    const iso = _isoLocal(d);
+    const y   = parseInt(hebYr.format(d), 10);
+    const m   = hebMon.format(d);
+    const day = parseInt(hebDay.format(d), 10);
+    if (!HEB_CAL[y])    HEB_CAL[y] = {};
+    if (!HEB_CAL[y][m]) { HEB_CAL[y][m] = {}; monFirst[y+'|'+m] = iso; }
+    HEB_CAL[y][m][day] = iso;
+  }
+  HEB_CAL_YEARS = Object.keys(HEB_CAL).map(Number).sort((a,b)=>a-b);
+  HEB_CAL_MONTHS = {};
+  HEB_CAL_YEARS.forEach(y => {
+    HEB_CAL_MONTHS[y] = Object.keys(HEB_CAL[y])
+      .sort((a,b)=> monFirst[y+'|'+a].localeCompare(monFirst[y+'|'+b]));
   });
-
-  return {months: map, years: yrMap};
 }
 
-function populateHebrewSelects() {
-  const {months, years} = buildHebrewMonthMap();
-  const monthEntries = Object.entries(months).sort((a,b) => b[1].sortKey.localeCompare(a[1].sortKey));
-  const yearEntries  = Object.entries(years).sort((a,b)  => b[1].from.localeCompare(a[1].from));
-
-  ['a','b'].forEach(p => {
-    const sel = document.getElementById('comp-' + p + '-heb');
-    if (!sel) return;
-    let html = `<option value="">🗓️ בחר לפי לוח עברי...</option>`;
-
-    // חגים (מ-HEBREW_PERIODS)
-    HEBREW_PERIODS.filter(g => g.group.includes('חגים')).forEach(grp => {
-      html += `<optgroup label="🕍 ${grp.group}">`;
-      grp.items.forEach(it => html += `<option value="${it.from}|${it.to}">✡️ ${it.label}</option>`);
-      html += `</optgroup>`;
-    });
-
-    // שנות שלמות
-    if (yearEntries.length) {
-      html += `<optgroup label="📆 שנה עברית שלמה">`;
-      yearEntries.forEach(([yr, {from, to}]) =>
-        html += `<option value="${from}|${to}">📆 ${yr}</option>`);
-      html += `</optgroup>`;
+// ממלא את בוררי השנה; חודש/יום נטענים לפי הבחירה
+function populateHebPickers() {
+  buildHebCalIndex();
+  ['a','b'].forEach(p => ['from','to'].forEach(w => {
+    const ys = document.getElementById('hp-'+p+'-'+w+'-y');
+    if (ys && ys.options.length <= 1) {
+      ys.innerHTML = '<option value="">שנה</option>' +
+        HEB_CAL_YEARS.map(y => `<option value="${y}">${numToHebYear(y)}</option>`).join('');
     }
+  }));
+}
 
-    // חודשים — כל חודש כקבוצה: חודש שלם + ימים בודדים
-    monthEntries.forEach(([label, {from, to, days}]) => {
-      html += `<optgroup label="📅 ${label}">`;
-      html += `<option value="${from}|${to}">📅 ${label} — חודש שלם</option>`;
-      (days || []).forEach(dy =>
-        html += `<option value="${dy.date}|${dy.date}">🗓️ ${dy.label}</option>`);
-      html += `</optgroup>`;
-    });
+function hebYearChanged(p, w) {
+  buildHebCalIndex();
+  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
+  const ms = document.getElementById('hp-'+p+'-'+w+'-m');
+  const ds = document.getElementById('hp-'+p+'-'+w+'-d');
+  ds.innerHTML = '<option value="">יום</option>';
+  ms.innerHTML = '<option value="">חודש</option>' +
+    (y ? HEB_CAL_MONTHS[y].map(m => `<option value="${m}">${m}</option>`).join('') : '');
+}
 
-    sel.innerHTML = html;
-  });
+function hebMonthChanged(p, w) {
+  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
+  const m  = document.getElementById('hp-'+p+'-'+w+'-m').value;
+  const ds = document.getElementById('hp-'+p+'-'+w+'-d');
+  ds.innerHTML = '<option value="">יום</option>';
+  if (!y || !m || !HEB_CAL[y] || !HEB_CAL[y][m]) return;
+  const days = Object.keys(HEB_CAL[y][m]).map(Number).sort((a,b)=>a-b);
+  ds.innerHTML += days.map(dd => `<option value="${dd}">${hebDayLetters(dd)}</option>`).join('');
+}
+
+function hebDayChanged(p, w) {
+  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
+  const m  = document.getElementById('hp-'+p+'-'+w+'-m').value;
+  const dd = +document.getElementById('hp-'+p+'-'+w+'-d').value;
+  if (!y || !m || !dd || !HEB_CAL[y] || !HEB_CAL[y][m]) return;
+  const greg = HEB_CAL[y][m][dd];
+  if (!greg) return;
+  document.getElementById('comp-'+p+'-'+w).value = greg;
+  updateHebLabel(p+'-'+w, greg);
+  // נוחות ליום בודד: בחירת "מ-" כש"עד-" ריק → ממלא גם את "עד-" באותו יום
+  if (w === 'from') {
+    const toG = document.getElementById('comp-'+p+'-to');
+    if (toG && !toG.value) {
+      document.getElementById('hp-'+p+'-to-y').value = y; hebYearChanged(p,'to');
+      document.getElementById('hp-'+p+'-to-m').value = m; hebMonthChanged(p,'to');
+      document.getElementById('hp-'+p+'-to-d').value = dd;
+      toG.value = greg; updateHebLabel(p+'-to', greg);
+    }
+  }
 }
 
 // ── לוח עברי — תקופות ──────────────────────────────────────────────────────
@@ -2026,14 +2066,18 @@ function _fmtDate(d) {
   return d.toISOString().slice(0,10);
 }
 
-// תאריך עברי מתאריך גרגוריאני
-const _hebFmt = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric', month:'long', year:'numeric'});
-const _hebFmtShort = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric', month:'long'});
+// תאריך עברי מתאריך גרגוריאני — באותיות עבריות: "כ״ב סיון תשפ״ו"
+const _hebMonF = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
+const _hebDayF = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric'});
+const _hebYrF  = new Intl.DateTimeFormat('en-u-ca-hebrew',    {year:'numeric'});
 function toHebrewDate(dateStr, short) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr + 'T12:00:00');
-    return (short ? _hebFmtShort : _hebFmt).format(d);
+    const d   = new Date(dateStr + 'T12:00:00');
+    const day = hebDayLetters(parseInt(_hebDayF.format(d), 10));
+    const mon = _hebMonF.format(d);
+    if (short) return day + ' ' + mon;
+    return day + ' ' + mon + ' ' + numToHebYear(parseInt(_hebYrF.format(d), 10));
   } catch(e) { return ''; }
 }
 
