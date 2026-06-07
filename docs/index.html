@@ -976,6 +976,19 @@ body.emp-mode .price-col{display:none!important}
     <!-- ── COMPARE PANEL ── -->
     <div id="today-compare-panel" style="display:none">
       <div id="today-synced-label-cmp" style="font-size:11px;color:var(--muted);margin-bottom:14px"></div>
+
+      <!-- כפתורי השוואה מהירה -->
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px">⚡ השוואה מהירה — בחר תקופה א+ב בלחיצה אחת:</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="quickCompare('week')"  style="font-size:12px;padding:5px 12px;background:#eef2ff;color:var(--primary);border-color:#c7d2fe">📅 השבוע vs אשתקד</button>
+          <button class="btn" onclick="quickCompare('month')" style="font-size:12px;padding:5px 12px;background:#eef2ff;color:var(--primary);border-color:#c7d2fe">📅 החודש vs אשתקד</button>
+          <button class="btn" onclick="quickCompare('3m')"    style="font-size:12px;padding:5px 12px;background:#eef2ff;color:var(--primary);border-color:#c7d2fe">📅 3 חודשים vs אשתקד</button>
+          <button class="btn" onclick="quickCompare('year')"  style="font-size:12px;padding:5px 12px;background:#eef2ff;color:var(--primary);border-color:#c7d2fe">📅 השנה vs אשתקד</button>
+          <button class="btn" onclick="quickCompare('ytd')"   style="font-size:12px;padding:5px 12px;background:#eef2ff;color:var(--primary);border-color:#c7d2fe">📅 מתחילת השנה vs אשתקד</button>
+        </div>
+      </div>
+
       <!-- Period pickers -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="section" style="padding:16px">
@@ -1879,7 +1892,6 @@ function buildHebrewMonthMap() {
 
 function populateHebrewSelects() {
   const {months, years} = buildHebrewMonthMap();
-  // מיון: החדש ביותר קודם
   const monthEntries = Object.entries(months).sort((a,b) => b[1].sortKey.localeCompare(a[1].sortKey));
   const yearEntries  = Object.entries(years).sort((a,b)  => b[1].from.localeCompare(a[1].from));
 
@@ -1887,18 +1899,28 @@ function populateHebrewSelects() {
     const sel = document.getElementById('comp-' + p + '-heb');
     if (!sel) return;
     let html = `<option value="">🗓️ בחר לפי לוח עברי...</option>`;
+
+    // חגים (מ-HEBREW_PERIODS)
+    HEBREW_PERIODS.filter(g => g.group.includes('חגים')).forEach(grp => {
+      html += `<optgroup label="🕍 ${grp.group}">`;
+      grp.items.forEach(it => html += `<option value="${it.from}|${it.to}">✡️ ${it.label}</option>`);
+      html += `</optgroup>`;
+    });
+
     // שנות שלמות
     if (yearEntries.length) {
-      html += `<optgroup label="── שנה עברית שלמה ──">`;
+      html += `<optgroup label="📆 שנה עברית שלמה">`;
       yearEntries.forEach(([yr, {from, to}]) =>
         html += `<option value="${from}|${to}">📆 ${yr}</option>`);
       html += `</optgroup>`;
     }
+
     // חודשים
-    html += `<optgroup label="── חודש עברי ──">`;
+    html += `<optgroup label="📅 חודש עברי">`;
     monthEntries.forEach(([label, {from, to}]) =>
       html += `<option value="${from}|${to}">${label}</option>`);
     html += `</optgroup>`;
+
     sel.innerHTML = html;
   });
 }
@@ -1976,11 +1998,61 @@ function setHebrewPeriod(period, val) {
   document.getElementById('comp-' + period + '-to').value   = to;
 }
 
-// אתחול סלקטים כשהדף נטען
-document.addEventListener('DOMContentLoaded', () => {
+function _fmtDate(d) {
+  return d.toISOString().slice(0,10);
+}
+
+function quickCompare(preset) {
+  const now   = new Date();
+  const today = _fmtDate(now);
+  let aFrom, aTo, bFrom, bTo;
+
+  if (preset === 'week') {
+    const dow = now.getDay(); // 0=Sun
+    const startA = new Date(now); startA.setDate(now.getDate() - dow);
+    aFrom = _fmtDate(startA); aTo = today;
+    const startB = new Date(startA); startB.setFullYear(startA.getFullYear()-1);
+    const endB   = new Date(now);    endB.setFullYear(now.getFullYear()-1);
+    bFrom = _fmtDate(startB); bTo = _fmtDate(endB);
+
+  } else if (preset === 'month') {
+    aFrom = today.slice(0,7)+'-01'; aTo = today;
+    const ly = new Date(now); ly.setFullYear(now.getFullYear()-1);
+    bFrom = _fmtDate(ly).slice(0,7)+'-01';
+    const lyEnd = new Date(ly); lyEnd.setDate(now.getDate());
+    bTo = _fmtDate(lyEnd);
+
+  } else if (preset === '3m') {
+    const s = new Date(now); s.setMonth(s.getMonth()-3);
+    aFrom = _fmtDate(s); aTo = today;
+    const sB = new Date(s); sB.setFullYear(s.getFullYear()-1);
+    const eB = new Date(now); eB.setFullYear(now.getFullYear()-1);
+    bFrom = _fmtDate(sB); bTo = _fmtDate(eB);
+
+  } else if (preset === 'year') {
+    aFrom = today.slice(0,4)+'-01-01'; aTo = today;
+    bFrom = (now.getFullYear()-1)+'-01-01';
+    const eB = new Date(now); eB.setFullYear(now.getFullYear()-1);
+    bTo = _fmtDate(eB);
+
+  } else if (preset === 'ytd') {
+    aFrom = today.slice(0,4)+'-01-01'; aTo = today;
+    bFrom = (now.getFullYear()-1)+'-01-01';
+    bTo   = (now.getFullYear()-1)+'-'+today.slice(5);
+  }
+
+  document.getElementById('comp-a-from').value = aFrom;
+  document.getElementById('comp-a-to').value   = aTo;
+  document.getElementById('comp-b-from').value = bFrom;
+  document.getElementById('comp-b-to').value   = bTo;
+  renderComparison();
+}
+
+// אתחול סלקטים — מופעל כשמציגים את פאנל ההשוואה
+function _initHebrewSelects() {
   _populateHebrewSelect('comp-a-heb');
   _populateHebrewSelect('comp-b-heb');
-});
+}
 
 function _aggregatePeriod(fromDate, toDate) {
   const data = TODAY_DATA;
