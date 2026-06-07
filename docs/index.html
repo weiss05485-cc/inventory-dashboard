@@ -1903,12 +1903,84 @@ function populateHebrewSelects() {
   });
 }
 
+// ── לוח עברי — תקופות ──────────────────────────────────────────────────────
+const HEBREW_PERIODS = [
+  { group: 'חגים תשפ"ה (2024-2025)', items: [
+    { label: 'ראש השנה תשפ"ה',    from:'2024-10-03', to:'2024-10-04' },
+    { label: 'עשרת ימי תשובה תשפ"ה', from:'2024-10-03', to:'2024-10-11' },
+    { label: 'יום כיפור תשפ"ה',   from:'2024-10-11', to:'2024-10-12' },
+    { label: 'סוכות תשפ"ה',        from:'2024-10-17', to:'2024-10-23' },
+    { label: 'חנוכה תשפ"ה',        from:'2024-12-26', to:'2025-01-02' },
+    { label: 'פורים תשפ"ה',        from:'2025-03-13', to:'2025-03-14' },
+    { label: 'פסח תשפ"ה',          from:'2025-04-13', to:'2025-04-20' },
+    { label: 'שבועות תשפ"ה',       from:'2025-06-02', to:'2025-06-03' },
+  ]},
+  { group: 'חגים תשפ"ו (2025-2026)', items: [
+    { label: 'ראש השנה תשפ"ו',    from:'2025-09-23', to:'2025-09-24' },
+    { label: 'עשרת ימי תשובה תשפ"ו', from:'2025-09-23', to:'2025-10-01' },
+    { label: 'יום כיפור תשפ"ו',   from:'2025-10-01', to:'2025-10-02' },
+    { label: 'סוכות תשפ"ו',        from:'2025-10-07', to:'2025-10-13' },
+    { label: 'חנוכה תשפ"ו',        from:'2025-12-15', to:'2025-12-22' },
+    { label: 'פורים תשפ"ו',        from:'2026-03-03', to:'2026-03-04' },
+    { label: 'פסח תשפ"ו',          from:'2026-04-01', to:'2026-04-08' },
+    { label: 'שבועות תשפ"ו',       from:'2026-05-21', to:'2026-05-22' },
+  ]},
+  { group: 'חודשים תשפ"ה (2024-2025)', items: [
+    { label: 'תשרי תשפ"ה',  from:'2024-10-03', to:'2024-11-01' },
+    { label: 'חשון תשפ"ה',  from:'2024-11-02', to:'2024-11-30' },
+    { label: 'כסלו תשפ"ה',  from:'2024-12-01', to:'2024-12-30' },
+    { label: 'טבת תשפ"ה',   from:'2024-12-31', to:'2025-01-28' },
+    { label: 'שבט תשפ"ה',   from:'2025-01-29', to:'2025-02-27' },
+    { label: 'אדר תשפ"ה',   from:'2025-02-28', to:'2025-03-29' },
+    { label: 'ניסן תשפ"ה',  from:'2025-03-30', to:'2025-04-27' },
+    { label: 'אייר תשפ"ה',  from:'2025-04-28', to:'2025-05-26' },
+    { label: 'סיוון תשפ"ה', from:'2025-05-27', to:'2025-06-25' },
+    { label: 'תמוז תשפ"ה',  from:'2025-06-26', to:'2025-07-24' },
+    { label: 'אב תשפ"ה',    from:'2025-07-25', to:'2025-08-22' },
+    { label: 'אלול תשפ"ה',  from:'2025-08-23', to:'2025-09-22' },
+  ]},
+  { group: 'חודשים תשפ"ו (2025-2026)', items: [
+    { label: 'תשרי תשפ"ו',   from:'2025-09-23', to:'2025-10-22' },
+    { label: 'חשון תשפ"ו',   from:'2025-10-23', to:'2025-11-20' },
+    { label: 'כסלו תשפ"ו',   from:'2025-11-21', to:'2025-12-20' },
+    { label: 'טבת תשפ"ו',    from:'2025-12-21', to:'2026-01-19' },
+    { label: 'שבט תשפ"ו',    from:'2026-01-20', to:'2026-02-17' },
+    { label: 'אדר א\' תשפ"ו', from:'2026-02-18', to:'2026-03-19' },
+    { label: 'אדר ב\' תשפ"ו', from:'2026-03-20', to:'2026-04-17' },
+    { label: 'ניסן תשפ"ו',   from:'2026-04-18', to:'2026-05-16' },
+    { label: 'אייר תשפ"ו',   from:'2026-05-17', to:'2026-06-14' },
+    { label: 'סיוון תשפ"ו',  from:'2026-06-15', to:'2026-07-13' },
+  ]},
+];
+
+function _populateHebrewSelect(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel || sel.options.length > 1) return;
+  HEBREW_PERIODS.forEach(grp => {
+    const og = document.createElement('optgroup');
+    og.label = grp.group;
+    grp.items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.from + '|' + item.to;
+      opt.textContent = item.label + ' (' + item.from.slice(5).replace('-','/') + '–' + item.to.slice(5).replace('-','/') + ')';
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+}
+
 function setHebrewPeriod(period, val) {
   if (!val) return;
   const [from, to] = val.split('|');
   document.getElementById('comp-' + period + '-from').value = from;
   document.getElementById('comp-' + period + '-to').value   = to;
 }
+
+// אתחול סלקטים כשהדף נטען
+document.addEventListener('DOMContentLoaded', () => {
+  _populateHebrewSelect('comp-a-heb');
+  _populateHebrewSelect('comp-b-heb');
+});
 
 function _aggregatePeriod(fromDate, toDate) {
   const data = TODAY_DATA;
