@@ -1908,6 +1908,7 @@ function hebDayLetters(n) {
 
 // ── לוח שנה עברי מלא — מיפוי הפוך: (שנה,חודש,יום) עברי → תאריך לועזי ──
 let HEB_CAL = null, HEB_CAL_YEARS = [], HEB_CAL_MONTHS = {};
+let _hebSyncing = false;   // נעילה למניעת כתיבה-חוזרת בזמן סנכרון תכנותי של הבוררים
 function _isoLocal(d) {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
@@ -1968,9 +1969,11 @@ function syncHebPickerFromGreg(p, w) {
     if (!HEB_CAL[y] || !HEB_CAL[y][m]) m = HEB_CAL_MONTHS[y][HEB_CAL_MONTHS[y].length-1];
   }
   if (!HEB_CAL[y] || !HEB_CAL[y][m]) return;
+  _hebSyncing = true;   // עדכון תכנותי — אל תכתוב חזרה לתאריך הלועזי
   ys.value = String(y); hebYearChanged(p, w);
   ms.value = m;         hebMonthChanged(p, w);
-  if (day != null && HEB_CAL[y][m][day]) ds.value = String(day);  // יום רק אם יש תאריך אמיתי
+  ds.value = (day != null && HEB_CAL[y][m][day]) ? String(day) : '';  // יום רק אם יש תאריך אמיתי
+  _hebSyncing = false;
 }
 
 // מסנכרן את כל ארבעת הבוררים + מעדכן תוויות עבריות
@@ -1987,17 +1990,39 @@ function populateHebPickers() {
   syncAllHebPickers();
 }
 
-function hebYearChanged(p, w) {
-  buildHebCalIndex();
-  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
-  const ms = document.getElementById('hp-'+p+'-'+w+'-m');
-  const ds = document.getElementById('hp-'+p+'-'+w+'-d');
-  ds.innerHTML = '<option value="">יום</option>';
-  ms.innerHTML = '<option value="">חודש</option>' +
-    (y ? HEB_CAL_MONTHS[y].map(m => `<option value="${m}">${m}</option>`).join('') : '');
+// מחזיר תאריך לועזי מהבוררים. יום חסר → 1 ל"מ-", אחרון בחודש ל"עד-"
+function _hebPickerToGreg(p, w) {
+  const y = +document.getElementById('hp-'+p+'-'+w+'-y').value;
+  const m = document.getElementById('hp-'+p+'-'+w+'-m').value;
+  let dd  = +document.getElementById('hp-'+p+'-'+w+'-d').value;
+  if (!y || !m || !HEB_CAL[y] || !HEB_CAL[y][m]) return null;
+  if (!dd) {
+    const days = Object.keys(HEB_CAL[y][m]).map(Number).sort((a,b)=>a-b);
+    dd = (w === 'to') ? days[days.length-1] : days[0];
+  }
+  return HEB_CAL[y][m][dd] || null;
 }
 
-function hebMonthChanged(p, w) {
+// קובע את התאריך הלועזי לפי מצב הבוררים (אלא אם באמצע סנכרון תכנותי)
+function _commitHebPicker(p, w) {
+  if (_hebSyncing) return;
+  const greg = _hebPickerToGreg(p, w);
+  if (!greg) return;
+  document.getElementById('comp-'+p+'-'+w).value = greg;
+  updateHebLabel(p+'-'+w, greg);
+  // נוחות ליום בודד: בחירת "מ-" כש"עד-" ריק → אותו יום גם ב"עד-"
+  if (w === 'from') {
+    const toG = document.getElementById('comp-'+p+'-to');
+    if (toG && !toG.value) {
+      toG.value = greg;
+      syncHebPickerFromGreg(p, 'to');     // יישר את בורר "עד-" לאותו תאריך
+      updateHebLabel(p+'-to', greg);
+    }
+  }
+}
+
+// טוען מחדש את ימי החודש; שומר את היום הקודם אם עדיין קיים בחודש
+function _reloadHebDays(p, w, prevD) {
   const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
   const m  = document.getElementById('hp-'+p+'-'+w+'-m').value;
   const ds = document.getElementById('hp-'+p+'-'+w+'-d');
@@ -2005,27 +2030,28 @@ function hebMonthChanged(p, w) {
   if (!y || !m || !HEB_CAL[y] || !HEB_CAL[y][m]) return;
   const days = Object.keys(HEB_CAL[y][m]).map(Number).sort((a,b)=>a-b);
   ds.innerHTML += days.map(dd => `<option value="${dd}">${hebDayLetters(dd)}</option>`).join('');
+  if (prevD && HEB_CAL[y][m][+prevD]) ds.value = String(prevD);
+}
+
+function hebYearChanged(p, w) {
+  buildHebCalIndex();
+  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
+  const ms = document.getElementById('hp-'+p+'-'+w+'-m');
+  const prevM = ms.value, prevD = document.getElementById('hp-'+p+'-'+w+'-d').value;
+  ms.innerHTML = '<option value="">חודש</option>' +
+    (y && HEB_CAL[y] ? HEB_CAL_MONTHS[y].map(m => `<option value="${m}">${m}</option>`).join('') : '');
+  if (y && HEB_CAL[y] && HEB_CAL[y][prevM]) ms.value = prevM;  // שמור חודש אם קיים בשנה
+  _reloadHebDays(p, w, prevD);
+  _commitHebPicker(p, w);
+}
+
+function hebMonthChanged(p, w) {
+  _reloadHebDays(p, w, document.getElementById('hp-'+p+'-'+w+'-d').value);
+  _commitHebPicker(p, w);
 }
 
 function hebDayChanged(p, w) {
-  const y  = +document.getElementById('hp-'+p+'-'+w+'-y').value;
-  const m  = document.getElementById('hp-'+p+'-'+w+'-m').value;
-  const dd = +document.getElementById('hp-'+p+'-'+w+'-d').value;
-  if (!y || !m || !dd || !HEB_CAL[y] || !HEB_CAL[y][m]) return;
-  const greg = HEB_CAL[y][m][dd];
-  if (!greg) return;
-  document.getElementById('comp-'+p+'-'+w).value = greg;
-  updateHebLabel(p+'-'+w, greg);
-  // נוחות ליום בודד: בחירת "מ-" כש"עד-" ריק → ממלא גם את "עד-" באותו יום
-  if (w === 'from') {
-    const toG = document.getElementById('comp-'+p+'-to');
-    if (toG && !toG.value) {
-      document.getElementById('hp-'+p+'-to-y').value = y; hebYearChanged(p,'to');
-      document.getElementById('hp-'+p+'-to-m').value = m; hebMonthChanged(p,'to');
-      document.getElementById('hp-'+p+'-to-d').value = dd;
-      toG.value = greg; updateHebLabel(p+'-to', greg);
-    }
-  }
+  _commitHebPicker(p, w);
 }
 
 // ── לוח עברי — תקופות ──────────────────────────────────────────────────────
