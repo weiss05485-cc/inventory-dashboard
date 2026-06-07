@@ -2655,8 +2655,10 @@ function buildShortageItems(store, otherStores) {
     if (!p.modelCode) return;
     const key = item.d + ':' + p.modelCode;
     if (!modelGroups[key]) {
+      // נרמל מחלקה: "חליפות נוער" → "חליפות", "פרחוני נוער" → "פרחוני"
+      const baseDept = MODEL_LEVEL_DEPTS.find(d => item.d === d || item.d.startsWith(d + ' ')) || item.d;
       modelGroups[key] = {
-        _type:'model', dept: item.d, modelCode: p.modelCode,
+        _type:'model', dept: baseDept, modelCode: p.modelCode,
         modelName: p.product || MODEL_TABLE[p.modelCode] || `דגם ${p.modelCode}`,
         storeQty: {}
       };
