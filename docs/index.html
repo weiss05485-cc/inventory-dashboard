@@ -3222,13 +3222,8 @@ function loadSalesData(cb) {
     fetch('historical_sales.json?t=' + Date.now()).then(r => r.json()).catch(() => [])
   ]).then(([arnett, historical]) => {
     // מיזוג: ניאקס ממלא חודשים שחסרים בארנט
-    const arnettMonths = new Set(arnett.map(i => i.ym + '|' + i.st));
-    // הוסף רשומות היסטוריות רק אם הן לא מכוסות על ידי ארנט באותו חודש+סניף
-    const niaxMonths = new Set(historical.map(i => i.ym));
-    const arnettMonthsOnly = new Set(arnett.map(i => i.ym));
-    // שמור רשומות ניאקס לחודשים שלא קיימים בארנט
-    const histFiltered = historical.filter(i => !arnettMonthsOnly.has(i.ym));
-    SALES_DATA = [...arnett, ...histFiltered];
+    // מיזוג מלא: ארנט + ניאקס יחד — תמיד
+    SALES_DATA = [...arnett, ...historical];
     salesLoaded = true;
     document.getElementById('sales-loading').style.display = 'none';
     cb();
