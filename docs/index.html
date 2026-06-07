@@ -1406,14 +1406,33 @@ function renderToday() {
     fetch('today.json?t=' + Date.now()).then(r => { if (!r.ok) throw new Error('404'); return r.json(); }),
     fetch('historical_today.json?t=' + Date.now()).then(r => r.json()).catch(() => ({}))
   ]).then(([data, histToday]) => {
-    // מיזוג ניאקס: הוסף ימים שלא קיימים בארנט
-    const arnettDates = new Set(data.daily.map(d => d.SaleDate));
-    Object.entries(histToday).forEach(([date, dayData]) => {
-      if (!arnettDates.has(date)) {
-        const total = dayData.stores.reduce((s,st) => s + st.TotalSales, 0);
-        data.daily.push({ SaleDate: date, TotalSales: total, Transactions: 0 });
-        data.by_date = data.by_date || {};
-        data.by_date[date] = dayData;
+    // מיזוג ניאקס: תמיד הוסף — אם יש ארנט מאותו יום, מצרף אותם יחד
+    data.by_date = data.by_date || {};
+    const arnettMap = {};
+    data.daily.forEach(d => { arnettMap[d.SaleDate] = d; });
+
+    Object.entries(histToday).forEach(([date, niaxDay]) => {
+      const niaxTotal = niaxDay.stores.reduce((s,st) => s + st.TotalSales, 0);
+      if (arnettMap[date]) {
+        // יש גם ארנט וגם ניאקס — מצרף
+        arnettMap[date].TotalSales += niaxTotal;
+        // הוסף חנויות ניאקס ל-by_date
+        if (data.by_date[date]) {
+          niaxDay.stores.forEach(ns => {
+            const existing = data.by_date[date].stores.find(s => s.StoreName === ns.StoreName);
+            if (existing) existing.TotalSales += ns.TotalSales;
+            else data.by_date[date].stores.push({...ns, _source:'ניאקס'});
+          });
+          niaxDay.payments.forEach(np => {
+            const ep = data.by_date[date].payments.find(p => p.PayMethod === np.PayMethod);
+            if (ep) ep.TotalAmount += np.TotalAmount;
+            else data.by_date[date].payments.push({...np, _source:'ניאקס'});
+          });
+        }
+      } else {
+        // רק ניאקס
+        data.daily.push({ SaleDate: date, TotalSales: niaxTotal, Transactions: 0 });
+        data.by_date[date] = niaxDay;
       }
     });
     data.daily.sort((a,b) => a.SaleDate.localeCompare(b.SaleDate));
