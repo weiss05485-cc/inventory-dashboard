@@ -1944,22 +1944,33 @@ function _fillHebYearSelect(ys) {
   }
 }
 
-// מסנכרן בורר עברי אחד מהתאריך הלועזי הקיים (כדי שהבורר תמיד ישקף את מה שמושווה)
+// מסנכרן בורר עברי אחד מהתאריך הלועזי. אם אין תאריך — ברירת מחדל לשנה+חודש
+// הנוכחיים, כדי שכל התפריטים תמיד מלאים וניתנים לבחירה (היום נקבע רק בבחירה).
 function syncHebPickerFromGreg(p, w) {
   buildHebCalIndex();
   const ys = document.getElementById('hp-'+p+'-'+w+'-y');
   if (!ys) return;
   _fillHebYearSelect(ys);
-  const g = document.getElementById('comp-'+p+'-'+w).value;
-  if (!g) return;                          // אין תאריך → השאר ריק
-  const d   = new Date(g + 'T12:00:00');
-  const y   = parseInt(_hebYrF.format(d), 10);
-  const m   = _hebMonF.format(d);
-  const day = parseInt(_hebDayF.format(d), 10);
+  const ms = document.getElementById('hp-'+p+'-'+w+'-m');
+  const ds = document.getElementById('hp-'+p+'-'+w+'-d');
+  const g  = document.getElementById('comp-'+p+'-'+w).value;
+  let y, m, day = null;
+  if (g) {                                  // יש תאריך → שקף אותו
+    const d = new Date(g + 'T12:00:00');
+    y   = parseInt(_hebYrF.format(d), 10);
+    m   = _hebMonF.format(d);
+    day = parseInt(_hebDayF.format(d), 10);
+  } else {                                  // אין תאריך → ברירת מחדל נוכחית
+    const now = new Date();
+    const cy  = parseInt(_hebYrF.format(now), 10);
+    y = HEB_CAL[cy] ? cy : HEB_CAL_YEARS[HEB_CAL_YEARS.length-1];
+    m = _hebMonF.format(now);
+    if (!HEB_CAL[y] || !HEB_CAL[y][m]) m = HEB_CAL_MONTHS[y][HEB_CAL_MONTHS[y].length-1];
+  }
   if (!HEB_CAL[y] || !HEB_CAL[y][m]) return;
-  ys.value = String(y);                                   hebYearChanged(p, w);
-  document.getElementById('hp-'+p+'-'+w+'-m').value = m;  hebMonthChanged(p, w);
-  document.getElementById('hp-'+p+'-'+w+'-d').value = String(day);
+  ys.value = String(y); hebYearChanged(p, w);
+  ms.value = m;         hebMonthChanged(p, w);
+  if (day != null && HEB_CAL[y][m][day]) ds.value = String(day);  // יום רק אם יש תאריך אמיתי
 }
 
 // מסנכרן את כל ארבעת הבוררים + מעדכן תוויות עבריות
