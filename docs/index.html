@@ -1402,11 +1402,23 @@ function renderToday() {
   document.getElementById('today-loading').style.display = 'block';
   document.getElementById('today-content').style.display = 'none';
   document.getElementById('today-no-file').style.display = 'none';
-  fetch('today.json?t=' + Date.now())
-    .then(r => { if (!r.ok) throw new Error('404'); return r.json(); })
-    .then(data => {
-      TODAY_DATA = data;
-      _todaySelectedDate = data.today; // ברירת מחדל: היום
+  Promise.all([
+    fetch('today.json?t=' + Date.now()).then(r => { if (!r.ok) throw new Error('404'); return r.json(); }),
+    fetch('historical_today.json?t=' + Date.now()).then(r => r.json()).catch(() => ({}))
+  ]).then(([data, histToday]) => {
+    // מיזוג ניאקס: הוסף ימים שלא קיימים בארנט
+    const arnettDates = new Set(data.daily.map(d => d.SaleDate));
+    Object.entries(histToday).forEach(([date, dayData]) => {
+      if (!arnettDates.has(date)) {
+        const total = dayData.stores.reduce((s,st) => s + st.TotalSales, 0);
+        data.daily.push({ SaleDate: date, TotalSales: total, Transactions: 0 });
+        data.by_date = data.by_date || {};
+        data.by_date[date] = dayData;
+      }
+    });
+    data.daily.sort((a,b) => a.SaleDate.localeCompare(b.SaleDate));
+    TODAY_DATA = data;
+    _todaySelectedDate = data.today; // ברירת מחדל: היום
       document.getElementById('today-loading').style.display = 'none';
       document.getElementById('today-content').style.display = 'block';
       // set date range limits on comparison pickers
