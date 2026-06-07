@@ -4626,13 +4626,15 @@ function orderAllShortages() {
 
     const parsed = parseBarcode(bc);
     _pendingOrderItems.push({
-      name:     item.n || item.name || '',
-      bc:       bc,
-      size:     item._type === 'chalk' ? (item.size || '') : (parsed.size || ''),
-      season:   parsed.season || '',
-      year:     parsed.year   || '',
-      stock:    item._myQty  || 0,
-      orderQty: smartQty,
+      name:         item.n || item.name || '',
+      bc:           bc,
+      size:         item._type === 'chalk' ? (item.size || '') : (parsed.size || ''),
+      season:       parsed.season || '',
+      year:         parsed.year   || '',
+      stock:        item._myQty  || 0,
+      fromStoreQty: availInFrom,   // כמה יש במקור
+      fromStore:    fromStore,
+      orderQty:     smartQty,
     });
     added++;
   });
@@ -4721,17 +4723,24 @@ function sendOrder() {
 
   // build items preview
   const preview = document.getElementById('order-form-items-preview');
+  // כותרת עמודת מלאי — לפי המקור
+  const firstFromStore = _pendingOrderItems.length ? (_pendingOrderItems[0].fromStore || '') : '';
+  const stockHeader = firstFromStore ? `יש ב${storeName(firstFromStore)}` : 'מלאי';
+
   function buildPreview() {
     preview.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
       '<thead><tr>' +
       '<th style="padding:6px 10px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:right;border-bottom:1px solid var(--border)">מוצר</th>' +
-      '<th style="padding:6px 6px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border);width:60px">כמות</th>' +
-      '<th style="padding:6px 6px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border);width:30px"></th>' +
+      `<th style="padding:6px 6px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border);width:55px">${stockHeader}</th>` +
+      '<th style="padding:6px 6px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border);width:60px">הזמן</th>' +
+      '<th style="padding:6px 6px;background:#f8f9fc;font-size:10px;font-weight:700;color:var(--muted);text-align:center;border-bottom:1px solid var(--border);width:28px"></th>' +
       '</tr></thead><tbody>' +
       _pendingOrderItems.map((it, idx) => {
         const label = it.name + (it.size ? ' / ' + it.size : '') + (it.season ? ' (' + it.season + ' ' + it.year + ')' : '');
+        const fromQty = it.fromStoreQty != null ? it.fromStoreQty : it.stock;
         return `<tr>
           <td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #f2f4f9">${label}</td>
+          <td style="padding:3px 6px;text-align:center;font-size:12px;font-weight:700;color:#10b981;border-bottom:1px solid #f2f4f9">${fromQty}</td>
           <td style="padding:3px 6px;text-align:center;border-bottom:1px solid #f2f4f9">
             <input type="number" min="1" value="${it.orderQty}"
               onchange="_pendingOrderItems[${idx}].orderQty=Math.max(1,parseInt(this.value)||1)"
