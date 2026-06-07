@@ -593,10 +593,18 @@ body.emp-mode .price-col{display:none!important}
       <div id="shortage-table-wrap" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
           <div id="shortage-count" style="color:var(--muted);font-size:13px"></div>
-          <button id="order-all-shortage-btn" onclick="orderAllShortages()"
-            style="padding:8px 16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:none">
-            📦 הזמן הכל לירושלים
-          </button>
+          <div id="order-all-shortage-wrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;background:#f0f4ff;border-radius:8px;padding:4px 10px">
+              <span style="font-size:12px;color:var(--muted);font-family:'Rubik',sans-serif">מאיפה:</span>
+              <select id="order-all-from-store"
+                style="border:none;background:transparent;font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;outline:none">
+              </select>
+            </div>
+            <button id="order-all-shortage-btn" onclick="orderAllShortages()"
+              style="padding:8px 16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+              📦 הזמן הכל
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table id="shortage-table">
@@ -2739,8 +2747,18 @@ function renderShortageRows(items, store, otherStores) {
 
   document.getElementById('shortage-count').textContent =
     `${filtered.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
-  const orderAllBtn = document.getElementById('order-all-shortage-btn');
-  if (orderAllBtn) orderAllBtn.style.display = store === 'ירושלים' ? 'inline-block' : 'none';
+  const orderAllWrap = document.getElementById('order-all-shortage-wrap');
+  if (orderAllWrap) {
+    orderAllWrap.style.display = 'flex';
+    // בנה dropdown של מקור — כל הסניפים חוץ מהסניף הנבחר
+    const fromSel = document.getElementById('order-all-from-store');
+    if (fromSel) {
+      const prevVal = fromSel.value;
+      fromSel.innerHTML = otherStores.map(s =>
+        `<option value="${s}" ${s===prevVal?'selected':''}>${storeName(s)}</option>`
+      ).join('');
+    }
+  }
 
   const tbody = document.getElementById('shortage-body');
   tbody.innerHTML = filtered.slice(0, 300).map(item => {
@@ -4509,7 +4527,10 @@ function downloadCSV(rows, filename) {
 
 // --- checkbox helpers ---
 function orderAllShortages() {
-  const store = 'ירושלים';
+  const store = selectedShortageStore;
+  if (!store) return;
+  const fromSel = document.getElementById('order-all-from-store');
+  const fromStore = fromSel ? fromSel.value : '';
   const otherStores = storeList.filter(s => s !== store);
   const items = buildShortageItems(store, otherStores);
   let added = 0;
@@ -4518,14 +4539,16 @@ function orderAllShortages() {
     const bc = item._type === 'regular' ? (item.b || '')
              : item._type === 'chalk'   ? (item.base || '')
              : '';
-    if (!bc) return; // model-level — skip (no single barcode)
+    if (!bc) return;
 
-    const avail = otherStores.reduce((sum, s) => {
-      return sum + (item._type === 'regular' ? (item.s[s]||0) : (item.storeQty[s]||0));
-    }, 0);
-    if (avail <= 0) return;
+    // כמות לפי מה שיש ב-fromStore הנבחר
+    const availInFrom = fromStore
+      ? (item._type === 'regular' ? (item.s[fromStore]||0) : (item.storeQty[fromStore]||0))
+      : otherStores.reduce((sum,s)=>sum+(item._type==='regular'?(item.s[s]||0):(item.storeQty[s]||0)),0);
 
-    if (_pendingOrderItems.find(it => it.bc === bc)) return; // כבר בהזמנה
+    if (availInFrom <= 0) return;
+
+    if (_pendingOrderItems.find(it => it.bc === bc)) return;
 
     const parsed = parseBarcode(bc);
     _pendingOrderItems.push({
@@ -4535,7 +4558,7 @@ function orderAllShortages() {
       season:   parsed.season || '',
       year:     parsed.year   || '',
       stock:    item._myQty  || 0,
-      orderQty: 1,
+      orderQty: availInFrom,   // כמות = מה שיש בסניף המקור
     });
     added++;
   });
