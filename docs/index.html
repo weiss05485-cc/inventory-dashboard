@@ -2645,21 +2645,20 @@ function buildShortageItems(store, otherStores) {
   const excludedNames = STORE_EXCLUDED_NAMES[store] || [];
   const isExcluded = name => excludedNames.some(ex => (name||''). includes(ex));
 
-  /* A) חליפות + פרחוני — group by MODEL CODE across all year/season/size.
-        If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a model, skip it. */
-  // Match 'חליפות', 'חליפות נוער', 'פרחוני', 'פרחוני נוער', etc.
+  /* A) חליפות + פרחוני — group by PRODUCT NAME (קבוצה) across all year/season/size.
+        If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a group name, skip it. */
   const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.some(d => item.d === d || item.d.startsWith(d + ' ')) && !isExcluded(item.n));
   const modelGroups = {};
   modelRaw.forEach(item => {
-    const p = parseBarcode(item.b);
-    if (!p.modelCode) return;
-    const key = item.d + ':' + p.modelCode;
+    const groupName = (item.n || '').trim();
+    if (!groupName) return;
+    const baseDept = MODEL_LEVEL_DEPTS.find(d => item.d === d || item.d.startsWith(d + ' ')) || item.d;
+    const key = baseDept + ':' + groupName;
     if (!modelGroups[key]) {
-      // נרמל מחלקה: "חליפות נוער" → "חליפות", "פרחוני נוער" → "פרחוני"
-      const baseDept = MODEL_LEVEL_DEPTS.find(d => item.d === d || item.d.startsWith(d + ' ')) || item.d;
+      const p = parseBarcode(item.b);
       modelGroups[key] = {
-        _type:'model', dept: baseDept, modelCode: p.modelCode,
-        modelName: p.product || MODEL_TABLE[p.modelCode] || `דגם ${p.modelCode}`,
+        _type:'model', dept: baseDept, modelCode: p.modelCode || '',
+        modelName: groupName,
         storeQty: {}
       };
       storeList.forEach(s => { modelGroups[key].storeQty[s] = 0; });
@@ -2670,14 +2669,7 @@ function buildShortageItems(store, otherStores) {
     const myQty = g.storeQty[store] || 0;
     const otherAvail = otherStores.reduce((sum,s) => sum+(g.storeQty[s]||0), 0);
     if (myQty < MODEL_SHORTAGE_THRESHOLD && otherAvail > 0) {
-      // שמור שמות מלאים של כל הפריטים בקבוצה לחיפוש
-      const fullNames = [...new Set(
-        modelRaw.filter(it => {
-          const p = parseBarcode(it.b);
-          return it.d === g.dept && p.modelCode === g.modelCode;
-        }).map(it => it.n)
-      )].join(' ');
-      items.push({...g, _modelCode:g.modelCode, _fullNames: fullNames,
+      items.push({...g, _modelCode: g.modelCode, _fullNames: g.modelName,
         _myQty: myQty, _otherAvail: otherAvail});
     }
   });
