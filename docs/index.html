@@ -591,7 +591,13 @@ body.emp-mode .price-col{display:none!important}
 
       <!-- Regular shortage table -->
       <div id="shortage-table-wrap" style="display:none">
-        <div id="shortage-count" style="color:var(--muted);font-size:13px;margin-bottom:8px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <div id="shortage-count" style="color:var(--muted);font-size:13px"></div>
+          <button id="order-all-shortage-btn" onclick="orderAllShortages()"
+            style="padding:8px 16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:none">
+            📦 הזמן הכל לירושלים
+          </button>
+        </div>
         <div class="table-wrap">
           <table id="shortage-table">
             <thead><tr>
@@ -2733,6 +2739,8 @@ function renderShortageRows(items, store, otherStores) {
 
   document.getElementById('shortage-count').textContent =
     `${filtered.length.toLocaleString('he-IL')} פריטים חסרים בסניף ${storeName(store)}`;
+  const orderAllBtn = document.getElementById('order-all-shortage-btn');
+  if (orderAllBtn) orderAllBtn.style.display = store === 'ירושלים' ? 'inline-block' : 'none';
 
   const tbody = document.getElementById('shortage-body');
   tbody.innerHTML = filtered.slice(0, 300).map(item => {
@@ -4500,6 +4508,69 @@ function downloadCSV(rows, filename) {
 /* ========== ORDER SYSTEM ========== */
 
 // --- checkbox helpers ---
+function orderAllShortages() {
+  const store = 'ירושלים';
+  const otherStores = storeList.filter(s => s !== store);
+  const items = buildShortageItems(store, otherStores);
+  let added = 0;
+
+  items.forEach(item => {
+    const bc = item._type === 'regular' ? (item.b || '')
+             : item._type === 'chalk'   ? (item.base || '')
+             : '';
+    if (!bc) return; // model-level — skip (no single barcode)
+
+    const avail = otherStores.reduce((sum, s) => {
+      return sum + (item._type === 'regular' ? (item.s[s]||0) : (item.storeQty[s]||0));
+    }, 0);
+    if (avail <= 0) return;
+
+    if (_pendingOrderItems.find(it => it.bc === bc)) return; // כבר בהזמנה
+
+    const parsed = parseBarcode(bc);
+    _pendingOrderItems.push({
+      name:     item.n || item.name || '',
+      bc:       bc,
+      size:     item._type === 'chalk' ? (item.size || '') : (parsed.size || ''),
+      season:   parsed.season || '',
+      year:     parsed.year   || '',
+      stock:    item._myQty  || 0,
+      orderQty: 1,
+    });
+    added++;
+  });
+
+  updateOrderBtn();
+
+  // סמן checkboxes בטבלה
+  document.querySelectorAll('#shortage-body .order-check').forEach(cb => {
+    const bc = cb.dataset.bc;
+    if (bc && _pendingOrderItems.find(it => it.bc === bc)) {
+      cb.checked = true;
+      const qtyInput = cb.nextElementSibling;
+      if (qtyInput) qtyInput.classList.add('show');
+    }
+  });
+
+  if (added > 0) {
+    showToast(`✅ נוספו ${added} פריטים להזמנה`);
+  }
+}
+
+function showToast(msg) {
+  let t = document.getElementById('_toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_toast';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 22px;border-radius:12px;font-family:Rubik,sans-serif;font-size:14px;font-weight:600;z-index:9999;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
 function toggleQty(cb) {
   const qtyInput = cb.nextElementSibling;
   if (qtyInput) qtyInput.classList.toggle('show', cb.checked);
