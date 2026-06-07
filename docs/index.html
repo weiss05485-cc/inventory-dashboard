@@ -1002,9 +1002,11 @@ body.emp-mode .price-col{display:none!important}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
-            <input type="date" id="comp-a-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-a-from" oninput="updateHebLabel('a-from',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <span id="heb-a-from" style="font-size:11px;color:var(--primary);font-weight:600;white-space:nowrap"></span>
             <label style="font-size:12px;color:var(--muted)">עד-</label>
-            <input type="date" id="comp-a-to" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-a-to" oninput="updateHebLabel('a-to',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <span id="heb-a-to" style="font-size:11px;color:var(--primary);font-weight:600;white-space:nowrap"></span>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn" onclick="compPreset('a','week')" style="font-size:11px;padding:3px 10px">שבוע אחרון</button>
@@ -1023,9 +1025,11 @@ body.emp-mode .price-col{display:none!important}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">מ-</label>
-            <input type="date" id="comp-b-from" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-b-from" oninput="updateHebLabel('b-from',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <span id="heb-b-from" style="font-size:11px;color:#7c3aed;font-weight:600;white-space:nowrap"></span>
             <label style="font-size:12px;color:var(--muted)">עד-</label>
-            <input type="date" id="comp-b-to" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <input type="date" id="comp-b-to" oninput="updateHebLabel('b-to',this.value)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <span id="heb-b-to" style="font-size:11px;color:#7c3aed;font-weight:600;white-space:nowrap"></span>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn" onclick="compPreset('b','week')" style="font-size:11px;padding:3px 10px">שבוע אחרון</button>
@@ -1623,7 +1627,10 @@ function _renderTodayContent() {
   const selDt = new Date(selDate + 'T12:00:00');
   const isToday = selDate === data.today;
   const dateStr = selDt.toLocaleDateString('he-IL') + (isToday ? ' (היום)' : '');
-  document.getElementById('today-date-label').textContent = 'יום ' + days[selDt.getDay()] + ' — ' + dateStr;
+  const hebDate = toHebrewDate(selDate, false);
+  document.getElementById('today-date-label').innerHTML =
+    'יום ' + days[selDt.getDay()] + ' — ' + dateStr +
+    (hebDate ? `<span style="font-size:13px;color:var(--muted);margin-right:8px;font-weight:500"> | ${hebDate}</span>` : '');
   document.getElementById('today-synced-label').textContent = 'עודכן: ' + data.synced;
 
   // נתוני התאריך הנבחר
@@ -1869,9 +1876,20 @@ function numToHebYear(y) {
   return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
 }
 
+// ממיר יום בחודש (1-30) לאותיות עבריות: 15 → ט״ו, 27 → כ״ז
+function hebDayLetters(n) {
+  if (n === 15) return 'ט״ו';
+  if (n === 16) return 'ט״ז';
+  const ones = ['','א','ב','ג','ד','ה','ו','ז','ח','ט'];
+  const tens = ['','י','כ','ל'];
+  const s = tens[Math.floor(n/10)] + ones[n%10];
+  return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
+}
+
 function buildHebrewMonthMap() {
   if (!TODAY_DATA || !TODAY_DATA.by_date) return {};
   const hebMon   = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {month:'long'});
+  const hebDay   = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric'}); // יום עברי באותיות (ט״ו)
   const hebYrNum = new Intl.DateTimeFormat('en-u-ca-hebrew',    {year:'numeric'}); // מחזיר 5786
   const map = {};
   const yrMap = {};
@@ -1881,8 +1899,9 @@ function buildHebrewMonthMap() {
     const mon = hebMon.format(d);
     const yr  = numToHebYear(parseInt(hebYrNum.format(d), 10)); // תשפ״ו
     const key = mon + ' ' + yr;
-    if (!map[key]) map[key] = {from: dateStr, to: dateStr, sortKey: dateStr, yr};
+    if (!map[key]) map[key] = {from: dateStr, to: dateStr, sortKey: dateStr, yr, days: []};
     else           map[key].to = dateStr;
+    map[key].days.push({date: dateStr, label: hebDayLetters(parseInt(hebDay.format(d),10)) + ' ב' + mon}); // יום בודד: "ט״ו בכסלו"
     if (!yrMap[yr]) yrMap[yr] = {from: dateStr, to: dateStr};
     else            yrMap[yr].to = dateStr;
   });
@@ -1915,11 +1934,14 @@ function populateHebrewSelects() {
       html += `</optgroup>`;
     }
 
-    // חודשים
-    html += `<optgroup label="📅 חודש עברי">`;
-    monthEntries.forEach(([label, {from, to}]) =>
-      html += `<option value="${from}|${to}">${label}</option>`);
-    html += `</optgroup>`;
+    // חודשים — כל חודש כקבוצה: חודש שלם + ימים בודדים
+    monthEntries.forEach(([label, {from, to, days}]) => {
+      html += `<optgroup label="📅 ${label}">`;
+      html += `<option value="${from}|${to}">📅 ${label} — חודש שלם</option>`;
+      (days || []).forEach(dy =>
+        html += `<option value="${dy.date}|${dy.date}">🗓️ ${dy.label}</option>`);
+      html += `</optgroup>`;
+    });
 
     sel.innerHTML = html;
   });
@@ -1996,10 +2018,28 @@ function setHebrewPeriod(period, val) {
   const [from, to] = val.split('|');
   document.getElementById('comp-' + period + '-from').value = from;
   document.getElementById('comp-' + period + '-to').value   = to;
+  updateHebLabel(period + '-from', from);
+  updateHebLabel(period + '-to',   to);
 }
 
 function _fmtDate(d) {
   return d.toISOString().slice(0,10);
+}
+
+// תאריך עברי מתאריך גרגוריאני
+const _hebFmt = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric', month:'long', year:'numeric'});
+const _hebFmtShort = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric', month:'long'});
+function toHebrewDate(dateStr, short) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T12:00:00');
+    return (short ? _hebFmtShort : _hebFmt).format(d);
+  } catch(e) { return ''; }
+}
+
+function updateHebLabel(id, val) {
+  const el = document.getElementById('heb-' + id);
+  if (el) el.textContent = toHebrewDate(val, true);
 }
 
 function quickCompare(preset) {
