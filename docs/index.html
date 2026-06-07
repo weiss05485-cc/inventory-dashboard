@@ -593,17 +593,21 @@ body.emp-mode .price-col{display:none!important}
       <div id="shortage-table-wrap" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
           <div id="shortage-count" style="color:var(--muted);font-size:13px"></div>
-          <div id="order-all-shortage-wrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:6px;background:#f0f4ff;border-radius:8px;padding:4px 10px">
-              <span style="font-size:12px;color:var(--muted);font-family:'Rubik',sans-serif">מאיפה:</span>
-              <select id="order-all-from-store"
-                style="border:none;background:transparent;font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;outline:none">
-              </select>
+          <div id="order-all-shortage-wrap" style="display:none;flex-direction:column;gap:8px;width:100%;margin-top:4px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:6px;background:#f0f4ff;border-radius:8px;padding:4px 10px">
+                <span style="font-size:12px;color:var(--muted);font-family:'Rubik',sans-serif">מאיפה:</span>
+                <select id="order-all-from-store"
+                  style="border:none;background:transparent;font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;outline:none">
+                </select>
+              </div>
+              <button id="order-all-shortage-btn" onclick="orderAllShortages()"
+                style="padding:8px 16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+                📦 הזמן הכל
+              </button>
             </div>
-            <button id="order-all-shortage-btn" onclick="orderAllShortages()"
-              style="padding:8px 16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-              📦 הזמן הכל
-            </button>
+            <div style="font-size:11px;color:var(--muted);font-family:'Rubik',sans-serif;font-weight:700">בחר מחלקות להזמנה:</div>
+            <div id="order-all-dept-filter" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           </div>
         </div>
         <div style="margin-bottom:10px;position:relative">
@@ -1321,6 +1325,7 @@ let lowSortCol = null, lowSortDir = 1;
 let selectedShortageStore = null;
 let selectedShortageModel = null;   // model code filter on shortage page
 let allShortageItems = [];          // computed shortage list (for model re-filter)
+let orderAllDepts = new Set();      // מחלקות נבחרות ל"הזמן הכל"
 let allCompareItems  = [];          // computed comparison list
 let selectedCmpDept  = null;        // dept filter for comparison mode
 let shortageMode = 'shortage';      // 'shortage' | 'compare'
@@ -2607,6 +2612,7 @@ function selectShortageStore(store) {
   selectedShortageStore = store;
   selectedShortageModel = null;
   selectedCmpDept = null;
+  orderAllDepts = new Set();
   const srch = document.getElementById('shortage-search');
   if (srch) srch.value = '';
   buildShortageStoreSelector();
@@ -2763,7 +2769,7 @@ function renderShortageRows(items, store, otherStores) {
   const orderAllWrap = document.getElementById('order-all-shortage-wrap');
   if (orderAllWrap) {
     orderAllWrap.style.display = 'flex';
-    // בנה dropdown של מקור — כל הסניפים חוץ מהסניף הנבחר
+    // בנה dropdown מקור
     const fromSel = document.getElementById('order-all-from-store');
     if (fromSel) {
       const prevVal = fromSel.value;
@@ -2771,6 +2777,8 @@ function renderShortageRows(items, store, otherStores) {
         `<option value="${s}" ${s===prevVal?'selected':''}>${storeName(s)}</option>`
       ).join('');
     }
+    // בנה פילטר מחלקות — ממה שנמצא בחוסרים
+    buildOrderAllDeptFilter();
   }
 
   const tbody = document.getElementById('shortage-body');
@@ -4539,6 +4547,31 @@ function downloadCSV(rows, filename) {
 /* ========== ORDER SYSTEM ========== */
 
 // --- checkbox helpers ---
+function buildOrderAllDeptFilter() {
+  const wrap = document.getElementById('order-all-dept-filter');
+  if (!wrap) return;
+  // אסוף מחלקות ייחודיות מהחוסרים
+  const depts = [...new Set(allShortageItems.map(i => i.dept || i.d || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  if (!depts.length) { wrap.innerHTML=''; return; }
+  // אם זו הפעם הראשונה — בחר הכל
+  if (orderAllDepts.size === 0) depts.forEach(d => orderAllDepts.add(d));
+  wrap.innerHTML = depts.map(d => {
+    const active = orderAllDepts.has(d);
+    return `<button onclick="toggleOrderAllDept('${d}')"
+      style="padding:4px 10px;border-radius:20px;border:1.5px solid ${active?'var(--primary)':'var(--border)'};
+             background:${active?'var(--primary)':'#fff'};color:${active?'#fff':'var(--muted)'};
+             font-family:'Rubik',sans-serif;font-size:12px;font-weight:600;cursor:pointer">
+      ${d}
+    </button>`;
+  }).join('');
+}
+
+function toggleOrderAllDept(dept) {
+  if (orderAllDepts.has(dept)) orderAllDepts.delete(dept);
+  else orderAllDepts.add(dept);
+  buildOrderAllDeptFilter();
+}
+
 function renderShortageFiltered() {
   const q = (document.getElementById('shortage-search')?.value || '').trim().toLowerCase();
   const store = selectedShortageStore;
@@ -4577,6 +4610,10 @@ function orderAllShortages() {
       : otherStores.reduce((sum,s)=>sum+(item._type==='regular'?(item.s[s]||0):(item.storeQty[s]||0)),0);
 
     if (availInFrom <= 0) return;
+
+    // סנן לפי מחלקות שנבחרו
+    const itemDept = item.dept || item.d || '';
+    if (orderAllDepts.size > 0 && !orderAllDepts.has(itemDept)) return;
 
     if (_pendingOrderItems.find(it => it.bc === bc)) return;
 
