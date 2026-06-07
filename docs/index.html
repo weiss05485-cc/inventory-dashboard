@@ -1934,14 +1934,26 @@ function buildHebCalIndex() {
   });
 }
 
-// ממלא את בוררי השנה; חודש/יום נטענים לפי הבחירה
+// ממלא את בוררי השנה ובוחר כברירת מחדל את השנה הנוכחית, כדי שהחודשים זמינים מיד
 function populateHebPickers() {
   buildHebCalIndex();
+  // השנה העברית הנוכחית (אם בטווח) — אחרת האחרונה
+  const now = new Date();
+  const curHebYr = parseInt(_hebYrF.format(now), 10);
+  const defYr = HEB_CAL_YEARS.includes(curHebYr) ? curHebYr : HEB_CAL_YEARS[HEB_CAL_YEARS.length-1];
+  const curHebMon = _hebMonF.format(now);
   ['a','b'].forEach(p => ['from','to'].forEach(w => {
     const ys = document.getElementById('hp-'+p+'-'+w+'-y');
     if (ys && ys.options.length <= 1) {
       ys.innerHTML = '<option value="">שנה</option>' +
         HEB_CAL_YEARS.map(y => `<option value="${y}">${numToHebYear(y)}</option>`).join('');
+      ys.value = String(defYr);   // ברירת מחדל: השנה הנוכחית
+      hebYearChanged(p, w);        // טען מיד את חודשי השנה
+      const ms = document.getElementById('hp-'+p+'-'+w+'-m');
+      if (ms && HEB_CAL[defYr] && HEB_CAL[defYr][curHebMon]) {
+        ms.value = curHebMon;      // ברירת מחדל: החודש הנוכחי
+        hebMonthChanged(p, w);     // טען מיד את ימי החודש (התאריך ייקבע רק בבחירת יום)
+      }
     }
   }));
 }
