@@ -606,6 +606,10 @@ body.emp-mode .price-col{display:none!important}
             </button>
           </div>
         </div>
+        <div style="margin-bottom:10px;position:relative">
+          <input id="shortage-search" type="search" placeholder="🔍 חפש שם מוצר..." oninput="renderShortageFiltered()"
+            style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:'Rubik',sans-serif;font-size:13px;box-sizing:border-box;direction:rtl">
+        </div>
         <div class="table-wrap">
           <table id="shortage-table">
             <thead><tr>
@@ -2603,6 +2607,8 @@ function selectShortageStore(store) {
   selectedShortageStore = store;
   selectedShortageModel = null;
   selectedCmpDept = null;
+  const srch = document.getElementById('shortage-search');
+  if (srch) srch.value = '';
   buildShortageStoreSelector();
   renderShortageTable();
 }
@@ -2656,7 +2662,14 @@ function buildShortageItems(store, otherStores) {
     const myQty = g.storeQty[store] || 0;
     const otherAvail = otherStores.reduce((sum,s) => sum+(g.storeQty[s]||0), 0);
     if (myQty < MODEL_SHORTAGE_THRESHOLD && otherAvail > 0) {
-      items.push({...g, _modelCode:g.modelCode,
+      // שמור שמות מלאים של כל הפריטים בקבוצה לחיפוש
+      const fullNames = [...new Set(
+        modelRaw.filter(it => {
+          const p = parseBarcode(it.b);
+          return it.d === g.dept && p.modelCode === g.modelCode;
+        }).map(it => it.n)
+      )].join(' ');
+      items.push({...g, _modelCode:g.modelCode, _fullNames: fullNames,
         _myQty: myQty, _otherAvail: otherAvail});
     }
   });
@@ -4526,6 +4539,23 @@ function downloadCSV(rows, filename) {
 /* ========== ORDER SYSTEM ========== */
 
 // --- checkbox helpers ---
+function renderShortageFiltered() {
+  const q = (document.getElementById('shortage-search')?.value || '').trim().toLowerCase();
+  const store = selectedShortageStore;
+  if (!store) return;
+  const otherStores = storeList.filter(s => s !== store);
+  const filtered = q
+    ? allShortageItems.filter(item => {
+        const searchText = [
+          item.modelName, item.name, item.n, item._fullNames,
+          item.modelCode, item.base, item.b
+        ].filter(Boolean).join(' ').toLowerCase();
+        return q.split(/\s+/).every(t => searchText.includes(t));
+      })
+    : allShortageItems;
+  renderShortageRows(filtered, store, otherStores);
+}
+
 function orderAllShortages() {
   const store = selectedShortageStore;
   if (!store) return;
