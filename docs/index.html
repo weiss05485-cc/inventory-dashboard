@@ -255,11 +255,11 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 #login-box{background:#fff;border-radius:24px;padding:44px 40px;width:340px;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.35)}
 #login-logo{font-size:22px;font-weight:800;color:var(--primary);margin-bottom:4px}
 #login-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
-#login-pass{width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:12px;font-size:16px;text-align:center;letter-spacing:4px;margin-bottom:14px;outline:none;direction:ltr;font-family:'Rubik',sans-serif;transition:border-color .2s,box-shadow .2s}
-#login-pass:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
-#login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Rubik',sans-serif;transition:opacity .2s,transform .2s}
-#login-btn:active{opacity:.9;transform:scale(.99)}
-#login-error{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+#login-pass,#gate-pass{width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:12px;font-size:16px;text-align:center;letter-spacing:4px;margin-bottom:14px;outline:none;direction:ltr;font-family:'Rubik',sans-serif;transition:border-color .2s,box-shadow .2s}
+#login-pass:focus,#gate-pass:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+#login-btn,#gate-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Rubik',sans-serif;transition:opacity .2s,transform .2s}
+#login-btn:active,#gate-btn:active{opacity:.9;transform:scale(.99)}
+#login-error,#gate-error{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
 #role-label{font-size:11px;opacity:.9;color:#fff;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:20px}
 #logout-btn{display:none;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:11px;cursor:pointer}
 #logout-btn:hover{background:rgba(255,255,255,.25)}
@@ -393,16 +393,29 @@ body.emp-mode .price-col{display:none!important}
 <div id="login-overlay">
   <div id="login-box">
     <div id="login-logo">חסידים סנטר</div>
-    <div id="login-sub">דשבורד מלאי — הכנס פרטי ארנט</div>
-    <input type="text" id="login-user" placeholder="שם משתמש" autocomplete="username"
-      onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"
-      style="width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:12px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;direction:ltr;font-family:'Rubik',sans-serif;transition:border-color .2s,box-shadow .2s"
-      onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(79,70,229,.15)'"
-      onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-    <input type="password" id="login-pass" placeholder="סיסמה" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')doLogin()">
-    <button id="login-btn" onclick="doLogin()">כניסה</button>
-    <div id="login-error"></div>
+
+    <!-- שלב 1: סיסמת כניסה למערכת (משותפת) -->
+    <div id="gate-phase">
+      <div id="login-sub">🔒 הזן סיסמת כניסה למערכת</div>
+      <input type="password" id="gate-pass" placeholder="סיסמת מערכת" autocomplete="off"
+        onkeydown="if(event.key==='Enter')submitGate()">
+      <button id="gate-btn" onclick="submitGate()">המשך</button>
+      <div id="gate-error"></div>
+    </div>
+
+    <!-- שלב 2: התחברות עובד (כמו פעם) -->
+    <div id="user-phase" style="display:none">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:28px">הכנס פרטי ארנט שלך</div>
+      <input type="text" id="login-user" placeholder="שם משתמש" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"
+        style="width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:12px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;direction:ltr;font-family:'Rubik',sans-serif;transition:border-color .2s,box-shadow .2s"
+        onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(79,70,229,.15)'"
+        onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+      <input type="password" id="login-pass" placeholder="סיסמה" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+      <button id="login-btn" onclick="doLogin()">כניסה</button>
+      <div id="login-error"></div>
+    </div>
   </div>
 </div>
 
@@ -2388,18 +2401,67 @@ async function startApp(role, userInfo) {
   showPage(role === 'emp' ? 'search' : 'overview');
 }
 
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// מציג את שלב 2 (התחברות עובד)
+function showUserPhase() {
+  document.getElementById('gate-phase').style.display = 'none';
+  document.getElementById('user-phase').style.display = 'block';
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
 function checkAuth() {
   const role = localStorage.getItem('cc_role');
   if (role && _encPassword) {
+    // גם השער נפתח וגם העובד מחובר — כניסה ישירה
     document.getElementById('login-overlay').style.display = 'none';
     const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
     startApp(role, userInfo);
+    return;
+  }
+  document.getElementById('login-overlay').style.display = 'flex';
+  if (_encPassword) {
+    // השער כבר נפתח בסשן הזה — דלג ישר להתחברות העובד
+    showUserPhase();
   } else {
-    document.getElementById('login-overlay').style.display = 'flex';
-    setTimeout(() => document.getElementById('login-user').focus(), 100);
+    document.getElementById('gate-phase').style.display = 'block';
+    document.getElementById('user-phase').style.display = 'none';
+    setTimeout(() => document.getElementById('gate-pass').focus(), 100);
   }
 }
 
+// ── שלב 1: סיסמת כניסה למערכת (משותפת) — מפענחת את המערכת ──
+async function submitGate() {
+  const pInput = document.getElementById('gate-pass').value.trim();
+  const errEl  = document.getElementById('gate-error');
+  const btn    = document.getElementById('gate-btn');
+  if (!pInput) { errEl.textContent = 'הזן סיסמת מערכת'; return; }
+
+  btn.textContent = '...'; btn.disabled = true;
+  let users;
+  try {
+    const r = await fetch('users.json.enc?t=' + Date.now());
+    const env = await r.json();
+    users = JSON.parse(await _decryptEnvelope(env, pInput));   // יזרוק אם סיסמת המערכת שגויה
+  } catch(e) {
+    btn.textContent = 'המשך'; btn.disabled = false;
+    errEl.textContent = 'סיסמת כניסה שגויה';
+    document.getElementById('gate-pass').value = '';
+    document.getElementById('gate-pass').focus();
+    return;
+  }
+
+  _encPassword = pInput;          // משמש לפענוח כל הנתונים
+  _usersCache  = users;
+  sessionStorage.setItem('cc_pass', pInput);
+  btn.textContent = 'המשך'; btn.disabled = false;
+  showUserPhase();
+}
+
+// ── שלב 2: התחברות עובד עם שם משתמש + סיסמה אישית (כמו פעם) ──
 async function doLogin() {
   const uInput = document.getElementById('login-user').value.trim();
   const pInput = document.getElementById('login-pass').value.trim();
@@ -2408,38 +2470,20 @@ async function doLogin() {
 
   if (!uInput || !pInput) { errEl.textContent = 'הזן שם משתמש וסיסמה'; return; }
 
-  btn.textContent = '...';
-  btn.disabled = true;
+  btn.textContent = '...'; btn.disabled = true;
 
-  // אימות הסיסמה ע"י ניסיון פענוח קובץ המשתמשים המוצפן
-  let users;
-  try {
-    const r = await fetch('users.json.enc?t=' + Date.now());
-    const env = await r.json();
-    users = JSON.parse(await _decryptEnvelope(env, pInput));  // יזרוק אם הסיסמה שגויה
-  } catch(e) {
-    btn.textContent = 'כניסה';
-    btn.disabled = false;
-    errEl.textContent = 'סיסמה שגויה';
+  const users = _usersCache || await loadUsers();   // כבר פוענח בשלב השער
+  const hash  = await sha256hex(pInput);
+  const user  = users.find(u => (u.user === uInput || u.no === uInput) && u.hash === hash);
+
+  btn.textContent = 'כניסה'; btn.disabled = false;
+
+  if (!user) {
+    errEl.textContent = 'שם משתמש או סיסמה שגויים';
     document.getElementById('login-pass').value = '';
     document.getElementById('login-pass').focus();
     return;
   }
-
-  // התאמת שם משתמש לתפקיד/סניף (הסיסמה כבר אומתה ע"י הפענוח)
-  const user = users.find(u => u.user === uInput || u.no === uInput);
-
-  btn.textContent = 'כניסה';
-  btn.disabled = false;
-
-  if (!user) {
-    errEl.textContent = 'שם המשתמש לא נמצא';
-    return;
-  }
-
-  _encPassword = pInput;
-  _usersCache  = users;
-  sessionStorage.setItem('cc_pass', pInput);
 
   const userInfo = { no: user.no, display: user.display, store: user.store };
   localStorage.setItem('cc_role', user.role);
