@@ -1328,8 +1328,8 @@ function triggerSync() {
   btn.disabled = true;
   // רענן את כל הנתונים מ-GitHub Pages (cache bust)
   Promise.all([
-    fetch('data.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch('today.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)
+    loadEnc('data.json').catch(() => null),
+    loadEnc('today.json').catch(() => null)
   ]).then(([data, today]) => {
     if (data)  { DATA = data; renderOverview(); }
     if (today) { TODAY_DATA = today; _renderTodayContent(); }
@@ -1369,43 +1369,13 @@ let selectedDrillDept = null;
 const MODEL_SHORTAGE_THRESHOLD = 5; // חליפות/פרחוני: store needs < this many of a model to be flagged
 
 /* ========== LOAD ========== */
-fetch('data.json?t=' + Date.now())
-  .then(r => r.json())
-  .then(data => {
-    DATA = data;
-    storeList = DATA.store_summary.map(s => s.StoreName);
-    document.getElementById('last-updated').textContent = 'עודכן: ' + data.last_updated;
-    // Status strip: show stale warning if data > 3 hours old
-    (function() {
-      const lu = data.last_updated || '';
-      const strip = document.getElementById('status-strip');
-      const dots  = strip ? strip.querySelectorAll('.strip-dot') : [];
-      const upd   = document.querySelectorAll('.strip-upd');
-      upd.forEach(el => el.textContent = 'עדכון אחרון: ' + lu);
-      // Parse dd/mm/yyyy hh:mm
-      const pm = lu.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
-      if (pm && strip) {
-        const updated = new Date(+pm[3], +pm[2]-1, +pm[1], +pm[4], +pm[5]);
-        const ageHours = (Date.now() - updated.getTime()) / 3600000;
-        if (ageHours > 3) {
-          dots.forEach(d => { d.style.background = '#fb923c'; d.style.animationDuration = '1s'; });
-          if (strip) strip.style.setProperty('color', '#fde68a');
-          upd.forEach(el => el.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu);
-        }
-      }
-    })();
-    document.getElementById('loading').style.display = 'none';
-    checkAuth();
-  })
-  .catch(e => {
-    document.getElementById('loading').innerHTML = '❌ שגיאה בטעינת הנתונים: ' + e.message;
-  });
+// הנתונים מוצפנים — הטעינה הראשית (data.json) קורית בתוך startApp, רק אחרי
+// התחברות מוצלחת. האתחול (checkAuth) נקרא בסוף הסקריפט.
 
 function loadSearchData(cb) {
   if (searchLoaded) { cb(); return; }
   document.getElementById('search-loading').style.display = 'block';
-  fetch('search.json?t=' + Date.now())
-    .then(r => r.json())
+  loadEnc('search.json')
     .then(items => {
       SEARCH_DATA = items
         .filter(item => item.d !== 'כללי' && !String(item.n||'').includes('כללי'))
@@ -1438,8 +1408,8 @@ function renderToday() {
   document.getElementById('today-content').style.display = 'none';
   document.getElementById('today-no-file').style.display = 'none';
   Promise.all([
-    fetch('today.json?t=' + Date.now()).then(r => { if (!r.ok) throw new Error('404'); return r.json(); }),
-    fetch('historical_today.json?t=' + Date.now()).then(r => r.json()).catch(() => ({}))
+    loadEnc('today.json'),
+    loadEnc('historical_today.json').catch(() => ({}))
   ]).then(([data, histToday]) => {
     // מיזוג ניאקס: תמיד הוסף — אם יש ארנט מאותו יום, מצרף אותם יחד
     data.by_date = data.by_date || {};
@@ -2340,33 +2310,93 @@ function renderComparison() {
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
 const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today','orders','planner'];
 
-// ── Users from Arnet (users.json) ──
+// ── הצפנה/פענוח נתונים (AES-GCM + PBKDF2, תואם encrypt_data.py) ──
+let _encPassword = sessionStorage.getItem('cc_pass') || null;
+const _encKeyCache = {};   // salt(b64) -> CryptoKey
+
+function _b64ToBytes(b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+async function _deriveKey(password, saltB64) {
+  const ck = password + '|' + saltB64;   // המפתח תלוי גם בסיסמה וגם ב-salt
+  if (_encKeyCache[ck]) return _encKeyCache[ck];
+  const baseKey = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:_b64ToBytes(saltB64), iterations:200000, hash:'SHA-256' },
+    baseKey, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  _encKeyCache[ck] = key;
+  return key;
+}
+async function _decryptEnvelope(env, password) {
+  const key = await _deriveKey(password, env.salt);
+  const pt = await crypto.subtle.decrypt(
+    { name:'AES-GCM', iv:_b64ToBytes(env.iv) }, key, _b64ToBytes(env.ct));
+  return new TextDecoder().decode(pt);
+}
+// טוען קובץ נתונים מוצפן ומחזיר אובייקט מפוענח (זורק אם אין סיסמה/הפענוח נכשל)
+async function loadEnc(name) {
+  const r = await fetch(name + '.enc?t=' + Date.now());
+  if (!r.ok) throw new Error('missing ' + name);
+  const env = await r.json();
+  if (!_encPassword) throw new Error('no password');
+  return JSON.parse(await _decryptEnvelope(env, _encPassword));
+}
+
+// ── Users (users.json מוצפן) ──
 let _usersCache = null;
 async function loadUsers() {
   if (_usersCache) return _usersCache;
-  try {
-    const r = await fetch('users.json?v=' + Date.now());
-    _usersCache = await r.json();
-  } catch(e) { _usersCache = []; }
+  try { _usersCache = await loadEnc('users.json'); }
+  catch(e) { _usersCache = []; }
   return _usersCache;
 }
 
-async function sha256hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+// טעינת הנתונים הראשיים + הצגת הדשבורד — נקרא רק אחרי התחברות מוצלחת
+async function startApp(role, userInfo) {
+  try {
+    const data = await loadEnc('data.json');
+    DATA = data;
+    storeList = DATA.store_summary.map(s => s.StoreName);
+    document.getElementById('last-updated').textContent = 'עודכן: ' + data.last_updated;
+    (function() {
+      const lu = data.last_updated || '';
+      const strip = document.getElementById('status-strip');
+      const dots  = strip ? strip.querySelectorAll('.strip-dot') : [];
+      const upd   = document.querySelectorAll('.strip-upd');
+      upd.forEach(el => el.textContent = 'עדכון אחרון: ' + lu);
+      const pm = lu.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+      if (pm && strip) {
+        const updated = new Date(+pm[3], +pm[2]-1, +pm[1], +pm[4], +pm[5]);
+        const ageHours = (Date.now() - updated.getTime()) / 3600000;
+        if (ageHours > 3) {
+          dots.forEach(d => { d.style.background = '#fb923c'; d.style.animationDuration = '1s'; });
+          if (strip) strip.style.setProperty('color', '#fde68a');
+          upd.forEach(el => el.textContent = '⚠️ נתונים לא עדכניים · עדכון אחרון: ' + lu);
+        }
+      }
+    })();
+    document.getElementById('loading').style.display = 'none';
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '❌ שגיאה בטעינת הנתונים: ' + e.message;
+    return;
+  }
+  applyRole(role, userInfo);
+  showPage(role === 'emp' ? 'search' : 'overview');
 }
 
 function checkAuth() {
   const role = localStorage.getItem('cc_role');
-  if (!role) {
-    document.getElementById('login-overlay').style.display = 'flex';
-    loadUsers(); // preload in background
-    setTimeout(() => document.getElementById('login-user').focus(), 100);
-  } else {
+  if (role && _encPassword) {
     document.getElementById('login-overlay').style.display = 'none';
     const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
-    applyRole(role, userInfo);
-    showPage(role === 'emp' ? 'search' : 'overview');
+    startApp(role, userInfo);
+  } else {
+    document.getElementById('login-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('login-user').focus(), 100);
   }
 }
 
@@ -2381,30 +2411,41 @@ async function doLogin() {
   btn.textContent = '...';
   btn.disabled = true;
 
-  const users = await loadUsers();
-  const hash  = await sha256hex(pInput);
-
-  // match by UserName or UserNo
-  const user = users.find(u =>
-    (u.user === uInput || u.no === uInput) && u.hash === hash
-  );
-
-  btn.textContent = 'כניסה';
-  btn.disabled = false;
-
-  if (!user) {
-    errEl.textContent = 'שם משתמש או סיסמה שגויים';
+  // אימות הסיסמה ע"י ניסיון פענוח קובץ המשתמשים המוצפן
+  let users;
+  try {
+    const r = await fetch('users.json.enc?t=' + Date.now());
+    const env = await r.json();
+    users = JSON.parse(await _decryptEnvelope(env, pInput));  // יזרוק אם הסיסמה שגויה
+  } catch(e) {
+    btn.textContent = 'כניסה';
+    btn.disabled = false;
+    errEl.textContent = 'סיסמה שגויה';
     document.getElementById('login-pass').value = '';
     document.getElementById('login-pass').focus();
     return;
   }
 
+  // התאמת שם משתמש לתפקיד/סניף (הסיסמה כבר אומתה ע"י הפענוח)
+  const user = users.find(u => u.user === uInput || u.no === uInput);
+
+  btn.textContent = 'כניסה';
+  btn.disabled = false;
+
+  if (!user) {
+    errEl.textContent = 'שם המשתמש לא נמצא';
+    return;
+  }
+
+  _encPassword = pInput;
+  _usersCache  = users;
+  sessionStorage.setItem('cc_pass', pInput);
+
   const userInfo = { no: user.no, display: user.display, store: user.store };
   localStorage.setItem('cc_role', user.role);
   localStorage.setItem('cc_user', JSON.stringify(userInfo));
   document.getElementById('login-overlay').style.display = 'none';
-  applyRole(user.role, userInfo);
-  showPage(user.role === 'emp' ? 'search' : 'overview');
+  startApp(user.role, userInfo);
 }
 
 function applyRole(role, userInfo) {
@@ -2431,6 +2472,8 @@ function applyRole(role, userInfo) {
 function doLogout() {
   localStorage.removeItem('cc_role');
   localStorage.removeItem('cc_user');
+  sessionStorage.removeItem('cc_pass');
+  _encPassword = null;
   location.reload();
 }
 
@@ -3514,8 +3557,8 @@ function loadSalesData(cb) {
   if (salesLoaded) { cb(); return; }
   document.getElementById('sales-loading').style.display = 'block';
   Promise.all([
-    fetch('sales.json?t=' + Date.now()).then(r => r.json()).catch(() => []),
-    fetch('historical_sales.json?t=' + Date.now()).then(r => r.json()).catch(() => [])
+    loadEnc('sales.json').catch(() => []),
+    loadEnc('historical_sales.json').catch(() => [])
   ]).then(([arnett, historical]) => {
     // מיזוג: ניאקס ממלא חודשים שחסרים בארנט
     // מיזוג מלא: ארנט + ניאקס יחד — תמיד
@@ -4600,8 +4643,7 @@ let activeReportShorot = 'all';
 function loadReportsData(cb) {
   if (reportLoaded) { cb(); return; }
   document.getElementById('report-loading').style.display = 'block';
-  fetch('reports.json?t=' + Date.now())
-    .then(r => r.json())
+  loadEnc('reports.json')
     .then(items => {
       REPORT_DATA = items.filter(i => i.q > 0);
       reportLoaded = true;
@@ -5391,6 +5433,9 @@ function clearAllOrders() {
   setOrders([]);
   renderOrdersPage();
 }
+
+// ── אתחול: בודק התחברות וטוען (אחרי שכל ההגדרות מוכנות) ──
+checkAuth();
 </script>
 </body>
 </html>

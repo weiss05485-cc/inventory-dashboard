@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install pymssql
+        run: pip install pymssql cryptography
 
       - name: Run sync
         env:
@@ -38,11 +38,16 @@ jobs:
           python sync.py
           python sync_today.py
 
+      - name: Encrypt data files
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: python encrypt_data.py
+
       - name: Commit and push
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
-          git add docs/today.json docs/data.json docs/search.json docs/reports.json docs/users.json docs/sales.json
+          git add docs/*.enc
           git diff --staged --quiet && echo "אין שינויים — מדלג" && exit 0
           git commit -m "Auto-sync $(date +'%d/%m/%Y %H:%M')"
           # push עמיד להתנגשויות: בקונפליקט מעדיפים את הנתונים הטריים (-X theirs), עם ניסיון חוזר על מירוץ בין ריצות

@@ -11,3 +11,13 @@ setup_sync_task.ps1
 explore_*.py
 check_*.py
 *_output.txt
+
+# קבצי נתונים בטקסט גלוי — לעולם לא נשמרים במאגר! רק הגרסה המוצפנת (.enc) נשמרת.
+docs/data.json
+docs/today.json
+docs/search.json
+docs/reports.json
+docs/sales.json
+docs/users.json
+docs/historical_today.json
+docs/historical_sales.json

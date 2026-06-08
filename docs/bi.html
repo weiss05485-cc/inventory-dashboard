@@ -376,10 +376,9 @@ function chkPin(){
     setTimeout(()=>document.getElementById('pin-screen').style.animation='',400);
   }
 }
-if(sessionStorage.getItem('bi_auth')==='1'){
-  document.getElementById('pin-screen').style.display='none';
-  document.getElementById('main').style.display='block';
-}
+// אין PIN קוסמטי — ההגנה האמיתית היא הצפנת הנתונים (init מבקש את סיסמת הפענוח)
+document.getElementById('pin-screen').style.display='none';
+document.getElementById('main').style.display='block';
 
 // ════════════════════════════════════════════
 // CONSTANTS
@@ -490,28 +489,43 @@ function destroyChart(name){if(charts[name]){charts[name].destroy();delete chart
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
+// ── פענוח נתונים מוצפנים (AES-GCM + PBKDF2, תואם encrypt_data.py) ──
+const _encKeyCache={};
+function _b64ToBytes(b64){const bin=atob(b64);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a;}
+async function _deriveKey(password,saltB64){const ck=password+'|'+saltB64;if(_encKeyCache[ck])return _encKeyCache[ck];const bk=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);const k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:_b64ToBytes(saltB64),iterations:200000,hash:'SHA-256'},bk,{name:'AES-GCM',length:256},false,['decrypt']);_encKeyCache[ck]=k;return k;}
+async function _decryptEnvelope(env,password){const key=await _deriveKey(password,env.salt);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:_b64ToBytes(env.iv)},key,_b64ToBytes(env.ct));return new TextDecoder().decode(pt);}
+async function loadEnc(name,password){const r=await fetch(name+'.enc?t='+Date.now());if(!r.ok)throw new Error('missing '+name);const env=await r.json();return JSON.parse(await _decryptEnvelope(env,password));}
+
 async function init(){
-  try{
-    const [todayRes, invRes]=await Promise.all([
-      fetch('today.json?t='+Date.now()),
-      fetch('data.json?t='+Date.now())
-    ]);
-    const todayJson=await todayRes.json();
-    const invJson=await invRes.json();
+  // סיסמה: מ-sessionStorage (אם נכנס דרך הדשבורד) או בקשה ידנית
+  let pw = sessionStorage.getItem('cc_pass');
+  while(true){
+    if(!pw){
+      pw = prompt('הזן סיסמה לצפייה בנתוני BI:');
+      if(pw===null){ document.getElementById('hdr-synced').textContent='נדרשת סיסמה'; return; }
+    }
+    try{
+      const [todayJson, invJson] = await Promise.all([
+        loadEnc('today.json', pw),
+        loadEnc('data.json',  pw)
+      ]);
+      sessionStorage.setItem('cc_pass', pw);
 
-    dailyData=todayJson.daily||[];
-    byDate=todayJson.by_date||{};
-    rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
-    rivhitInv=todayJson.rivhit_invoices||[];
-    supMonthly=todayJson.sup_monthly||[];
-    supDocs=todayJson.sup_docs||[];
-    invData=invJson;
-    document.getElementById('hdr-synced').textContent='עודכן: '+(todayJson.synced||'');
+      dailyData=todayJson.daily||[];
+      byDate=todayJson.by_date||{};
+      rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
+      rivhitInv=todayJson.rivhit_invoices||[];
+      supMonthly=todayJson.sup_monthly||[];
+      supDocs=todayJson.sup_docs||[];
+      invData=invJson;
+      document.getElementById('hdr-synced').textContent='עודכן: '+(todayJson.synced||'');
 
-    renderAll();
-  } catch(e){
-    document.getElementById('hdr-synced').textContent='שגיאה';
-    console.error(e);
+      renderAll();
+      return;
+    } catch(e){
+      pw = null;          // סיסמה שגויה / פענוח נכשל — בקש שוב
+      alert('סיסמה שגויה');
+    }
   }
 }
 
@@ -1375,7 +1389,7 @@ function exportCSV(){
 // ════════════════════════════════════════════
 // BOOT
 // ════════════════════════════════════════════
-if(sessionStorage.getItem('bi_auth')==='1') init();
+init();
 </script>
 </body>
 </html>
