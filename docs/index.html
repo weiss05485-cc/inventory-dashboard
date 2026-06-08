@@ -3329,6 +3329,7 @@ function renderComparisonTable(items, store, otherStores) {
   const allCols = [store, ...otherStores];
 
   thead.innerHTML = `<tr>
+    <th style="min-width:64px">הזמנה</th>
     <th style="text-align:right;min-width:90px">קבוצה</th>
     <th style="text-align:right;min-width:160px">שם מוצר</th>
     <th style="min-width:60px">מידה</th>
@@ -3363,7 +3364,26 @@ function renderComparisonTable(items, store, otherStores) {
       return `<td class="${cls}">${q}</td>`;
     }).join('');
 
+    // מקור מומלץ להזמנה: הסניף האחר עם הכי הרבה מלאי
+    let bestStore = '', bestQty = 0;
+    allCols.forEach(s => {
+      if (s === store) return;
+      const q = item.storeQty[s] || 0;
+      if (q > bestQty) { bestQty = q; bestStore = s; }
+    });
+    const cmpBc   = 'cmp:' + (item.g||'') + '|' + (item.n||'') + '|' + (item.sz||'');
+    const defQty  = Math.max(1, Math.min(item._diff || 1, bestQty || 1));
+    const pend    = _pendingOrderItems.find(it => it.bc === cmpBc);
+    const orderCell = bestQty > 0 ? `
+      <input type="checkbox" class="order-check" onchange="toggleQty(this)" ${pend?'checked':''}
+        data-bc="${cmpBc}" data-name="${item.n||''}" data-stock="${myQty}"
+        data-size="${item.sz||''}" data-season="" data-year=""
+        data-fromstore="${bestStore}" data-fromqty="${bestQty}">
+      <input type="number" class="order-qty ${pend?'show':''}" min="1" value="${pend?pend.orderQty:defQty}" oninput="updatePendingQty(this)">
+      <div style="font-size:9px;color:var(--muted);margin-top:2px">מ${storeName(bestStore)}</div>` : '';
+
     return `<tr>
+      <td style="white-space:nowrap">${orderCell}</td>
       <td><span class="tag blue" style="font-size:11px;white-space:nowrap">${item.g}</span></td>
       <td style="font-size:12px;text-align:right">${item.n}</td>
       <td><span class="chip size" style="font-size:11px">מ' ${item.sz}</span></td>
@@ -3373,7 +3393,7 @@ function renderComparisonTable(items, store, otherStores) {
   }).join('');
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="${3+allCols.length+1}" style="text-align:center;color:var(--muted);padding:30px">
+    tbody.innerHTML = `<tr><td colspan="${3+allCols.length+2}" style="text-align:center;color:var(--muted);padding:30px">
       ✅ אין פערים משמעותיים בסניף זה
     </td></tr>`;
   }
@@ -5083,7 +5103,7 @@ function toggleQty(cb) {
   const bc = cb.dataset.bc || '';
   if (cb.checked) {
     if (!_pendingOrderItems.find(it => it.bc === bc)) {
-      _pendingOrderItems.push({
+      const it = {
         name:     cb.dataset.name   || '',
         bc:       bc,
         size:     cb.dataset.size   || '',
@@ -5091,7 +5111,13 @@ function toggleQty(cb) {
         year:     cb.dataset.year   || '',
         stock:    parseInt(cb.dataset.stock) || 0,
         orderQty: parseInt((qtyInput||{}).value) || 1,
-      });
+      };
+      // מקור אופציונלי (תצוגת השוואה בין סניפים)
+      if (cb.dataset.fromstore) {
+        it.fromStore    = cb.dataset.fromstore;
+        it.fromStoreQty = parseInt(cb.dataset.fromqty) || 0;
+      }
+      _pendingOrderItems.push(it);
     }
   } else {
     _pendingOrderItems = _pendingOrderItems.filter(it => it.bc !== bc);
