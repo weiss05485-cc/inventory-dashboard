@@ -43,6 +43,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
           git add docs/today.json docs/data.json docs/search.json docs/reports.json docs/users.json docs/sales.json
-          git diff --staged --quiet || git commit -m "Auto-sync $(date +'%d/%m/%Y %H:%M')"
-          git pull --rebase origin master
-          git push
+          git diff --staged --quiet && echo "אין שינויים — מדלג" && exit 0
+          git commit -m "Auto-sync $(date +'%d/%m/%Y %H:%M')"
+          # push עמיד להתנגשויות: בקונפליקט מעדיפים את הנתונים הטריים (-X theirs), עם ניסיון חוזר על מירוץ בין ריצות
+          for i in 1 2 3 4 5; do
+            git pull --rebase -X theirs origin master && git push && exit 0
+            echo "ניסיון $i נכשל (קונפליקט/מירוץ) — מנסה שוב..."
+            sleep 3
+          done
+          echo "ה-push נכשל אחרי 5 ניסיונות" && exit 1
