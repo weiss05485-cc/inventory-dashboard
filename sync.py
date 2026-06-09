@@ -533,6 +533,7 @@ def main():
     try:
         promo_raw = q(cur, """
             SELECT p.ID AS PromoID, p.Description AS PromoName, st.StoreName,
+                   CONVERT(VARCHAR(7), t.SaleTime, 120) AS YearMonth,
                    SUM(ted.QtyInSale)  AS Qty,
                    SUM(ted.DiscAmount) AS Total
             FROM TEntryDiscount ted
@@ -543,22 +544,24 @@ def main():
             JOIN Promotion p             ON p.ID = td.PromotionID
             WHERE te.Status > -1 AND t.Status > -1
               AND ISNULL(ted.Status,0) > -1 AND ISNULL(td.Status,0) > -1
-              AND t.SaleTime >= DATEADD(MONTH, -13, GETDATE())
-            GROUP BY p.ID, p.Description, st.StoreName
+              AND t.SaleTime >= DATEADD(MONTH, -25, GETDATE())
+            GROUP BY p.ID, p.Description, st.StoreName, CONVERT(VARCHAR(7), t.SaleTime, 120)
         """)
         for r in promo_raw:
             pid = r['PromoID']
             if pid not in promos_by_id:
-                promos_by_id[pid] = {'id': pid, 'name': (r['PromoName'] or '').strip(),
-                                     'stores': {}, 'totalQty': 0.0, 'totalAmount': 0.0}
-            qv = float(r['Qty'] or 0); tv = float(r['Total'] or 0)
-            promos_by_id[pid]['stores'][r['StoreName']] = {'qty': qv, 'total': tv}
-            promos_by_id[pid]['totalQty']    += qv
-            promos_by_id[pid]['totalAmount'] += tv
-        print(f"Promos: {len(promos_by_id)} promotions")
+                promos_by_id[pid] = {'id': pid, 'name': (r['PromoName'] or '').strip(), 'monthly': {}}
+            ym = r['YearMonth']; store = r['StoreName']
+            mo = promos_by_id[pid]['monthly'].setdefault(ym, {})
+            mo[store] = {'qty': float(r['Qty'] or 0), 'total': float(r['Total'] or 0)}
+        # מיון לפי סך ההנחות (על פני כל החודשים)
+        def _ptot(pm):
+            return sum(s['total'] for m in pm['monthly'].values() for s in m.values())
+        promos_list = sorted(promos_by_id.values(), key=lambda p: -_ptot(p))
+        print(f"Promos: {len(promos_list)} promotions")
     except Exception as e:
         print("PROMO_QUERY_ERROR:", repr(e))
-    promos_list = sorted(promos_by_id.values(), key=lambda x: -x['totalAmount'])
+        promos_list = []
 
     conn.close()
 
