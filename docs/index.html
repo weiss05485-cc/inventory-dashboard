@@ -2599,8 +2599,8 @@ function renderPromosRows() {
 
   document.getElementById('promos-thead').innerHTML = `<tr>
     <th style="text-align:right;padding:8px;border-bottom:2px solid var(--border);min-width:200px">מבצע</th>
-    ${_promoStores.map(s=>`<th style="text-align:center;padding:8px;border-bottom:2px solid var(--border)">${s}<br><span style="font-size:10px;color:var(--muted);font-weight:400">כמות · ₪</span></th>`).join('')}
-    <th style="text-align:center;padding:8px;border-bottom:2px solid var(--border);color:var(--primary)">סה״כ<br><span style="font-size:10px;font-weight:400">כמות · ₪</span></th>
+    ${_promoStores.map(s=>`<th style="text-align:center;padding:8px;border-bottom:2px solid var(--border)">${s}<br><span style="font-size:10px;color:var(--muted);font-weight:400">כמות · הנחה ₪</span></th>`).join('')}
+    <th style="text-align:center;padding:8px;border-bottom:2px solid var(--border);color:var(--primary)">סה״כ<br><span style="font-size:10px;font-weight:400">כמות · הנחה ₪</span></th>
   </tr>`;
 
   const grandQty = promos.reduce((s,p)=>s+(p.totalQty||0),0);
@@ -2608,7 +2608,7 @@ function renderPromosRows() {
   document.getElementById('promos-summary').innerHTML =
     `<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:8px 14px;font-size:13px"><b>${promos.length}</b> מבצעים</div>
      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 14px;font-size:13px">סה״כ מימושים: <b>${Math.round(grandQty).toLocaleString('he-IL')}</b></div>
-     <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:8px 14px;font-size:13px">סה״כ סכום: <b>${_promoMoney(grandAmt)}</b></div>`;
+     <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:8px 14px;font-size:13px">סה״כ הנחות: <b>${_promoMoney(grandAmt)}</b></div>`;
 
   const body = document.getElementById('promos-body');
   if (!promos.length) {

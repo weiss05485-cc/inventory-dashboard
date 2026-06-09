@@ -533,10 +533,8 @@ def main():
     try:
         promo_raw = q(cur, """
             SELECT p.ID AS PromoID, p.Description AS PromoName, st.StoreName,
-                   SUM(ted.QtyInSale)                 AS Qty,
-                   SUM(ted.PriceADisc * ted.QtyInSale) AS TotPADxQ,
-                   SUM(ted.PriceADisc)                AS TotPAD,
-                   SUM(ted.DiscAmount)                AS TotDisc
+                   SUM(ted.QtyInSale)  AS Qty,
+                   SUM(ted.DiscAmount) AS Total
             FROM TEntryDiscount ted
             JOIN TransactionDiscounts td ON td.TDiscountID = ted.TDiscountID
             JOIN TransactionEntry te     ON te.TransactionEntryID = ted.TransactionEntryID
@@ -553,11 +551,8 @@ def main():
             if pid not in promos_by_id:
                 promos_by_id[pid] = {'id': pid, 'name': (r['PromoName'] or '').strip(),
                                      'stores': {}, 'totalQty': 0.0, 'totalAmount': 0.0}
-            qv = float(r['Qty'] or 0)
-            cand = {'padxq': float(r['TotPADxQ'] or 0), 'pad': float(r['TotPAD'] or 0),
-                    'disc': float(r['TotDisc'] or 0)}
-            tv = cand['padxq']   # ניחוש ראשי — נאמת ונבחר
-            promos_by_id[pid]['stores'][r['StoreName']] = {'qty': qv, 'total': tv, '_cand': cand}
+            qv = float(r['Qty'] or 0); tv = float(r['Total'] or 0)
+            promos_by_id[pid]['stores'][r['StoreName']] = {'qty': qv, 'total': tv}
             promos_by_id[pid]['totalQty']    += qv
             promos_by_id[pid]['totalAmount'] += tv
         print(f"Promos: {len(promos_by_id)} promotions")
