@@ -528,6 +528,38 @@ def main():
             'store':   store,
         })
 
+    # ── מימושי מבצעים (קריאה בלבד) — לכל מבצע: כמות + ₪ לפי סניף ──
+    promos_by_id = {}
+    try:
+        promo_raw = q(cur, """
+            SELECT p.ID AS PromoID, p.Description AS PromoName, st.StoreName,
+                   SUM(ted.QtyInSale)     AS Qty,
+                   SUM(te.Qty * te.Price) AS Total
+            FROM TEntryDiscount ted
+            JOIN TransactionDiscounts td ON td.TDiscountID = ted.TDiscountID
+            JOIN TransactionEntry te     ON te.TransactionEntryID = ted.TransactionEntryID
+            JOIN [Transaction] t         ON t.TransactionID = te.TransactionID
+            JOIN Store st                ON st.StoreID = t.StoreID AND st.Status = 1 AND st.Code <> '3'
+            JOIN Promotion p             ON p.ID = td.PromotionID
+            WHERE te.Status > -1 AND t.Status > -1
+              AND ISNULL(ted.Status,0) > -1 AND ISNULL(td.Status,0) > -1
+              AND t.SaleTime >= DATEADD(MONTH, -13, GETDATE())
+            GROUP BY p.ID, p.Description, st.StoreName
+        """)
+        for r in promo_raw:
+            pid = r['PromoID']
+            if pid not in promos_by_id:
+                promos_by_id[pid] = {'id': pid, 'name': (r['PromoName'] or '').strip(),
+                                     'stores': {}, 'totalQty': 0.0, 'totalAmount': 0.0}
+            qv = float(r['Qty'] or 0); tv = float(r['Total'] or 0)
+            promos_by_id[pid]['stores'][r['StoreName']] = {'qty': qv, 'total': tv}
+            promos_by_id[pid]['totalQty']    += qv
+            promos_by_id[pid]['totalAmount'] += tv
+        print(f"Promos: {len(promos_by_id)} promotions")
+    except Exception as e:
+        print("PROMO_QUERY_ERROR:", repr(e))
+    promos_list = sorted(promos_by_id.values(), key=lambda x: -x['totalAmount'])
+
     conn.close()
 
     os.makedirs("docs", exist_ok=True)
@@ -552,6 +584,10 @@ def main():
 
     with open("docs/users.json", "w", encoding="utf-8") as f:
         json.dump(users_list, f, ensure_ascii=False)
+
+    with open("docs/promos.json", "w", encoding="utf-8") as f:
+        json.dump({"synced": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                   "promos": promos_list}, f, ensure_ascii=False, default=serial)
 
     print(f"Done. {len(search_items)} search | {len(report_items)} report | {len(sales_items)} sales rows")
     for s in store_summary:

@@ -21,7 +21,7 @@ ITERATIONS = 200_000
 # כל הקבצים הרגישים שהדשבורד טוען
 TARGETS = [
     "data.json", "today.json", "search.json", "reports.json",
-    "sales.json", "users.json",
+    "sales.json", "users.json", "promos.json",
     "historical_today.json", "historical_sales.json",
 ]
 
