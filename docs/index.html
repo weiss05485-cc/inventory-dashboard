@@ -5572,10 +5572,13 @@ async function _encryptObj(obj, password) {
   return { v:1, enc:1, salt:b64(salt), iv:b64(iv), ct:b64(ct) };
 }
 
+// טוקן אימות לערוץ ההזמנות = SHA-256 של סיסמת המערכת (לא נמצא בקוד הציבורי)
+async function _gasToken() { return _encPassword ? await sha256hex(_encPassword) : ''; }
+
 async function syncOrdersFromGitHub(force) {
   showOrderSyncStatus('מסנכרן...');
   try {
-    const r = await fetch(GAS_URL + '?v=' + Date.now());
+    const r = await fetch(GAS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(await _gasToken()));
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const raw = await r.json();
     let data = raw;
@@ -5607,7 +5610,7 @@ async function saveOrdersToGitHub(orders) {
   try {
     // הצפן את ההזמנות לפני שליחה (אם יש סיסמת מערכת) — כך הערוץ מחזיר ג'יבריש לזרים
     const payload = _encPassword ? await _encryptObj(orders, _encPassword) : orders;
-    const resp = await fetch(GAS_URL, {
+    const resp = await fetch(GAS_URL + '?token=' + encodeURIComponent(await _gasToken()), {
       method: 'POST',
       body: JSON.stringify(payload)
     });
