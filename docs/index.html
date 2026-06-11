@@ -99,7 +99,10 @@ nav::-webkit-scrollbar{display:none}
 .badge.green{background:#d1fae5;color:#065f46}
 
 /* TABLE */
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow:auto;max-height:calc(100vh - 200px)}
+.table-wrap thead th{position:sticky;top:0;z-index:4;background:var(--card);box-shadow:inset 0 -1px 0 var(--border)}
+@media(max-width:600px){.table-wrap{max-height:calc(100vh - 150px)}}
+@media print{.table-wrap{max-height:none;overflow:visible}.table-wrap thead th{position:static}}
 table{width:100%;border-collapse:collapse}
 th{padding:10px 14px;background:#f8f9fc;font-size:11px;font-weight:700;color:var(--muted);text-align:right;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;text-transform:uppercase;letter-spacing:.3px}
 th:hover{background:#eef0f8;color:var(--primary)}
@@ -1162,7 +1165,7 @@ body.emp-mode .price-col{display:none!important}
     </div>
     <div id="promos-synced" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
     <div id="promos-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
-    <div style="overflow-x:auto">
+    <div class="table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead id="promos-thead"></thead>
         <tbody id="promos-body"></tbody>
@@ -5394,7 +5397,7 @@ async function confirmOrder() {
     fromStore: fromStore,
     toStore:   toStore,
     notes:     notes,
-    items:     _pendingOrderItems,
+    items:     sortOrderItems(_pendingOrderItems),
     status:    'ממתין'
   };
 
@@ -5419,12 +5422,29 @@ async function confirmOrder() {
 }
 
 /* ========== PDF GENERATION ========== */
+// ערך מיון מידה: מספר ראשי ואז אות (X12, M16, L46 → 12,16,46)
+function _sizeSortVal(sz) {
+  sz = String(sz || '').toUpperCase();
+  const numM = sz.match(/\d+/);
+  return { num: numM ? parseInt(numM[0], 10) : 0, letter: sz.replace(/\d+/g, '') };
+}
+// מיון פריטי הזמנה: קודם לפי מוצר (שם), ואז לפי מידה בתוך כל מוצר
+function sortOrderItems(items) {
+  return items.slice().sort(function(a, b) {
+    const n = (a.name || '').localeCompare(b.name || '', 'he');
+    if (n !== 0) return n;
+    const sa = _sizeSortVal(a.size), sb = _sizeSortVal(b.size);
+    if (sa.num !== sb.num) return sa.num - sb.num;
+    return sa.letter.localeCompare(sb.letter);
+  });
+}
+
 function generateOrderPDF(order) {
   var totalQty = order.items.reduce(function(s, it) { return s + it.orderQty; }, 0);
   var dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/ /g,'_');
   var filename = 'הזמנה_' + order.fromStore + '_' + dateTag + '.pdf';
 
-  var sortedItems = order.items.slice().sort(function(a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
+  var sortedItems = sortOrderItems(order.items);
   var itemRows = sortedItems.map(function(it, i) {
     return '<tr style="background:' + (i%2===1?'#f8f9fc':'#fff') + '">' +
       '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (i+1) + '</td>' +
