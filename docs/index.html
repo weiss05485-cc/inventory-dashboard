@@ -5692,7 +5692,7 @@ function renderOrdersPage() {
           <span style="color:var(--muted);font-size:11px"> פריטים / ${totalQty} יח'</span>
         </td>
         <td><span class="order-status ${sl.cls}">${sl.icon} ${o.status}</span></td>
-        <td style="display:${isMgmt?'':'none'};white-space:nowrap">${statusBtns(o.id, o.status)}</td>
+        <td style="display:${isMgmt?'':'none'};white-space:nowrap">${statusBtns(o.id, o.status)}${isMgmt ? `<button class="status-btn" style="color:#ef4444;border-color:#fecaca" onclick="deleteOrder(${o.id})">🗑️ מחק</button>` : ''}</td>
       </tr>
       <tr id="expand-${o.id}" class="order-items-row" style="display:none">
         <td colspan="9">
@@ -5743,6 +5743,14 @@ function updateOrderStatus(orderId, newStatus) {
     setOrders(orders);
     renderOrdersPage();
   }
+}
+
+function deleteOrder(orderId) {
+  if (typeof event !== 'undefined' && event) event.stopPropagation();
+  if (!confirm('למחוק את ההזמנה? פעולה זו אינה הפיכה.')) return;
+  const orders = getOrders().filter(o => o.id !== orderId);
+  setOrders(orders);
+  renderOrdersPage();
 }
 
 function filterOrders(status, btn) {
