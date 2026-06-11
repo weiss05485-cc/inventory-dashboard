@@ -2880,18 +2880,27 @@ function doSearch() {
   renderSearchResults();
 }
 
-// מאחד פריטים "כמו חלק" (מחלקת חלק + קבוצות מאוחדות-עונה) לפי ברקוד מופשט
-// (ללא עונה/שנה, שומר מידה) — סוכם כמויות לרוחב העונות
+// מפתח איחוד:
+//  • קבוצות שחור-חלק / ללא-דוגמא → לפי שם+מידה (מתעלם מעונה, שנה ודגם/בד)
+//  • מחלקת 'חלק' → לפי ברקוד מופשט (שומר דגם), כמו קודם
+function _chalkMergeBase(item) {
+  if (SEASON_AGNOSTIC_GROUPS.includes(item.g)) {
+    const sz = (parseBarcode(item.b).size || '').toUpperCase();
+    return 'G:' + (item.n || '').trim() + '|' + sz;
+  }
+  return 'C:' + stripYearSeason(item.b);
+}
+
+// מאחד פריטים "כמו חלק" (מחלקת חלק + קבוצות מאוחדות-עונה) — סוכם כמויות
 function _mergeChalkLike(list) {
   const out = [], map = {};
   list.forEach(item => {
     if (!isChalkLike(item)) { out.push(item); return; }
-    const base = stripYearSeason(item.b);
-    const key  = (item.d||'') + '|' + base;
+    const key = _chalkMergeBase(item);
     if (!map[key]) {
-      const ps = parseStrippedBC(base);
-      map[key] = { ...item, b: base, s: {}, q: 0,
-        _parsed: { product: ps.product, size: ps.size, modelCode: ps.modelCode, season:'', year:'' },
+      const p = parseBarcode(item.b);
+      map[key] = { ...item, b: stripYearSeason(item.b), s: {}, q: 0,
+        _parsed: { product: p.product || '', size: p.size || '', modelCode: p.modelCode || '', season:'', year:'' },
         _merged: true };
       out.push(map[key]);
     }
@@ -3285,17 +3294,17 @@ function buildShortageItems(store, otherStores) {
   const chalkRaw = SEARCH_DATA.filter(item => isChalkLike(item) && !isModelDept(item) && !isExcluded(item.n));
   const chalkGroups = {};
   chalkRaw.forEach(item => {
-    const base = stripYearSeason(item.b);
-    if (!chalkGroups[base]) {
-      const parsed = parseStrippedBC(base);
-      chalkGroups[base] = {
-        _type:'chalk', base, name: item.n, dept: item.d || 'חלק',
-        modelCode: parsed.modelCode, modelName: parsed.product,
-        product: parsed.product, size: parsed.size, storeQty: {}
+    const key = _chalkMergeBase(item);
+    if (!chalkGroups[key]) {
+      const p = parseBarcode(item.b);
+      chalkGroups[key] = {
+        _type:'chalk', base: stripYearSeason(item.b), name: item.n, dept: item.d || 'חלק',
+        modelCode: p.modelCode || '', modelName: p.product || '',
+        product: p.product || '', size: p.size || '', storeQty: {}
       };
-      storeList.forEach(s => { chalkGroups[base].storeQty[s] = 0; });
+      storeList.forEach(s => { chalkGroups[key].storeQty[s] = 0; });
     }
-    storeList.forEach(s => { chalkGroups[base].storeQty[s] += (item.s[s]||0); });
+    storeList.forEach(s => { chalkGroups[key].storeQty[s] += (item.s[s]||0); });
   });
   Object.values(chalkGroups).forEach(g => {
     const myQty = g.storeQty[store] || 0;
