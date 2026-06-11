@@ -4460,8 +4460,10 @@ function runOrderPlanner() {
   const invMap = {};
   if (!allMode && REPORT_DATA) {
     REPORT_DATA.filter(i => i.n === product).forEach(i => {
+      const grp = i.g || 'ללא קבוצה';
+      if (selectedGroups && !selectedGroups.has(grp)) return;   // סנן מלאי לפי קבוצות נבחרות
       const sz  = i.sz || '—';
-      const key = (i.g || 'ללא קבוצה') + '|' + sz;
+      const key = grp + '|' + sz;
       invMap[key] = (invMap[key] || 0) + (i.q || 0);
     });
   }
