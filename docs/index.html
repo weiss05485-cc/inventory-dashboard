@@ -5559,12 +5559,30 @@ let _ordersFilter = 'all';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbz47zKfJrAFgYrfz8Aim7GBvIMsjjQPatB6nlmZso12BolT3vU_XS6PA87xRLJl-K95qQ/exec';
 let _gasSaving = false;
 
+// הצפנת אובייקט בצד-לקוח (תואם _decryptEnvelope) — להגנת ההזמנות
+async function _encryptObj(obj, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:200000, hash:'SHA-256' },
+    baseKey, { name:'AES-GCM', length:256 }, false, ['encrypt']);
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  const b64 = u8 => btoa(String.fromCharCode(...new Uint8Array(u8)));
+  return { v:1, enc:1, salt:b64(salt), iv:b64(iv), ct:b64(ct) };
+}
+
 async function syncOrdersFromGitHub(force) {
   showOrderSyncStatus('מסנכרן...');
   try {
     const r = await fetch(GAS_URL + '?v=' + Date.now());
     if (!r.ok) { showOrderSyncStatus(''); return; }
-    const data = await r.json();
+    const raw = await r.json();
+    let data = raw;
+    if (raw && raw.enc && raw.ct) {                 // מוצפן — פענח
+      try { data = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
+      catch(e) { showOrderSyncStatus('שגיאת פענוח', false, true); return; }
+    }
     if (!Array.isArray(data)) return;
     const local = getOrders();
     if (data.length === 0 && local.length > 0) {
@@ -5584,9 +5602,11 @@ async function saveOrdersToGitHub(orders) {
   _gasSaving = true;
   showOrderSyncStatus('שומר...');
   try {
+    // הצפן את ההזמנות לפני שליחה (אם יש סיסמת מערכת) — כך הערוץ מחזיר ג'יבריש לזרים
+    const payload = _encPassword ? await _encryptObj(orders, _encPassword) : orders;
     const resp = await fetch(GAS_URL, {
       method: 'POST',
-      body: JSON.stringify(orders)
+      body: JSON.stringify(payload)
     });
     if (resp.ok) {
       showOrderSyncStatus('נשמר ✓', true);
