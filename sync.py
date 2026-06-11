@@ -266,12 +266,19 @@ def main():
             st.StoreName,
             CAST(oh.Qty AS DECIMAL(18,1)) AS Qty,
             d.Name AS Department,
+            ISNULL(ig.ItemGroupName, N'ללא קבוצה') AS GroupName,
             CAST(COALESCE(NULLIF(ist.AVCostWithoutTax, 0), NULLIF(ist.CostWithoutTax, 0), NULLIF(ist.AVGCost / 1.18, 0)) AS DECIMAL(18,2)) AS Price
         FROM OnHand oh
         JOIN ItemStore ist ON oh.ItemID = ist.ItemID AND oh.StoreID = ist.StoreID
         JOIN ItemMain im ON oh.ItemID = im.ItemID AND im.Status = 1
         JOIN Store st ON oh.StoreID = st.StoreID AND st.Status = 1 AND st.Code <> '3'
         LEFT JOIN Department d ON im.DepartmentID1 = d.DepartmentID
+        LEFT JOIN (
+            SELECT ItemID, ItemGroupID,
+                   ROW_NUMBER() OVER (PARTITION BY ItemID ORDER BY CASE WHEN IsMainGroup=1 THEN 0 ELSE 1 END) AS rn
+            FROM ItemToGroup WHERE Status = 1
+        ) itg ON itg.ItemID = im.ItemID AND itg.rn = 1
+        LEFT JOIN ItemGroup ig ON ig.ItemGroupID = itg.ItemGroupID AND ig.Status = 1
         WHERE oh.Qty > 0
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
@@ -288,6 +295,7 @@ def main():
                 'b': row['BarcodeNumber'] or '',
                 'mn': row['ModelNumber'] or '',
                 'd': row['Department'] or '',
+                'g': row.get('GroupName') or 'ללא קבוצה',
                 'p': 0,
                 's': {},
                 'q': 0,

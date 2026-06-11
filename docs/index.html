@@ -2872,12 +2872,34 @@ function doSearch() {
   }
 
   const terms = q.split(/\s+/).filter(Boolean);
-  searchResults = SEARCH_DATA.filter(item => {
+  searchResults = _mergeChalkLike(SEARCH_DATA.filter(item => {
     if (activeSearchDept !== 'all' && (item.d || 'ללא מחלקה') !== activeSearchDept) return false;
     return terms.length === 0 || terms.every(t => item._idx.includes(t));
-  });
+  }));
 
   renderSearchResults();
+}
+
+// מאחד פריטים "כמו חלק" (מחלקת חלק + קבוצות מאוחדות-עונה) לפי ברקוד מופשט
+// (ללא עונה/שנה, שומר מידה) — סוכם כמויות לרוחב העונות
+function _mergeChalkLike(list) {
+  const out = [], map = {};
+  list.forEach(item => {
+    if (!isChalkLike(item)) { out.push(item); return; }
+    const base = stripYearSeason(item.b);
+    const key  = (item.d||'') + '|' + base;
+    if (!map[key]) {
+      const ps = parseStrippedBC(base);
+      map[key] = { ...item, b: base, s: {}, q: 0,
+        _parsed: { product: ps.product, size: ps.size, modelCode: ps.modelCode, season:'', year:'' },
+        _merged: true };
+      out.push(map[key]);
+    }
+    const g = map[key];
+    Object.entries(item.s||{}).forEach(([st,qv]) => { g.s[st] = (g.s[st]||0) + (qv||0); });
+    g.q += item.q || 0;
+  });
+  return out;
 }
 
 function sortSearch(col) {
@@ -3177,6 +3199,10 @@ function renderLowStock() {
 const MODEL_LEVEL_DEPTS = ['חליפות', 'פרחוני'];
 // Departments grouped at STRIPPED-BARCODE level (strip year+season, keep size)
 const CHALK_DEPTS      = ['חלק'];
+// קבוצות שמאוחדות לרוחב עונות (כמו 'חלק') — מתעלמים מעונה/שנה, שומרים מידה
+const SEASON_AGNOSTIC_GROUPS = ['שחור חלק', 'ללא דוגמא'];
+const isModelDept = item => MODEL_LEVEL_DEPTS.some(d => item.d === d || (item.d||'').startsWith(d + ' '));
+const isChalkLike = item => CHALK_DEPTS.includes(item.d) || SEASON_AGNOSTIC_GROUPS.includes(item.g);
 
 function buildShortageStoreSelector() {
   const wrap = document.getElementById('shortage-store-selector');
@@ -3255,15 +3281,15 @@ function buildShortageItems(store, otherStores) {
     }
   });
 
-  /* B) חלק — group by stripped barcode (strip year+season, keep size) */
-  const chalkRaw = SEARCH_DATA.filter(item => CHALK_DEPTS.includes(item.d) && !isExcluded(item.n));
+  /* B) חלק + קבוצות מאוחדות-עונה — group by stripped barcode (strip year+season, keep size) */
+  const chalkRaw = SEARCH_DATA.filter(item => isChalkLike(item) && !isModelDept(item) && !isExcluded(item.n));
   const chalkGroups = {};
   chalkRaw.forEach(item => {
     const base = stripYearSeason(item.b);
     if (!chalkGroups[base]) {
       const parsed = parseStrippedBC(base);
       chalkGroups[base] = {
-        _type:'chalk', base, name: item.n, dept:'חלק',
+        _type:'chalk', base, name: item.n, dept: item.d || 'חלק',
         modelCode: parsed.modelCode, modelName: parsed.product,
         product: parsed.product, size: parsed.size, storeQty: {}
       };
@@ -3280,9 +3306,8 @@ function buildShortageItems(store, otherStores) {
     }
   });
 
-  /* C) All other departments — exact barcode */
-  const skipDepts = [...MODEL_LEVEL_DEPTS, ...CHALK_DEPTS];
-  SEARCH_DATA.filter(item => !skipDepts.includes(item.d) && !isExcluded(item.n)).forEach(item => {
+  /* C) כל השאר — לפי ברקוד מדויק (לא דגם, לא מאוחד-עונה) */
+  SEARCH_DATA.filter(item => !isModelDept(item) && !isChalkLike(item) && !isExcluded(item.n)).forEach(item => {
     const myQty = item.s[store] || 0;
     const otherAvail = otherStores.reduce((sum,s) => sum+(item.s[s]||0), 0);
     if (myQty < 2 && otherAvail > 0) {
