@@ -2880,15 +2880,10 @@ function doSearch() {
   renderSearchResults();
 }
 
-// מפתח איחוד:
-//  • קבוצות שחור-חלק / ללא-דוגמא → לפי שם+מידה (מתעלם מעונה, שנה ודגם/בד)
-//  • מחלקת 'חלק' → לפי ברקוד מופשט (שומר דגם), כמו קודם
+// מפתח איחוד: לפי קוד הדגם בברקוד (ברקוד מופשט — דגם+מידה, ללא עונה/שנה).
+// כך כל העונות של אותו דגם מתאחדות, גם אם בארנט תויגו בקבוצות שונות.
 function _chalkMergeBase(item) {
-  if (SEASON_AGNOSTIC_GROUPS.includes(item.g)) {
-    const sz = (parseBarcode(item.b).size || '').toUpperCase();
-    return 'G:' + (item.n || '').trim() + '|' + sz;
-  }
-  return 'C:' + stripYearSeason(item.b);
+  return stripYearSeason(item.b);
 }
 
 // מאחד פריטים "כמו חלק" (מחלקת חלק + קבוצות מאוחדות-עונה) — סוכם כמויות
@@ -3211,7 +3206,20 @@ const CHALK_DEPTS      = ['חלק'];
 // קבוצות שמאוחדות לרוחב עונות (כמו 'חלק') — מתעלמים מעונה/שנה, שומרים מידה
 const SEASON_AGNOSTIC_GROUPS = ['שחור חלק', 'ללא דוגמא'];
 const isModelDept = item => MODEL_LEVEL_DEPTS.some(d => item.d === d || (item.d||'').startsWith(d + ' '));
-const isChalkLike = item => CHALK_DEPTS.includes(item.d) || SEASON_AGNOSTIC_GROUPS.includes(item.g);
+// קודי-דגם (ברקוד מופשט) שמופיעים בקבוצות מאוחדות-עונה — ולו בעונה אחת.
+// כך כל העונות של אותו דגם מתאחדות, גם אם בחלק מהעונות התויג כקבוצה אחרת בארנט.
+let _seasonAgnosticBases = null;
+function _buildSeasonAgnosticBases() {
+  _seasonAgnosticBases = new Set();
+  (SEARCH_DATA||[]).forEach(it => {
+    if (SEASON_AGNOSTIC_GROUPS.includes(it.g)) _seasonAgnosticBases.add(stripYearSeason(it.b));
+  });
+}
+function isChalkLike(item) {
+  if (CHALK_DEPTS.includes(item.d)) return true;
+  if (_seasonAgnosticBases === null && SEARCH_DATA && SEARCH_DATA.length) _buildSeasonAgnosticBases();
+  return _seasonAgnosticBases ? _seasonAgnosticBases.has(stripYearSeason(item.b)) : false;
+}
 
 function buildShortageStoreSelector() {
   const wrap = document.getElementById('shortage-store-selector');
