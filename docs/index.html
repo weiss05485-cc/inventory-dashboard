@@ -5579,7 +5579,8 @@ async function syncOrdersFromGitHub(force) {
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const raw = await r.json();
     let data = raw;
-    if (raw && raw.enc && raw.ct) {                 // מוצפן — פענח
+    const wasEncrypted = !!(raw && raw.enc && raw.ct);
+    if (wasEncrypted) {                              // מוצפן — פענח
       try { data = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
       catch(e) { showOrderSyncStatus('שגיאת פענוח', false, true); return; }
     }
@@ -5591,6 +5592,8 @@ async function syncOrdersFromGitHub(force) {
       localStorage.setItem('cc_orders', JSON.stringify(data));
       renderOrdersPage();
       showOrderSyncStatus('מסונכרן ✓', true);
+      // אם הגיע בטקסט גלוי (פורמט ישן) — המר מיד למוצפן בערוץ
+      if (!wasEncrypted && _encPassword) saveOrdersToGitHub(data);
     } else {
       showOrderSyncStatus('');
     }
