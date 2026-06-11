@@ -5581,22 +5581,26 @@ async function syncOrdersFromGitHub(force) {
     const r = await fetch(GAS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(await _gasToken()));
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const raw = await r.json();
-    let data = raw;
-    const wasEncrypted = !!(raw && raw.enc && raw.ct);
-    if (wasEncrypted) {                              // מוצפן — פענח
+    // בוטחים *רק* בנתון מוצפן שמתפענח עם הסיסמה. כל דבר אחר
+    // (טקסט גלוי, זריקה של תוקף, פענוח נכשל) — לא אמין, מתעלמים.
+    let data = null;
+    if (raw && raw.enc && raw.ct && _encPassword) {
       try { data = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
-      catch(e) { showOrderSyncStatus('שגיאת פענוח', false, true); return; }
+      catch(e) { data = null; }
     }
-    if (!Array.isArray(data)) return;
     const local = getOrders();
+    if (!Array.isArray(data)) {
+      // נתון לא-אמין בערוץ — לא מציגים; משחזרים את המקומי המוצפן (מנטרל זריקות)
+      if (local.length > 0) saveOrdersToGitHub(local);
+      showOrderSyncStatus('');
+      return;
+    }
     if (data.length === 0 && local.length > 0) {
       await saveOrdersToGitHub(local);
     } else if (data.length > 0) {
       localStorage.setItem('cc_orders', JSON.stringify(data));
       renderOrdersPage();
       showOrderSyncStatus('מסונכרן ✓', true);
-      // אם הגיע בטקסט גלוי (פורמט ישן) — המר מיד למוצפן בערוץ
-      if (!wasEncrypted && _encPassword) saveOrdersToGitHub(data);
     } else {
       showOrderSyncStatus('');
     }
