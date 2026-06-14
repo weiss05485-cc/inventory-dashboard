@@ -628,9 +628,13 @@ body.emp-mode .price-col{display:none!important}
             <div id="order-all-dept-filter" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           </div>
         </div>
-        <div style="margin-bottom:8px">
+        <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="shortage-dept-sel" onchange="onShortageDeptChange()"
+            style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Rubik',sans-serif;font-size:12px;cursor:pointer"><option value="">כל המחלקות</option></select>
+          <select id="shortage-prod-sel" onchange="renderShortageFiltered()"
+            style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Rubik',sans-serif;font-size:12px;cursor:pointer;max-width:240px"><option value="">כל המוצרים</option></select>
           <input id="shortage-search" type="search" placeholder="🔍 חיפוש שם..." oninput="renderShortageFiltered()"
-            style="width:200px;max-width:100%;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Rubik',sans-serif;font-size:12px;box-sizing:border-box;direction:rtl">
+            style="width:180px;max-width:100%;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Rubik',sans-serif;font-size:12px;box-sizing:border-box;direction:rtl">
         </div>
         <div class="table-wrap">
           <table id="shortage-table">
@@ -3655,6 +3659,7 @@ function renderShortageTable() {
       return;
     }
     allShortageItems = buildShortageItems(store, otherStores);
+    populateShortageDeptProduct();
     buildShortageModelFilter(allShortageItems);
     renderShortageRows(allShortageItems, store, otherStores);
   }
@@ -5212,20 +5217,46 @@ function toggleOrderAllDept(dept) {
   buildOrderAllDeptFilter();
 }
 
+function _shDept(it){ return it.dept || it.d || 'אחר'; }
+function _shName(it){ return (it.name || it.n || it.modelName || '').trim(); }
+
+// ממלא את בורר המחלקות מפריטי החוסר (ומאפס את בורר המוצרים)
+function populateShortageDeptProduct() {
+  const deptSel = document.getElementById('shortage-dept-sel');
+  const prodSel = document.getElementById('shortage-prod-sel');
+  if (!deptSel) return;
+  const depts = [...new Set(allShortageItems.map(_shDept).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  deptSel.innerHTML = '<option value="">כל המחלקות</option>' + depts.map(d=>`<option value="${d}">${d}</option>`).join('');
+  if (prodSel) prodSel.innerHTML = '<option value="">כל המוצרים</option>';
+}
+
+// בחירת מחלקה → ממלא את המוצרים של אותה מחלקה
+function onShortageDeptChange() {
+  const dept = document.getElementById('shortage-dept-sel').value;
+  const prodSel = document.getElementById('shortage-prod-sel');
+  const items = dept ? allShortageItems.filter(i => _shDept(i) === dept) : allShortageItems;
+  const names = [...new Set(items.map(_shName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  prodSel.innerHTML = '<option value="">כל המוצרים</option>' + names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  renderShortageFiltered();
+}
+
 function renderShortageFiltered() {
-  const q = (document.getElementById('shortage-search')?.value || '').trim().toLowerCase();
+  const q    = (document.getElementById('shortage-search')?.value || '').trim().toLowerCase();
+  const dept = document.getElementById('shortage-dept-sel')?.value || '';
+  const prod = document.getElementById('shortage-prod-sel')?.value || '';
   const store = selectedShortageStore;
   if (!store) return;
   const otherStores = storeList.filter(s => s !== store);
-  const filtered = q
-    ? allShortageItems.filter(item => {
-        const searchText = [
-          item.modelName, item.name, item.n, item._fullNames,
-          item.modelCode, item.base, item.b
-        ].filter(Boolean).join(' ').toLowerCase();
-        return q.split(/\s+/).every(t => searchText.includes(t));
-      })
-    : allShortageItems;
+  let filtered = allShortageItems;
+  if (dept) filtered = filtered.filter(i => _shDept(i) === dept);
+  if (prod) filtered = filtered.filter(i => _shName(i) === prod);
+  if (q) filtered = filtered.filter(item => {
+    const searchText = [
+      item.modelName, item.name, item.n, item._fullNames,
+      item.modelCode, item.base, item.b
+    ].filter(Boolean).join(' ').toLowerCase();
+    return q.split(/\s+/).every(t => searchText.includes(t));
+  });
   renderShortageRows(filtered, store, otherStores);
 }
 
