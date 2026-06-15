@@ -5593,8 +5593,10 @@ function generateOrderPDF(order) {
 /* ========== ORDERS PAGE ========== */
 let _ordersFilter = 'all';
 
-// ── Apps Script Orders Persistence (ללא טוקן — עובד על כל מכשיר) ──────────
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwsiTEughGXD3UW-3lzeLNvQNlRP8vu5PjxDqna0LjLZLjvVrY-IlRjuD1fCluvcj7-tw/exec';
+// ── אחסון הזמנות על השרת הפרטי (VPS) — PostgreSQL/דיסק עם גיבוי אוטומטי ──
+// השרת שומר רק blob מוצפן (zero-knowledge) + מאמת טוקן. הכתובת היא נתיב פנימי
+// על orgs.chasidim-center.co.il (אותו שרת, HTTPS) — המשתמשים לא רואים אותה.
+const GAS_URL = 'https://orgs.chasidim-center.co.il/ccorders/orders';
 let _gasSaving = false;
 
 // הצפנת אובייקט בצד-לקוח (תואם _decryptEnvelope) — להגנת ההזמנות
