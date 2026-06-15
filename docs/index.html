@@ -5637,19 +5637,69 @@ async function syncOrdersFromGitHub(force) {
   } catch(e) { showOrderSyncStatus(''); }
 }
 
-async function saveOrdersToGitHub(orders) {
+// גיבוי מקומי מתגלגל — שומר עד 15 גרסאות אחרונות בדפדפן (רשת ביטחון)
+function _backupOrdersLocal(orders) {
+  try {
+    const key = 'cc_orders_bak_' + (new Date()).getTime();
+    localStorage.setItem(key, JSON.stringify({ ts: (new Date()).toISOString(), orders }));
+    const idx = JSON.parse(localStorage.getItem('cc_orders_bak_idx') || '[]');
+    idx.push(key);
+    while (idx.length > 15) { localStorage.removeItem(idx.shift()); }
+    localStorage.setItem('cc_orders_bak_idx', JSON.stringify(idx));
+  } catch (e) {}
+}
+
+// שמירה בטוחה: מוזגת עם הערוץ הקיים (לא דורסת), ועוצרת אם אי אפשר לקרוא/לפענח.
+// opts.removedIds = מזהים שנמחקו במפורש | opts.replace = דריסה מלאה (רק "מחק הכל")
+async function saveOrdersToGitHub(orders, opts) {
+  opts = opts || {};
   if (_gasSaving) return;
   _gasSaving = true;
   showOrderSyncStatus('שומר...');
   try {
-    // הצפן את ההזמנות לפני שליחה (אם יש סיסמת מערכת) — כך הערוץ מחזיר ג'יבריש לזרים
-    const payload = _encPassword ? await _encryptObj(orders, _encPassword) : orders;
+    let toSave = Array.isArray(orders) ? orders : [];
+
+    if (!opts.replace) {
+      // 1) קרא את הערוץ הנוכחי כדי למזג — הגנה מפני אובדן נתונים
+      let remote = null;
+      try {
+        const r = await fetch(GAS_URL + '?v=' + (new Date()).getTime() + '&token=' + encodeURIComponent(await _gasToken()));
+        if (!r.ok) throw new Error('http ' + r.status);
+        const raw = await r.json();
+        if (raw && raw.enc && raw.ct) {
+          remote = JSON.parse(await _decryptEnvelope(raw, _encPassword)); // יזרוק אם הפענוח נכשל
+        } else if (Array.isArray(raw)) {
+          remote = raw;
+        } else {
+          remote = []; // ערוץ ריק/חדש
+        }
+      } catch (e) {
+        // לא הצלחנו לקרוא/לפענח את הערוץ — אל תדרוס! עצור כדי לא לאבד נתונים.
+        showOrderSyncStatus('השמירה נעצרה — לא ניתן לקרוא את הערוץ (לא נדרס כלום)', false, true);
+        _gasSaving = false;
+        return;
+      }
+      // 2) מיזוג לפי מזהה: הערוץ + המקומי (מקומי גובר), ואז הסרת מחיקות מפורשות
+      const byId = {};
+      (Array.isArray(remote) ? remote : []).forEach(o => { if (o && o.id != null) byId[o.id] = o; });
+      toSave.forEach(o => { if (o && o.id != null) byId[o.id] = o; });
+      (opts.removedIds || []).forEach(id => { delete byId[id]; });
+      toSave = Object.values(byId);
+    }
+
+    // 3) גיבוי מקומי מתגלגל + עדכון מקומי לפני השליחה
+    _backupOrdersLocal(toSave);
+    localStorage.setItem('cc_orders', JSON.stringify(toSave));
+
+    // 4) הצפן ושלח (כך הערוץ מחזיר ג'יבריש לזרים)
+    const payload = _encPassword ? await _encryptObj(toSave, _encPassword) : toSave;
     const resp = await fetch(GAS_URL + '?token=' + encodeURIComponent(await _gasToken()), {
       method: 'POST',
       body: JSON.stringify(payload)
     });
     if (resp.ok) {
       showOrderSyncStatus('נשמר ✓', true);
+      renderOrdersPage();
     } else {
       showOrderSyncStatus('שגיאת שמירה', false, true);
     }
@@ -5783,7 +5833,8 @@ function deleteOrder(orderId) {
   if (typeof event !== 'undefined' && event) event.stopPropagation();
   if (!confirm('למחוק את ההזמנה? פעולה זו אינה הפיכה.')) return;
   const orders = getOrders().filter(o => o.id !== orderId);
-  setOrders(orders);
+  localStorage.setItem('cc_orders', JSON.stringify(orders));
+  saveOrdersToGitHub(orders, { removedIds: [orderId] }); // מחיקה מפורשת — לא מוחזרת במיזוג
   renderOrdersPage();
 }
 
@@ -5796,7 +5847,9 @@ function filterOrders(status, btn) {
 
 function clearAllOrders() {
   if (!confirm('האם למחוק את כל ההזמנות? פעולה זו אינה הפיכה.')) return;
-  setOrders([]);
+  _backupOrdersLocal(getOrders());            // גיבוי לפני מחיקה גורפת
+  localStorage.setItem('cc_orders', '[]');
+  saveOrdersToGitHub([], { replace: true });  // מחיקה גורפת מפורשת בלבד
   renderOrdersPage();
 }
 

@@ -23,3 +23,8 @@ docs/promos.json
 docs/historical_today.json
 docs/historical_sales.json
 docs/orders.json
+
+# קבצי שחזור הזמנות (רגישים — מקומי בלבד)
+orders_channel_raw.json
+orders_recovered.json
+orders_all_history.json
