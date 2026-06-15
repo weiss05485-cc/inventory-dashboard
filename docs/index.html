@@ -5619,23 +5619,15 @@ async function syncOrdersFromGitHub(force) {
     const r = await fetch(GAS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(await _gasToken()));
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const raw = await r.json();
-    // בוטחים *רק* בנתון מוצפן שמתפענח עם הסיסמה. כל דבר אחר
-    // (טקסט גלוי, זריקה של תוקף, פענוח נכשל) — לא אמין, מתעלמים.
-    let data = null;
-    if (raw && raw.enc && raw.ct && _encPassword) {
+    // מצב שחזור בטוח: מציגים את מה שיש (מפענחים מוצפן, מקבלים גם טקסט גלוי),
+    // ו*לא דורסים* את הערוץ בשום מקרה (כדי לא לאבד נתונים).
+    let data = raw;
+    if (raw && raw.enc && raw.ct) {
       try { data = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
-      catch(e) { data = null; }
+      catch(e) { showOrderSyncStatus(''); return; }   // פענוח נכשל — לא נוגעים
     }
-    const local = getOrders();
-    if (!Array.isArray(data)) {
-      // נתון לא-אמין בערוץ — לא מציגים; משחזרים את המקומי המוצפן (מנטרל זריקות)
-      if (local.length > 0) saveOrdersToGitHub(local);
-      showOrderSyncStatus('');
-      return;
-    }
-    if (data.length === 0 && local.length > 0) {
-      await saveOrdersToGitHub(local);
-    } else if (data.length > 0) {
+    if (!Array.isArray(data)) { showOrderSyncStatus(''); return; }
+    if (data.length > 0) {
       localStorage.setItem('cc_orders', JSON.stringify(data));
       renderOrdersPage();
       showOrderSyncStatus('מסונכרן ✓', true);
