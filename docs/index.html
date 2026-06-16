@@ -1307,9 +1307,9 @@ body.emp-mode .price-col{display:none!important}
 <div class="container">
 
   <div id="calls-dropzone" style="border:2.5px dashed var(--border);border-radius:14px;padding:26px 18px;text-align:center;background:#fafbff;cursor:pointer;transition:all .2s;margin-bottom:16px">
-    <div style="font-size:34px;line-height:1">📞⬆️</div>
-    <div style="font-weight:700;color:var(--text);margin-top:6px">גרור לכאן את דוח השיחות (Excel) — או לחץ לבחירה</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">ייצא ב-MosesDial: יצוא דוחות → Excel, ושחרר את הקובץ כאן</div>
+    <div style="font-size:30px;line-height:1">📞</div>
+    <div style="font-weight:700;color:var(--text);margin-top:6px">הנתונים נטענים אוטומטית מהמרכזייה 🟢</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">מתעדכן לבד. גיבוי ידני: אפשר לגרור/ללחוץ להעלאת קובץ Excel מ-MosesDial</div>
     <input type="file" id="calls-file" accept=".xlsx,.xls" style="display:none">
   </div>
   <div id="calls-status" style="font-size:12px;color:var(--muted);margin-bottom:12px;text-align:center"></div>
@@ -6007,6 +6007,29 @@ function handleCallsFile(file){
   reader.onerror=()=>{ st.textContent='שגיאה בקריאת הקובץ.'; };
   reader.readAsArrayBuffer(file);
 }
+const CALLS_URL = 'https://orgs.chasidim-center.co.il/ccalls/';
+let _callsTimer = null;
+
+async function fetchCallsLive(){
+  const st=document.getElementById('calls-status');
+  try{
+    const tok = await _gasToken();
+    const r = await fetch(CALLS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(tok));
+    if(!r.ok) throw new Error('http '+r.status);
+    const data = await r.json();
+    if(Array.isArray(data) && data.length){
+      CALLS_DATA = data;
+      try{ localStorage.setItem('cc_calls', JSON.stringify({ts:new Date().toISOString(), data})); }catch(_){}
+      if(st) st.innerHTML='🟢 חי — '+data.length+' שיחות · עודכן '+new Date().toLocaleTimeString('he-IL');
+      drawCalls(data);
+    } else if(!CALLS_DATA && st){
+      st.textContent='אין עדיין נתונים חיים. אפשר גם להעלות קובץ ידנית.';
+    }
+  }catch(e){
+    if(!CALLS_DATA && st) st.textContent='לא ניתן להביא נתונים חיים כרגע — אפשר להעלות קובץ ידנית.';
+  }
+}
+
 function renderCalls(){
   const dz=document.getElementById('calls-dropzone');
   const fi=document.getElementById('calls-file');
@@ -6018,10 +6041,14 @@ function renderCalls(){
     dz.ondragleave=()=>{ dz.style.background='#fafbff'; dz.style.borderColor='var(--border)'; };
     dz.ondrop=e=>{ e.preventDefault(); dz.style.background='#fafbff'; dz.style.borderColor='var(--border)'; if(e.dataTransfer.files[0]) handleCallsFile(e.dataTransfer.files[0]); };
   }
+  // מטמון מיידי (אם יש) ואז רענון חי מהשרת
   if(!CALLS_DATA){
-    try{ const c=JSON.parse(localStorage.getItem('cc_calls')||'null'); if(c&&c.data){ CALLS_DATA=c.data; const s=document.getElementById('calls-status'); if(s) s.textContent='מציג נתונים אחרונים ('+c.data.length+' שיחות, עודכן '+new Date(c.ts).toLocaleString('he-IL')+')'; } }catch(_){}
+    try{ const c=JSON.parse(localStorage.getItem('cc_calls')||'null'); if(c&&c.data){ CALLS_DATA=c.data; drawCalls(c.data); } }catch(_){}
+  } else { drawCalls(CALLS_DATA); }
+  fetchCallsLive();
+  if(!_callsTimer){
+    _callsTimer=setInterval(()=>{ const p=document.getElementById('page-calls'); if(p && p.classList.contains('active')) fetchCallsLive(); }, 60000);
   }
-  if(CALLS_DATA) drawCalls(CALLS_DATA);
 }
 function _callKpi(label,val,sub,color){
   return '<div class="kpi-card"><div class="kpi-label">'+label+'</div><div class="kpi-value"'+(color?' style="color:'+color+'"':'')+'>'+val+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
