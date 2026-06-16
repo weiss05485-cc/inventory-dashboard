@@ -446,6 +446,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="nav-btn" onclick="showPage('orders')">📋 הזמנות</button>
   <button class="nav-btn" onclick="showPage('planner')">📦 תכנון הזמנה</button>
   <button class="nav-btn" onclick="showPage('promos')">🎯 מבצעים</button>
+  <button class="nav-btn" onclick="showPage('calls')">📞 שיחות</button>
 </nav>
 
 <div id="bottom-nav">
@@ -459,6 +460,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="bnav-btn" onclick="showPage('orders')"><span class="bnav-icon">📋</span>הזמנות</button>
   <button class="bnav-btn" onclick="showPage('planner')"><span class="bnav-icon">📦</span>תכנון</button>
   <button class="bnav-btn" onclick="showPage('promos')"><span class="bnav-icon">🎯</span>מבצעים</button>
+  <button class="bnav-btn" onclick="showPage('calls')"><span class="bnav-icon">📞</span>שיחות</button>
 </div>
 
 <div id="loading">
@@ -1296,6 +1298,66 @@ body.emp-mode .price-col{display:none!important}
     </div>
 
   </div><!-- /op-results -->
+
+</div>
+</div>
+
+<!-- PAGE: CALLS (מעקב שיחות) -->
+<div id="page-calls" class="page">
+<div class="container">
+
+  <div id="calls-dropzone" style="border:2.5px dashed var(--border);border-radius:14px;padding:26px 18px;text-align:center;background:#fafbff;cursor:pointer;transition:all .2s;margin-bottom:16px">
+    <div style="font-size:34px;line-height:1">📞⬆️</div>
+    <div style="font-weight:700;color:var(--text);margin-top:6px">גרור לכאן את דוח השיחות (Excel) — או לחץ לבחירה</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">ייצא ב-MosesDial: יצוא דוחות → Excel, ושחרר את הקובץ כאן</div>
+    <input type="file" id="calls-file" accept=".xlsx,.xls" style="display:none">
+  </div>
+  <div id="calls-status" style="font-size:12px;color:var(--muted);margin-bottom:12px;text-align:center"></div>
+
+  <div id="calls-content" style="display:none">
+    <div class="kpi-grid" id="calls-kpi"></div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>נכנסות / יוצאות / פנימיות</h3>
+        <div class="chart-wrap"><canvas id="calls-chart-dir"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>נענו מול לא נענו</h3>
+        <div class="chart-wrap"><canvas id="calls-chart-ans"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card" style="flex:1 1 100%">
+        <h3>נפח שיחות לפי שעה ביום</h3>
+        <div class="chart-wrap"><canvas id="calls-chart-hour"></canvas></div>
+      </div>
+    </div>
+
+    <h3 style="margin:18px 0 8px;color:var(--danger,#ef4444)">📵 שיחות שלא נענו — לחזור אליהן</h3>
+    <div class="table-wrap" style="max-height:340px">
+      <table class="data-table" id="calls-missed-table">
+        <thead><tr><th>מס' מתקשר</th><th>שם</th><th>שעה</th><th>זמן המתנה</th><th>קו</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:18px 0 8px">👤 לפי שלוחה / יעד</h3>
+    <div class="table-wrap" style="max-height:340px">
+      <table class="data-table" id="calls-ext-table">
+        <thead><tr><th>שלוחה / יעד</th><th>סה"כ</th><th>נענו</th><th>לא נענו</th><th>משך ממוצע</th><th>זמן שיחה כולל</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:18px 0 8px">📋 כל השיחות</h3>
+    <div class="table-wrap" style="max-height:460px">
+      <table class="data-table" id="calls-all-table">
+        <thead><tr><th>כיוון</th><th>מתקשר</th><th>שם</th><th>יעד</th><th>שעה</th><th>משך</th><th>המתנה</th><th>מצב</th><th>קו</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 </div>
@@ -2359,7 +2421,7 @@ function renderComparison() {
 
 /* ========== AUTH ========== */
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
-const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today','orders','planner','promos'];
+const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','today','orders','planner','promos','calls'];
 
 // ── הצפנה/פענוח נתונים (AES-GCM + PBKDF2, תואם encrypt_data.py) ──
 let _encPassword = sessionStorage.getItem('cc_pass') || null;
@@ -2567,7 +2629,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5, today:6, orders:7, planner:8, promos:9};
+  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5, today:6, orders:7, planner:8, promos:9, calls:10};
   const navBtns  = document.querySelectorAll('.nav-btn');
   const bnavBtns = document.querySelectorAll('.bnav-btn');
   if (navBtns[labels[id]])  navBtns[labels[id]].classList.add('active');
@@ -2583,6 +2645,7 @@ function showPage(id) {
   if (id === 'orders')   { renderOrdersPage(); syncOrdersFromGitHub(); }
   if (id === 'planner')  initOrderPlanner();
   if (id === 'promos')   renderPromos();
+  if (id === 'calls')    renderCalls();
 }
 
 /* ========== PROMOS (מימושי מבצעים) ========== */
@@ -5853,6 +5916,166 @@ function clearAllOrders() {
   localStorage.setItem('cc_orders', '[]');
   saveOrdersToGitHub([], { replace: true });  // מחיקה גורפת מפורשת בלבד
   renderOrdersPage();
+}
+
+/* ========== CALLS (מעקב שיחות מ-MosesDial) ========== */
+let CALLS_DATA = null;
+let _callsCharts = {};
+const _CALL_COLS = {
+  dir:   ['נכנסות/יוצאות'],
+  caller:["מס' מתקשר","מס׳ מתקשר","מספר מתקשר"],
+  name:  ['שם מתקשר'],
+  dest:  ['יעד'],
+  date:  ['תאריך'],
+  time:  ['שעה'],
+  talk:  ['משך שיחה'],
+  wait:  ['זמן המתנה'],
+  status:['מצב שיחה'],
+  line:  ['מספר אליו בוצעה השיחה'],
+  outid: ['זיהוי יוצא']
+};
+function _txt(v){ return v==null?'':String(v).trim(); }
+function _callSecs(v){
+  if(v==null||v==='') return 0;
+  if(typeof v==='number') return Math.round(v*86400);
+  if(v instanceof Date) return v.getHours()*3600+v.getMinutes()*60+v.getSeconds();
+  const s=String(v); const m=s.match(/(\d+):(\d+):(\d+)/);
+  if(m) return (+m[1])*3600+(+m[2])*60+(+m[3]);
+  const n=parseFloat(s); return isNaN(n)?0:Math.round(n*86400);
+}
+function _fmtDur(sec){
+  sec=Math.round(sec||0);
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  const p=x=>String(x).padStart(2,'0');
+  return h>0 ? h+':'+p(m)+':'+p(s) : m+':'+p(s);
+}
+function _fmtClock(sec){
+  sec=Math.round(sec||0);
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  const p=x=>String(x).padStart(2,'0');
+  return p(h)+':'+p(m)+':'+p(s);
+}
+function _callDateStr(v){ return (v instanceof Date)? v.toLocaleDateString('he-IL') : (v==null?'':String(v)); }
+function _findCol(headers, names){
+  for(let i=0;i<headers.length;i++){ const h=_txt(headers[i]); if(names.some(n=>h===n)) return i; }
+  for(let i=0;i<headers.length;i++){ const h=_txt(headers[i]); if(names.some(n=>h && h.indexOf(n)>=0)) return i; }
+  return -1;
+}
+function parseCallsWorkbook(arrbuf){
+  const wb=XLSX.read(arrbuf,{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  if(!rows.length) return [];
+  const headers=(rows[0]||[]).map(h=>_txt(h));
+  const idx={}; for(const k in _CALL_COLS) idx[k]=_findCol(headers,_CALL_COLS[k]);
+  const DIRS=new Set(['נכנסת','יוצאת','פנימית']);
+  const out=[];
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r]; if(!row) continue;
+    const dir= idx.dir>=0? _txt(row[idx.dir]) : '';
+    if(!DIRS.has(dir)) continue; // מדלג על שורת סיכום/ריקה
+    out.push({
+      dir,
+      caller: idx.caller>=0? _txt(row[idx.caller]) : '',
+      name:   idx.name>=0?   _txt(row[idx.name]) : '',
+      dest:   idx.dest>=0?   _txt(row[idx.dest]) : '',
+      date:   idx.date>=0?   _callDateStr(row[idx.date]) : '',
+      time:   idx.time>=0?   _callSecs(row[idx.time]) : 0,
+      talk:   idx.talk>=0?   _callSecs(row[idx.talk]) : 0,
+      wait:   idx.wait>=0?   _callSecs(row[idx.wait]) : 0,
+      status: idx.status>=0? _txt(row[idx.status]) : '',
+      line:   idx.line>=0?   _txt(row[idx.line]) : '',
+      outid:  idx.outid>=0?  _txt(row[idx.outid]) : ''
+    });
+  }
+  return out;
+}
+function handleCallsFile(file){
+  const st=document.getElementById('calls-status');
+  st.textContent='קורא את הקובץ...';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=parseCallsWorkbook(e.target.result);
+      if(!data.length){ st.textContent='לא נמצאו שיחות בקובץ. ודא שזה דוח השיחות של MosesDial.'; return; }
+      CALLS_DATA=data;
+      try{ localStorage.setItem('cc_calls', JSON.stringify({ts:new Date().toISOString(), data})); }catch(_){}
+      st.textContent='נטענו '+data.length+' שיחות ✓ (עודכן: '+new Date().toLocaleString('he-IL')+')';
+      drawCalls(data);
+    }catch(err){ st.textContent='שגיאה בקריאת הקובץ: '+err; }
+  };
+  reader.onerror=()=>{ st.textContent='שגיאה בקריאת הקובץ.'; };
+  reader.readAsArrayBuffer(file);
+}
+function renderCalls(){
+  const dz=document.getElementById('calls-dropzone');
+  const fi=document.getElementById('calls-file');
+  if(dz && !dz._wired){
+    dz._wired=true;
+    dz.onclick=()=>fi.click();
+    fi.onchange=()=>{ if(fi.files[0]) handleCallsFile(fi.files[0]); };
+    dz.ondragover=e=>{ e.preventDefault(); dz.style.background='#eef2ff'; dz.style.borderColor='var(--primary)'; };
+    dz.ondragleave=()=>{ dz.style.background='#fafbff'; dz.style.borderColor='var(--border)'; };
+    dz.ondrop=e=>{ e.preventDefault(); dz.style.background='#fafbff'; dz.style.borderColor='var(--border)'; if(e.dataTransfer.files[0]) handleCallsFile(e.dataTransfer.files[0]); };
+  }
+  if(!CALLS_DATA){
+    try{ const c=JSON.parse(localStorage.getItem('cc_calls')||'null'); if(c&&c.data){ CALLS_DATA=c.data; const s=document.getElementById('calls-status'); if(s) s.textContent='מציג נתונים אחרונים ('+c.data.length+' שיחות, עודכן '+new Date(c.ts).toLocaleString('he-IL')+')'; } }catch(_){}
+  }
+  if(CALLS_DATA) drawCalls(CALLS_DATA);
+}
+function _callKpi(label,val,sub,color){
+  return '<div class="kpi-card"><div class="kpi-label">'+label+'</div><div class="kpi-value"'+(color?' style="color:'+color+'"':'')+'>'+val+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
+}
+function drawCalls(data){
+  document.getElementById('calls-content').style.display='block';
+  const total=data.length;
+  const answered=data.filter(c=>c.status==='נענתה').length;
+  const missed=data.filter(c=>c.status==='לא נענתה');
+  const incoming=data.filter(c=>c.dir==='נכנסת').length;
+  const outgoing=data.filter(c=>c.dir==='יוצאת').length;
+  const internal=data.filter(c=>c.dir==='פנימית').length;
+  const talkArr=data.filter(c=>c.talk>0).map(c=>c.talk);
+  const avgTalk=talkArr.length? talkArr.reduce((a,b)=>a+b,0)/talkArr.length : 0;
+  const waitArr=data.map(c=>c.wait||0);
+  const avgWait=waitArr.length? waitArr.reduce((a,b)=>a+b,0)/waitArr.length : 0;
+  const maxWait=waitArr.length? Math.max.apply(null,waitArr) : 0;
+  const missRate= total? Math.round(missed.length/total*100):0;
+
+  document.getElementById('calls-kpi').innerHTML=
+    _callKpi('סה"כ שיחות', total, incoming+' נכנסות · '+outgoing+' יוצאות', 'var(--navy)')+
+    _callKpi('נענו', answered, '', 'var(--green)')+
+    _callKpi('לא נענו', missed.length, missRate+'% מהשיחות', '#ef4444')+
+    _callKpi('משך שיחה ממוצע', _fmtDur(avgTalk), '', 'var(--primary)')+
+    _callKpi('זמן המתנה ממוצע', _fmtDur(avgWait), 'מקסימום '+_fmtDur(maxWait), '#f59e0b')+
+    _callKpi('פנימיות', internal, '', 'var(--muted)');
+
+  for(const k in _callsCharts){ try{_callsCharts[k].destroy();}catch(_){}}
+  _callsCharts={};
+  _callsCharts.dir=new Chart(document.getElementById('calls-chart-dir'),{type:'doughnut',
+    data:{labels:['נכנסת','יוצאת','פנימית'],datasets:[{data:[incoming,outgoing,internal],backgroundColor:['#4f46e5','#10b981','#94a3b8']}]},
+    options:{plugins:{legend:{position:'bottom'}}}});
+  _callsCharts.ans=new Chart(document.getElementById('calls-chart-ans'),{type:'doughnut',
+    data:{labels:['נענו','לא נענו'],datasets:[{data:[answered,missed.length],backgroundColor:['#10b981','#ef4444']}]},
+    options:{plugins:{legend:{position:'bottom'}}}});
+  const byHour=new Array(24).fill(0);
+  data.forEach(c=>{ const h=Math.floor((c.time||0)/3600); if(h>=0&&h<24) byHour[h]++; });
+  _callsCharts.hour=new Chart(document.getElementById('calls-chart-hour'),{type:'bar',
+    data:{labels:byHour.map((_,h)=>h+':00'),datasets:[{label:'שיחות',data:byHour,backgroundColor:'#4f46e5'}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+
+  const mt=document.querySelector('#calls-missed-table tbody');
+  mt.innerHTML = missed.length? missed.map(c=>'<tr><td>'+c.caller+'</td><td>'+(c.name||'')+'</td><td>'+_fmtClock(c.time)+'</td><td>'+_fmtDur(c.wait)+'</td><td>'+(c.line||'')+'</td></tr>').join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין שיחות שלא נענו 🎉</td></tr>';
+
+  const grp={};
+  data.forEach(c=>{ const key=c.dest||'(לא ידוע)'; const g=grp[key]||(grp[key]={t:0,a:0,m:0,talk:0});
+    g.t++; if(c.status==='נענתה')g.a++; if(c.status==='לא נענתה')g.m++; g.talk+=c.talk||0; });
+  document.querySelector('#calls-ext-table tbody').innerHTML=
+    Object.keys(grp).map(k=>[k,grp[k]]).sort((a,b)=>b[1].t-a[1].t).map(function(e){var k=e[0],v=e[1];
+      return '<tr><td>'+k+'</td><td>'+v.t+'</td><td style="color:var(--green)">'+v.a+'</td><td style="color:#ef4444">'+v.m+'</td><td>'+_fmtDur(v.a? v.talk/v.a:0)+'</td><td>'+_fmtDur(v.talk)+'</td></tr>';}).join('');
+
+  const dirIcon={'נכנסת':'📥','יוצאת':'📤','פנימית':'🔁'};
+  document.querySelector('#calls-all-table tbody').innerHTML=
+    data.slice().sort((a,b)=>(a.time||0)-(b.time||0)).map(c=>'<tr><td>'+(dirIcon[c.dir]||'')+' '+c.dir+'</td><td>'+c.caller+'</td><td>'+(c.name||'')+'</td><td>'+(c.dest||'')+'</td><td>'+_fmtClock(c.time)+'</td><td>'+_fmtDur(c.talk)+'</td><td>'+_fmtDur(c.wait)+'</td><td>'+(c.status==='לא נענתה'?'<span style="color:#ef4444">'+c.status+'</span>':c.status)+'</td><td>'+(c.line||'')+'</td></tr>').join('');
 }
 
 // ── אתחול: בודק התחברות וטוען (אחרי שכל ההגדרות מוכנות) ──

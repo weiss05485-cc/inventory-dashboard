@@ -28,3 +28,6 @@ docs/orders.json
 orders_channel_raw.json
 orders_recovered.json
 orders_all_history.json
+
+# קבצי דוחות שיחות (רגיש — לא נשמר במאגר)
+docs/*.xlsx
