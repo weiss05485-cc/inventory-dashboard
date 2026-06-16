@@ -1353,7 +1353,7 @@ body.emp-mode .price-col{display:none!important}
     <h3 style="margin:18px 0 8px">📋 כל השיחות</h3>
     <div class="table-wrap" style="max-height:460px">
       <table class="data-table" id="calls-all-table">
-        <thead><tr><th>כיוון</th><th>מתקשר</th><th>שם</th><th>יעד</th><th>שעה</th><th>משך</th><th>המתנה</th><th>מצב</th><th>קו</th></tr></thead>
+        <thead><tr><th>כיוון</th><th>מתקשר</th><th>שם</th><th>יעד</th><th>שעה</th><th>משך</th><th>המתנה</th><th>מצב</th><th>קו</th><th>הקלטה</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -6102,7 +6102,7 @@ function drawCalls(data){
 
   const dirIcon={'נכנסת':'📥','יוצאת':'📤','פנימית':'🔁'};
   document.querySelector('#calls-all-table tbody').innerHTML=
-    data.slice().sort((a,b)=>(a.time||0)-(b.time||0)).map(c=>'<tr><td>'+(dirIcon[c.dir]||'')+' '+c.dir+'</td><td>'+c.caller+'</td><td>'+(c.name||'')+'</td><td>'+(c.dest||'')+'</td><td>'+_fmtClock(c.time)+'</td><td>'+_fmtDur(c.talk)+'</td><td>'+_fmtDur(c.wait)+'</td><td>'+(c.status==='לא נענתה'?'<span style="color:#ef4444">'+c.status+'</span>':c.status)+'</td><td>'+(c.line||'')+'</td></tr>').join('');
+    data.slice().sort((a,b)=>(a.time||0)-(b.time||0)).map(c=>'<tr><td>'+(dirIcon[c.dir]||'')+' '+c.dir+'</td><td>'+c.caller+'</td><td>'+(c.name||'')+'</td><td>'+(c.dest||'')+'</td><td>'+_fmtClock(c.time)+'</td><td>'+_fmtDur(c.talk)+'</td><td>'+_fmtDur(c.wait)+'</td><td>'+(c.status==='לא נענתה'?'<span style="color:#ef4444">'+c.status+'</span>':c.status)+'</td><td>'+(c.line||'')+'</td><td style="text-align:center" title="'+(c.rec?'יש הקלטה בשרת':'')+'">'+(c.rec?'🔊':'')+'</td></tr>').join('');
 }
 
 // ── אתחול: בודק התחברות וטוען (אחרי שכל ההגדרות מוכנות) ──
