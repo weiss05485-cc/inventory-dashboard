@@ -1342,10 +1342,26 @@ body.emp-mode .price-col{display:none!important}
       </table>
     </div>
 
-    <h3 style="margin:18px 0 8px">👤 לפי שלוחה / יעד</h3>
+    <h3 style="margin:18px 0 8px">📍 לפי סניף — איפה עונים ואיפה לא</h3>
+    <div class="table-wrap" style="max-height:300px">
+      <table class="data-table" id="calls-branch-table">
+        <thead><tr><th>סניף</th><th>סה"כ</th><th>נענו</th><th>לא נענו</th><th>% מענה</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:18px 0 8px">🏢 לפי עמדה / שלוחה</h3>
+    <div class="table-wrap" style="max-height:340px">
+      <table class="data-table" id="calls-desk-table">
+        <thead><tr><th>עמדה</th><th>סה"כ</th><th>נענו</th><th>לא נענו</th><th>% מענה</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:18px 0 8px">👤 לפי יעד</h3>
     <div class="table-wrap" style="max-height:340px">
       <table class="data-table" id="calls-ext-table">
-        <thead><tr><th>שלוחה / יעד</th><th>סה"כ</th><th>נענו</th><th>לא נענו</th><th>משך ממוצע</th><th>זמן שיחה כולל</th></tr></thead>
+        <thead><tr><th>יעד</th><th>סה"כ</th><th>נענו</th><th>לא נענו</th><th>משך ממוצע</th><th>זמן שיחה כולל</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -6092,6 +6108,36 @@ function drawCalls(data){
 
   const mt=document.querySelector('#calls-missed-table tbody');
   mt.innerHTML = missed.length? missed.map(c=>'<tr><td>'+c.caller+'</td><td>'+(c.name||'')+'</td><td>'+_fmtClock(c.time)+'</td><td>'+_fmtDur(c.wait)+'</td><td>'+(c.line||'')+'</td></tr>').join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין שיחות שלא נענו 🎉</td></tr>';
+
+  // ── פילוח לפי סניף (עיר) ולפי עמדה (שם השלוחה) ──
+  function _agg(keyFn){
+    const m={};
+    data.forEach(c=>{ const k=keyFn(c); if(k==null) return; const g=m[k]||(m[k]={t:0,a:0,n:0});
+      g.t++; if(c.status==='נענתה')g.a++; else g.n++; });
+    return m;
+  }
+  function _ansPct(v){ return v.t? Math.round(v.a/v.t*100):0; }
+  function _pctCell(p){ const col = p>=80?'var(--green)':(p>=50?'#f59e0b':'#ef4444');
+    return '<td style="font-weight:700;color:'+col+'">'+p+'%</td>'; }
+  function _rowsHtml(m){
+    return Object.keys(m).map(k=>[k,m[k]]).sort((a,b)=>b[1].t-a[1].t).map(function(e){
+      var k=e[0],v=e[1],p=_ansPct(v);
+      return '<tr><td>'+k+'</td><td>'+v.t+'</td><td style="color:var(--green)">'+v.a+'</td><td style="color:#ef4444">'+v.n+'</td>'+_pctCell(p)+'</tr>';
+    }).join('');
+  }
+  function _branchOf(c){
+    const nm=(c.name||'');
+    if(nm.indexOf('ירושלים')>=0) return '🏙️ ירושלים';
+    if(nm.indexOf('בני ברק')>=0 || nm.indexOf('ב"ב')>=0) return '🏙️ בני ברק';
+    if(/[א-ת]/.test(nm)) return '🏢 אחר (עמדות נוספות)';
+    return null;   // מספר חיצוני / ריק — לא סניף
+  }
+  document.querySelector('#calls-branch-table tbody').innerHTML =
+    _rowsHtml(_agg(_branchOf)) || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין נתוני סניפים</td></tr>';
+  // עמדה = שם השלוחה (רק שמות בעברית, לא מספרים חיצוניים)
+  document.querySelector('#calls-desk-table tbody').innerHTML =
+    _rowsHtml(_agg(c=>{ const nm=(c.name||'').trim(); return /[א-ת]/.test(nm)? nm : null; }))
+    || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין נתוני עמדות</td></tr>';
 
   const grp={};
   data.forEach(c=>{ const key=c.dest||'(לא ידוע)'; const g=grp[key]||(grp[key]={t:0,a:0,m:0,talk:0});
