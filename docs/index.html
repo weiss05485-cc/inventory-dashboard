@@ -1311,10 +1311,16 @@ body.emp-mode .price-col{display:none!important}
   <div id="calls-content" style="display:none">
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px">
       <span style="font-size:12px;color:var(--muted);font-weight:700">תקופה:</span>
-      <button class="cfilter-btn" onclick="setCallsRange('today',this)" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">היום</button>
+      <button class="cfilter-btn" onclick="setCallsRange('today',this)" style="padding:6px 14px;border:1.5px solid var(--primary);border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">היום</button>
       <button class="cfilter-btn" onclick="setCallsRange('7',this)" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">7 ימים</button>
       <button class="cfilter-btn" onclick="setCallsRange('30',this)" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">30 יום</button>
-      <button class="cfilter-btn" onclick="setCallsRange('all',this)" style="padding:6px 14px;border:1.5px solid var(--primary);border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">הכל</button>
+      <button class="cfilter-btn" onclick="setCallsRange('all',this)" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">הכל</button>
+      <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
+      <span style="font-size:12px;color:var(--muted)">מתאריך</span>
+      <input type="date" id="calls-from" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:Rubik;font-size:12px">
+      <span style="font-size:12px;color:var(--muted)">עד</span>
+      <input type="date" id="calls-to" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:Rubik;font-size:12px">
+      <button class="cfilter-btn" onclick="setCallsCustom(this)" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;font-family:Rubik;font-size:12px;font-weight:600">הצג</button>
     </div>
     <div class="kpi-grid" id="calls-kpi"></div>
 
@@ -6032,11 +6038,15 @@ function handleCallsFile(file){
 }
 const CALLS_URL = 'https://orgs.chasidim-center.co.il/ccalls/';
 let _callsTimer = null;
-let _callsRange = 'all';   // 'today' | '7' | '30' | 'all'
+let _callsRange = 'today';   // 'today' | '7' | '30' | 'all' | 'custom'
+let _callsFrom = '', _callsTo = '';
 
 function _callsFiltered(){
   const d = CALLS_DATA || [];
   if(_callsRange==='all') return d;
+  if(_callsRange==='custom'){
+    return d.filter(c => (!_callsFrom || (c.date||'')>=_callsFrom) && (!_callsTo || (c.date||'')<=_callsTo));
+  }
   const now=new Date(); now.setHours(0,0,0,0);
   const days = _callsRange==='today'?1:parseInt(_callsRange,10);
   const from = new Date(now.getTime() - (days-1)*86400000);
@@ -6047,9 +6057,21 @@ function _callsFiltered(){
 function applyCallsFilter(){
   if(CALLS_DATA) drawCalls(_callsFiltered());
 }
+function _clearCfilterBtns(){
+  document.querySelectorAll('#calls-content .cfilter-btn').forEach(b=>{ b.style.background='#fff'; b.style.color='var(--text)'; b.style.borderColor='var(--border)'; });
+}
 function setCallsRange(r, btn){
   _callsRange=r;
-  document.querySelectorAll('#calls-content .cfilter-btn').forEach(b=>{ b.style.background='#fff'; b.style.color='var(--text)'; b.style.borderColor='var(--border)'; });
+  _clearCfilterBtns();
+  if(btn){ btn.style.background='var(--primary)'; btn.style.color='#fff'; btn.style.borderColor='var(--primary)'; }
+  applyCallsFilter();
+}
+function setCallsCustom(btn){
+  const f=document.getElementById('calls-from'), t=document.getElementById('calls-to');
+  _callsFrom=(f&&f.value)||''; _callsTo=(t&&t.value)||'';
+  if(!_callsFrom && !_callsTo){ return; }
+  _callsRange='custom';
+  _clearCfilterBtns();
   if(btn){ btn.style.background='var(--primary)'; btn.style.color='#fff'; btn.style.borderColor='var(--primary)'; }
   applyCallsFilter();
 }
