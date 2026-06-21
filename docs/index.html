@@ -2528,6 +2528,7 @@ async function startApp(role, userInfo) {
   }
   applyRole(role, userInfo);
   showPage(role === 'emp' ? 'search' : 'overview');
+  restoreOrderDraft();
 }
 
 async function sha256hex(str) {
@@ -5478,6 +5479,44 @@ function updateOrderBtn() {
   const btn = document.getElementById('order-float-btn');
   btn.style.display = _pendingOrderItems.length > 0 ? 'flex' : 'none';
   document.getElementById('order-count').textContent = _pendingOrderItems.length;
+  saveOrderDraft();
+}
+
+// ── שמירת טיוטה אוטומטית של הזמנה בעבודה (כדי שריענון/סגירה בטעות לא ימחקו) ──
+const ORDER_DRAFT_KEY = 'cc_order_draft';
+let _orderDraftMeta = null;
+function saveOrderDraft() {
+  try {
+    if (!_pendingOrderItems.length) { localStorage.removeItem(ORDER_DRAFT_KEY); return; }
+    const modal  = document.getElementById('order-form-modal');
+    const open   = modal && modal.style.display === 'flex';
+    const toEl   = document.getElementById('order-to-store');
+    const noteEl = document.getElementById('order-notes');
+    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify({
+      ts: Date.now(),
+      items: _pendingOrderItems,
+      toStore: (open && toEl)   ? toEl.value   : (_orderDraftMeta ? _orderDraftMeta.toStore : ''),
+      notes:   (open && noteEl) ? noteEl.value : (_orderDraftMeta ? _orderDraftMeta.notes   : '')
+    }));
+  } catch(_) {}
+}
+function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(ORDER_DRAFT_KEY); } catch(_) {} }
+function restoreOrderDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(ORDER_DRAFT_KEY) || 'null');
+    if (d && Array.isArray(d.items) && d.items.length) {
+      _pendingOrderItems = d.items;
+      _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '' };
+      const btn = document.getElementById('order-float-btn');
+      if (btn) { btn.style.display = 'flex'; document.getElementById('order-count').textContent = _pendingOrderItems.length; }
+      showToast('שוחזרה הזמנה שלא נשלחה — ' + _pendingOrderItems.length + ' פריטים 📝');
+    }
+  } catch(_) {}
+  if (!window._orderDraftAuto) {
+    window._orderDraftAuto = true;
+    setInterval(() => { if (_pendingOrderItems.length) saveOrderDraft(); }, 5000);
+    window.addEventListener('beforeunload', () => { if (_pendingOrderItems.length) saveOrderDraft(); });
+  }
 }
 
 // --- step 1: open form modal ---
@@ -5534,7 +5573,8 @@ function sendOrder() {
   const userInfo = JSON.parse(localStorage.getItem('cc_user') || '{}');
   document.getElementById('order-sender-name').textContent  = userInfo.display || '—';
   document.getElementById('order-sender-store').textContent = userInfo.store   || '—';
-  document.getElementById('order-to-store').value = '';
+  document.getElementById('order-to-store').value = _orderDraftMeta ? (_orderDraftMeta.toStore || '') : '';
+  if (_orderDraftMeta && _orderDraftMeta.notes) { const _n=document.getElementById('order-notes'); if(_n) _n.value=_orderDraftMeta.notes; }
 
   document.getElementById('order-form-error').textContent = '';
   document.getElementById('order-form-modal').style.display = 'flex';
@@ -5585,6 +5625,7 @@ async function confirmOrder() {
 
   // close form, clear pending items + checkboxes, show done modal
   _pendingOrderItems = [];
+  clearOrderDraft();
   closeOrderForm();
   document.querySelectorAll('.order-check:checked').forEach(cb => {
     cb.checked = false;
