@@ -5483,16 +5483,20 @@ function updateOrderBtn() {
 }
 
 // ── שמירת טיוטה אוטומטית של הזמנה בעבודה (כדי שריענון/סגירה בטעות לא ימחקו) ──
-const ORDER_DRAFT_KEY = 'cc_order_draft';
+// מפתח טיוטה לפי עובד (no) — כך שבמחשב משותף כל עובד רואה רק את שלו
+function _orderDraftKey(){
+  try { const u = JSON.parse(localStorage.getItem('cc_user')||'{}'); return 'cc_order_draft_' + (u.no || u.display || 'x'); }
+  catch(_) { return 'cc_order_draft_x'; }
+}
 let _orderDraftMeta = null;
 function saveOrderDraft() {
   try {
-    if (!_pendingOrderItems.length) { localStorage.removeItem(ORDER_DRAFT_KEY); return; }
+    if (!_pendingOrderItems.length) { localStorage.removeItem(_orderDraftKey()); return; }
     const modal  = document.getElementById('order-form-modal');
     const open   = modal && modal.style.display === 'flex';
     const toEl   = document.getElementById('order-to-store');
     const noteEl = document.getElementById('order-notes');
-    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify({
+    localStorage.setItem(_orderDraftKey(), JSON.stringify({
       ts: Date.now(),
       items: _pendingOrderItems,
       toStore: (open && toEl)   ? toEl.value   : (_orderDraftMeta ? _orderDraftMeta.toStore : ''),
@@ -5500,10 +5504,10 @@ function saveOrderDraft() {
     }));
   } catch(_) {}
 }
-function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(ORDER_DRAFT_KEY); } catch(_) {} }
+function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(_orderDraftKey()); } catch(_) {} }
 function restoreOrderDraft() {
   try {
-    const d = JSON.parse(localStorage.getItem(ORDER_DRAFT_KEY) || 'null');
+    const d = JSON.parse(localStorage.getItem(_orderDraftKey()) || 'null');
     if (d && Array.isArray(d.items) && d.items.length) {
       _pendingOrderItems = d.items;
       _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '' };
