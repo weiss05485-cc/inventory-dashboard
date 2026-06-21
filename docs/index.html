@@ -5504,21 +5504,68 @@ function saveOrderDraft() {
     }));
   } catch(_) {}
 }
-function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(_orderDraftKey()); } catch(_) {} }
+function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(_orderDraftKey()); } catch(_) {} _pushDraftRemote(); }
+
+// ── סנכרון טיוטה לשרת (בין מכשירים), מוצפן לפי עובד ──
+const DRAFT_URL = 'https://orgs.chasidim-center.co.il/ccdraft/';
+function _draftEmp(){ try { const u=JSON.parse(localStorage.getItem('cc_user')||'{}'); return encodeURIComponent(u.no||u.display||'x'); } catch(_) { return 'x'; } }
+async function _pushDraftRemote(){
+  try{
+    if(!_encPassword) return;
+    const tok = await _gasToken();
+    let body;
+    if(!_pendingOrderItems.length){ body='{}'; }
+    else{
+      const modal=document.getElementById('order-form-modal'); const open=modal&&modal.style.display==='flex';
+      const toEl=document.getElementById('order-to-store'), noteEl=document.getElementById('order-notes');
+      const draft={ ts:Date.now(), items:_pendingOrderItems,
+        toStore:(open&&toEl)?toEl.value:(_orderDraftMeta?_orderDraftMeta.toStore:''),
+        notes:(open&&noteEl)?noteEl.value:(_orderDraftMeta?_orderDraftMeta.notes:'') };
+      body=JSON.stringify(await _encryptObj(draft, _encPassword));
+    }
+    await fetch(DRAFT_URL+'?token='+encodeURIComponent(tok)+'&emp='+_draftEmp(), {method:'POST', body});
+  }catch(_){}
+}
+async function _pullDraftRemote(){
+  try{
+    if(!_encPassword) return null;
+    const tok=await _gasToken();
+    const r=await fetch(DRAFT_URL+'?v='+Date.now()+'&token='+encodeURIComponent(tok)+'&emp='+_draftEmp());
+    if(!r.ok) return null;
+    const raw=await r.json();
+    if(raw && raw.enc && raw.ct) return JSON.parse(await _decryptEnvelope(raw, _encPassword));
+    return null;
+  }catch(_){ return null; }
+}
+function _showRestoredDraft(msg){
+  const btn=document.getElementById('order-float-btn');
+  if(btn){ btn.style.display='flex'; document.getElementById('order-count').textContent=_pendingOrderItems.length; }
+  showToast(msg+' — '+_pendingOrderItems.length+' פריטים 📝');
+}
 function restoreOrderDraft() {
+  let localTs = 0;
   try {
     const d = JSON.parse(localStorage.getItem(_orderDraftKey()) || 'null');
     if (d && Array.isArray(d.items) && d.items.length) {
       _pendingOrderItems = d.items;
-      _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '' };
-      const btn = document.getElementById('order-float-btn');
-      if (btn) { btn.style.display = 'flex'; document.getElementById('order-count').textContent = _pendingOrderItems.length; }
-      showToast('שוחזרה הזמנה שלא נשלחה — ' + _pendingOrderItems.length + ' פריטים 📝');
+      _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '', ts: d.ts || 0 };
+      localTs = d.ts || 0;
+      _showRestoredDraft('שוחזרה הזמנה שלא נשלחה');
     }
   } catch(_) {}
+  // סנכרון מהשרת — אם יש טיוטה חדשה יותר ממכשיר אחר
+  (async function(){
+    const remote = await _pullDraftRemote();
+    if (remote && Array.isArray(remote.items) && remote.items.length && (remote.ts||0) > localTs) {
+      _pendingOrderItems = remote.items;
+      _orderDraftMeta = { toStore: remote.toStore || '', notes: remote.notes || '', ts: remote.ts || 0 };
+      saveOrderDraft();   // מראה גם מקומית
+      _showRestoredDraft('שוחזרה הזמנה ממכשיר אחר');
+    }
+  })();
   if (!window._orderDraftAuto) {
     window._orderDraftAuto = true;
-    setInterval(() => { if (_pendingOrderItems.length) saveOrderDraft(); }, 5000);
+    setInterval(() => { if (_pendingOrderItems.length) { saveOrderDraft(); _pushDraftRemote(); } }, 5000);
     window.addEventListener('beforeunload', () => { if (_pendingOrderItems.length) saveOrderDraft(); });
   }
 }
