@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime
 from decimal import Decimal
 
@@ -15,8 +16,8 @@ except ImportError:
     DB_USER     = os.environ['DB_USER']
     DB_PASSWORD = os.environ['DB_PASSWORD']
 
-def _connect():
-    """חיבור לDB — pyodbc על Windows, pymssql על Linux (GitHub Actions)"""
+def _connect_once():
+    """חיבור בודד לDB — pyodbc על Windows, pymssql על Linux (GitHub Actions)"""
     try:
         import pyodbc
         CONN_STR = (f"DRIVER={{SQL Server}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
@@ -27,6 +28,19 @@ def _connect():
         return pymssql.connect(server=DB_SERVER, user=DB_USER,
                                password=DB_PASSWORD, database=DB_NAME,
                                timeout=15, login_timeout=15)
+
+def _connect(retries=3, delay=8):
+    """ניסיון חוזר — נפילת-רגע של ארנט לא תכשיל את הסנכרון"""
+    last = None
+    for attempt in range(1, retries + 1):
+        try:
+            return _connect_once()
+        except Exception as e:
+            last = e
+            print(f"[sync] ניסיון התחברות {attempt}/{retries} נכשל: {e}", flush=True)
+            if attempt < retries:
+                time.sleep(delay)
+    raise last
 
 BARCODE_RE = re.compile(r'^(\d{2})([A-Za-z]+)(\d{2})([A-Za-z0-9]{2})(.+)$', re.IGNORECASE)
 
