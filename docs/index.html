@@ -6340,7 +6340,7 @@ function drawCalls(data){
 }
 
 /* ========== BESTSELLERS — דירוג נמכרים לפי תקופה ========== */
-const BS_EXCLUDE_DEPTS = new Set(['תיקונים']);  // שירותי תיקון — לא מכירות מוצרים
+const BS_EXCLUDE_DEPTS = new Set(['תיקונים','ללא מחלקה']);  // תיקונים=שירות, ללא מחלקה=הנחות/זבל
 let _bsPeriod = 'cur';
 function setBsPeriod(p, btn){
   _bsPeriod = p;
@@ -6374,6 +6374,7 @@ function renderBestsellers(){
     SALES_DATA.forEach(r=>{
       if(!inP(r.ym)) return;
       if(BS_EXCLUDE_DEPTS.has(r.dept)) return;
+      if((r.n||'').indexOf('הנחה')>-1) return;   // שורות הנחה — לא מוצר
       if(dept && r.dept!==dept) return;
       if(term && (r.n||'').indexOf(term)===-1) return;
       const k=r.n+'|'+r.dept;
