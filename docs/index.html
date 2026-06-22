@@ -5646,6 +5646,8 @@ async function confirmOrder() {
   const errEl     = document.getElementById('order-form-error');
 
   if (!toStore) { errEl.textContent = 'יש לבחור יעד להזמנה'; return; }
+  // הגנה קריטית: לעולם לא לשלוח/לשמור הזמנה ריקה (וכך גם לא למחוק טיוטה)
+  if (!_pendingOrderItems.length) { errEl.textContent = 'ההזמנה ריקה — לא נשלח. הוסף פריטים (אם משהו נעלם, הטיוטה נשמרה).'; return; }
   errEl.textContent = '';
 
   const now     = new Date();
