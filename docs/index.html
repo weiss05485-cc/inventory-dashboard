@@ -2706,7 +2706,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const labels = {overview:0, search:1, departments:2, lowstock:3, reports:4, sales:5, today:6, orders:7, planner:8, promos:9, calls:10};
+  const labels = {}; ALL_PAGES.forEach((p, i) => { labels[p] = i; });  // נגזר אוטומטית מסדר הדפים
   const navBtns  = document.querySelectorAll('.nav-btn');
   const bnavBtns = document.querySelectorAll('.bnav-btn');
   if (navBtns[labels[id]])  navBtns[labels[id]].classList.add('active');
