@@ -272,13 +272,19 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 body.emp-mode .price-col{display:none!important}
 
 /* ORDER FLOAT BUTTON */
-#order-float-btn{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+#order-float-wrap{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:8px;z-index:1000}
+#order-float-btn{
   background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;
   border-radius:50px;padding:14px 32px;font-size:15px;font-weight:700;
-  cursor:pointer;display:none;align-items:center;gap:10px;
-  box-shadow:0 6px 24px rgba(16,185,129,.45);z-index:1000;
+  cursor:pointer;display:flex;align-items:center;gap:10px;
+  box-shadow:0 6px 24px rgba(16,185,129,.45);
   font-family:'Rubik',sans-serif;white-space:nowrap;transition:opacity .2s,transform .2s}
-#order-float-btn:hover{opacity:.92;transform:translateX(-50%) scale(1.03)}
+#order-float-btn:hover{opacity:.92;transform:scale(1.03)}
+#order-discard-btn{background:#fff;color:#ef4444;border:1.5px solid #fecaca;
+  border-radius:50%;width:44px;height:44px;font-size:17px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);font-weight:700;line-height:1;transition:background .2s}
+#order-discard-btn:hover{background:#fef2f2}
 #order-count{background:rgba(255,255,255,.3);border-radius:20px;padding:2px 10px;font-size:13px}
 .order-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
 .order-qty{width:52px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:center;display:none;margin-right:4px;font-family:'Rubik',sans-serif;vertical-align:middle}
@@ -326,9 +332,12 @@ body.emp-mode .price-col{display:none!important}
 </div>
 
 <!-- ORDER FLOAT BUTTON -->
-<button id="order-float-btn" onclick="sendOrder()">
-  📦 שלח הזמנה <span id="order-count">0</span> פריטים
-</button>
+<div id="order-float-wrap">
+  <button id="order-float-btn" onclick="sendOrder()">
+    📦 שלח הזמנה <span id="order-count">0</span> פריטים
+  </button>
+  <button id="order-discard-btn" onclick="discardOrderDraft()" title="בטל ומחק טיוטה">🗑️</button>
+</div>
 
 <!-- ORDER FORM MODAL (step 1: fill details) -->
 <div id="order-form-modal">
@@ -5524,8 +5533,8 @@ function updatePendingQty(input) {
 }
 
 function updateOrderBtn() {
-  const btn = document.getElementById('order-float-btn');
-  btn.style.display = _pendingOrderItems.length > 0 ? 'flex' : 'none';
+  const wrap = document.getElementById('order-float-wrap');
+  if (wrap) wrap.style.display = _pendingOrderItems.length > 0 ? 'flex' : 'none';
   document.getElementById('order-count').textContent = _pendingOrderItems.length;
   saveOrderDraft();
 }
@@ -5585,30 +5594,48 @@ async function _pullDraftRemote(){
     return null;
   }catch(_){ return null; }
 }
+const DRAFT_FRESH_MS = 24*3600*1000;   // טיוטה ישנה מ-24 שעות לא משוחזרת אוטומטית
 function _showRestoredDraft(msg){
-  const btn=document.getElementById('order-float-btn');
-  if(btn){ btn.style.display='flex'; document.getElementById('order-count').textContent=_pendingOrderItems.length; }
+  const wrap=document.getElementById('order-float-wrap');
+  if(wrap){ wrap.style.display='flex'; document.getElementById('order-count').textContent=_pendingOrderItems.length; }
   showToast(msg+' — '+_pendingOrderItems.length+' פריטים 📝');
+}
+function discardOrderDraft(){
+  if(!confirm('לבטל ולמחוק את הטיוטה? הפריטים שטרם נשלחו יימחקו.')) return;
+  _pendingOrderItems = [];
+  document.querySelectorAll('.order-check:checked').forEach(cb=>{ cb.checked=false; const qi=cb.nextElementSibling; if(qi) qi.classList.remove('show'); });
+  clearOrderDraft();   // מנקה מקומי + שרת
+  updateOrderBtn();
+  showToast('הטיוטה נמחקה ✓');
 }
 function restoreOrderDraft() {
   let localTs = 0;
   try {
     const d = JSON.parse(localStorage.getItem(_orderDraftKey()) || 'null');
     if (d && Array.isArray(d.items) && d.items.length) {
-      _pendingOrderItems = d.items;
-      _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '', ts: d.ts || 0 };
-      localTs = d.ts || 0;
-      _showRestoredDraft('שוחזרה הזמנה שלא נשלחה');
+      if ((Date.now() - (d.ts||0)) > DRAFT_FRESH_MS) {
+        clearOrderDraft();   // ישנה מדי — נקה ואל תשחזר
+      } else {
+        _pendingOrderItems = d.items;
+        _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '', ts: d.ts || 0 };
+        localTs = d.ts || 0;
+        _showRestoredDraft('שוחזרה הזמנה שלא נשלחה');
+      }
     }
   } catch(_) {}
-  // סנכרון מהשרת — אם יש טיוטה חדשה יותר ממכשיר אחר
+  // סנכרון מהשרת — רק טיוטה טרייה וחדשה יותר ממכשיר אחר
   (async function(){
     const remote = await _pullDraftRemote();
-    if (remote && Array.isArray(remote.items) && remote.items.length && (remote.ts||0) > localTs) {
-      _pendingOrderItems = remote.items;
-      _orderDraftMeta = { toStore: remote.toStore || '', notes: remote.notes || '', ts: remote.ts || 0 };
-      saveOrderDraft();   // מראה גם מקומית
-      _showRestoredDraft('שוחזרה הזמנה ממכשיר אחר');
+    if (remote && Array.isArray(remote.items) && remote.items.length) {
+      const fresh = (Date.now() - (remote.ts||0)) < DRAFT_FRESH_MS;
+      if (fresh && (remote.ts||0) > localTs && !_pendingOrderItems.length) {
+        _pendingOrderItems = remote.items;
+        _orderDraftMeta = { toStore: remote.toStore || '', notes: remote.notes || '', ts: remote.ts || 0 };
+        saveOrderDraft();
+        _showRestoredDraft('שוחזרה הזמנה ממכשיר אחר');
+      } else if (!fresh && !_pendingOrderItems.length) {
+        _pushDraftRemote();   // טיוטת שרת ישנה — נקה כדי שלא תקפוץ שוב (_pendingOrderItems ריק => {})
+      }
     }
   })();
   if (!window._orderDraftAuto) {
