@@ -1277,6 +1277,16 @@ body.emp-mode .price-col{display:none!important}
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">יחידות יעד לחלוקה</div>
         <input type="number" id="op-target-qty" value="1000" step="50" min="1" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:110px">
       </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">התייחסות מלאי משנה</div>
+        <select id="op-stock-year" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:130px">
+          <option value="0">כל המלאי</option>
+          <option value="2026">מ-2026</option>
+          <option value="2025">מ-2025 ומעלה</option>
+          <option value="2024">מ-2024 ומעלה</option>
+          <option value="2023">מ-2023 ומעלה</option>
+        </select>
+      </div>
       <!-- שדות ידניים לפיצול שורות — מוצגים רק לחליפות -->
       <div id="op-sh-split" style="display:none;gap:10px;align-items:flex-end;padding:6px 12px;background:#f0f0ff;border-radius:10px;border:1.5px solid #c7d2fe">
         <div style="font-size:11px;font-weight:800;color:#4f46e5;margin-bottom:2px">פיצול ידני (ריק = אוטומטי)</div>
@@ -4601,6 +4611,14 @@ function runOrderPlanner() {
     if (allMode || !prodDept) return true;
     return _useJacket ? JACKET_DEPTS.has(i.dept) : (i.dept === prodDept);
   };
+  // התייחסות מלאי משנה — סופרים רק מלאי משנת הברקוד הנבחרת ומעלה (כדי להתעלם ממלאי ישן)
+  const stockFromYear = parseInt(document.getElementById('op-stock-year') && document.getElementById('op-stock-year').value) || 0;
+  const stockOf = i => {
+    if (!stockFromYear) return i.q || 0;
+    const y = i.yrs || {}; let s = 0;
+    for (const k in y) { if (+k >= stockFromYear) s += y[k]; }
+    return s;
+  };
 
   // קבוצות נבחרות — null = הכל, Set = רק אלה
   const _grpCBs = [...document.querySelectorAll('input[name="op-grp-cb"]')];
@@ -4663,7 +4681,7 @@ function runOrderPlanner() {
       if (selectedGroups && !selectedGroups.has(grp)) return;   // סנן מלאי לפי קבוצות נבחרות
       const sz  = i.sz || '—';
       const key = grp + '|' + sz;
-      invMap[key] = (invMap[key] || 0) + (i.q || 0);
+      invMap[key] = (invMap[key] || 0) + stockOf(i);
     });
   }
 
@@ -4741,7 +4759,7 @@ function runOrderPlanner() {
         if (sh !== '1' && sh !== '2') return;
         const grp = i.g || 'ללא קבוצה';
         if (!stockByShSzGrp[sh][i.sz]) stockByShSzGrp[sh][i.sz] = {};
-        stockByShSzGrp[sh][i.sz][grp] = (stockByShSzGrp[sh][i.sz][grp] || 0) + (i.q || 0);
+        stockByShSzGrp[sh][i.sz][grp] = (stockByShSzGrp[sh][i.sz][grp] || 0) + stockOf(i);
       });
     }
     // מכירות מוצר נבחר לפי שורה × מידה × קבוצה (לחישוב קצב חודשי לניכוי מלאי)
