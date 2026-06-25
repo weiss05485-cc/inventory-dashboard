@@ -4593,6 +4593,14 @@ function runOrderPlanner() {
   const tgtMonths = parseFloat(document.getElementById('op-target-months').value)  || 3;
   const tgtQty    = parseInt  (document.getElementById('op-target-qty').value)    || 1000;
   const allMode   = product === '__all__';
+  // חלוקת "כלל המוצרים": מצרפים מחלקות בעלות מערכת מידות זהה (חליפה/מעיל), בלי מכנסיים/ווסטים
+  const prodDept  = allMode ? null : ((SALES_DATA.find(i => i.n === product) || {}).dept || null);
+  const JACKET_DEPTS = new Set(['חלק', 'פרחוני', 'מעילים', 'חליפות']);
+  const _useJacket = prodDept && JACKET_DEPTS.has(prodDept);
+  const sameDept  = i => {
+    if (allMode || !prodDept) return true;
+    return _useJacket ? JACKET_DEPTS.has(i.dept) : (i.dept === prodDept);
+  };
 
   // קבוצות נבחרות — null = הכל, Set = רק אלה
   const _grpCBs = [...document.querySelectorAll('input[name="op-grp-cb"]')];
@@ -4707,7 +4715,7 @@ function runOrderPlanner() {
     const gdBySh    = {'2':{}, '1':{}};
     const gdByShGrp = {'2':{}, '1':{}};  // [שורה][sz][קבוצה] = qty
     filteredSD
-      .filter(i => i.n && i.n!=='ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz!=='—')
+      .filter(i => i.n && i.n!=='ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && sameDept(i) && i.sz && i.sz!=='—')
       .forEach(i => {
         const sh = getShorot(i.mc||'');
         if (sh!=='1' && sh!=='2') return;
@@ -4816,7 +4824,7 @@ function runOrderPlanner() {
       // gsmCombined: סה"כ נמכר לפי מידה מכל המוצרים — כולל mc ריק/לא מוכר (כמו Arnet)
       const gsmCombined = {};
       filteredSD
-        .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && i.sz && i.sz !== '—')
+        .filter(i => i.n && i.n !== 'ללא שם' && !OP_EXCLUDE_DEPTS.has(i.dept||'') && sameDept(i) && i.sz && i.sz !== '—')
         .forEach(i => { gsmCombined[i.sz] = (gsmCombined[i.sz]||0) + (i.q||0); });
       sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => {
         const byGroup = mkByGroup('2', d.sz, d.order);
@@ -4833,7 +4841,7 @@ function runOrderPlanner() {
       // מוצר ללא פיצול שורות (בעקיטשע, ריפס וכו') — טבלה אחת מכל המוצרים
       const gsmAll = {};
       filteredSD
-        .filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')&&i.sz&&i.sz!=='—')
+        .filter(i=>i.n&&i.n!=='ללא שם'&&!OP_EXCLUDE_DEPTS.has(i.dept||'')&&sameDept(i)&&i.sz&&i.sz!=='—')
         .forEach(i=>{ gsmAll[i.sz]=(gsmAll[i.sz]||0)+(i.q||0); });
       const totAll2 = Object.values(gsmAll).reduce((s,v)=>s+v,0);
       // סיכום מלאי לפי מידה מה-invMap (מסונן לפי מוצר)
