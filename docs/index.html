@@ -1281,10 +1281,6 @@ body.emp-mode .price-col{display:none!important}
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">התייחסות מלאי משנה</div>
         <select id="op-stock-year" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:Rubik;font-size:13px;width:130px">
           <option value="0">כל המלאי</option>
-          <option value="2026">מ-2026</option>
-          <option value="2025">מ-2025 ומעלה</option>
-          <option value="2024">מ-2024 ומעלה</option>
-          <option value="2023">מ-2023 ומעלה</option>
         </select>
       </div>
       <!-- שדות ידניים לפיצול שורות — מוצגים רק לחליפות -->
@@ -2525,6 +2521,28 @@ function renderComparison() {
 /* ========== AUTH ========== */
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
 const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','bestsellers','today','orders','planner','promos','calls'];
+
+// ── שנים דינמיות (מתעדכנות לבד לפי השנה הנוכחית) ──
+const _CUR_YEAR = new Date().getFullYear();
+const _Y_OLDER  = _CUR_YEAR - 3;                 // הסף לקבוצת "X ומטה"
+// אפשרויות מסנן שנה: כל השנים + 3 שנים אחרונות + "ישן ומטה"
+const _YEAR_FILTER_OPTS = [
+  {v:'all', lbl:'כל השנים'},
+  {v:String(_CUR_YEAR),   lbl:String(_CUR_YEAR)},
+  {v:String(_CUR_YEAR-1), lbl:String(_CUR_YEAR-1)},
+  {v:String(_CUR_YEAR-2), lbl:String(_CUR_YEAR-2)},
+  {v:'le'+_Y_OLDER, lbl:_Y_OLDER+' ומטה'}
+];
+// קלפי פירוק שנה: [label, value, key] לפי שנה נוכחית
+function _yearBreakdownCards(yt){
+  const le = Object.keys(yt).filter(k=>+k<=_Y_OLDER).reduce((s,k)=>s+(yt[k]||0),0);
+  return [
+    [String(_CUR_YEAR),   yt[String(_CUR_YEAR)]||0,   String(_CUR_YEAR)],
+    [String(_CUR_YEAR-1), yt[String(_CUR_YEAR-1)]||0, String(_CUR_YEAR-1)],
+    [String(_CUR_YEAR-2), yt[String(_CUR_YEAR-2)]||0, String(_CUR_YEAR-2)],
+    [_Y_OLDER+' ומטה', le, 'le'+_Y_OLDER]
+  ];
+}
 
 // ── הצפנה/פענוח נתונים (AES-GCM + PBKDF2, תואם encrypt_data.py) ──
 let _encPassword = sessionStorage.getItem('cc_pass') || null;
@@ -4147,8 +4165,7 @@ function renderSalesYearBox() {
   const yt = {};
   REPORT_DATA.filter(i => i.n === activeSaleItem).forEach(i => { const y = i.yrs || {}; for (const k in y) yt[k] = (yt[k] || 0) + y[k]; });
   if (!Object.keys(yt).length) { box.style.display = 'none'; return; }
-  const le = Object.keys(yt).filter(k => +k <= 2023).reduce((s, k) => s + yt[k], 0);
-  const cards = [['2026', yt['2026']||0],['2025', yt['2025']||0],['2024', yt['2024']||0],['2023 ומטה', le]];
+  const cards = _yearBreakdownCards(yt).map(([l,v]) => [l, v]);
   const tot = Object.values(yt).reduce((s, v) => s + v, 0);
   box.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center';
   box.innerHTML = '<span style="font-size:12px;color:var(--muted);font-weight:600">📦 מלאי לפי שנה:</span>'
@@ -4549,6 +4566,17 @@ function initOrderPlanner() {
   const loadDone = () => {
     if (opPlannerReady) return;
     opPlannerReady = true;
+
+    // בורר "התייחסות מלאי משנה" — דינמי לפי השנה הנוכחית (מתעדכן לבד)
+    const sycSel = document.getElementById('op-stock-year');
+    if (sycSel) {
+      let html = '<option value="0">כל המלאי</option>';
+      for (let k = 0; k < 4; k++) {
+        const yr = _CUR_YEAR - k;
+        html += `<option value="${yr}">${k === 0 ? 'מ-' + yr : 'מ-' + yr + ' ומעלה'}</option>`;
+      }
+      sycSel.innerHTML = html;
+    }
 
     const products = [...new Set(
       SALES_DATA
@@ -5173,10 +5201,10 @@ let _reportYear = 'all';   // 'all' | '2026' | '2025' | '2024' | 'le2023'
 function qOfReport(i) {
   if (_reportYear === 'all') return i.q || 0;
   const y = i.yrs || {};
-  if (_reportYear === 'le2023') { let s = 0; for (const k in y) { if (+k <= 2023) s += y[k]; } return s; }
+  if (typeof _reportYear === 'string' && _reportYear.indexOf('le') === 0) { const th = +_reportYear.slice(2); let s = 0; for (const k in y) { if (+k <= th) s += y[k]; } return s; }
   return y[_reportYear] || 0;
 }
-const REPORT_YEAR_BTNS = [['all','כל השנים'],['2026','2026'],['2025','2025'],['2024','2024'],['le2023','2023 ומטה']];
+const REPORT_YEAR_BTNS = _YEAR_FILTER_OPTS.map(o => [o.v, o.lbl]);
 function buildReportYearButtons() {
   document.getElementById('report-year-btns').innerHTML = REPORT_YEAR_BTNS.map(([v,lbl]) =>
     `<button class="pill ${v===_reportYear?'active':''}" onclick="setReportYear('${v}',this)">${lbl}</button>`).join('');
@@ -5341,13 +5369,12 @@ function renderReportTable() {
   // ── פירוק מלאי לפי שנה (כל השנים) ──
   const yearTot = {};
   items.forEach(i => { const y = i.yrs || {}; for (const k in y) yearTot[k] = (yearTot[k] || 0) + y[k]; });
-  const le2023 = Object.keys(yearTot).filter(k => +k <= 2023).reduce((s, k) => s + yearTot[k], 0);
   const ybd = document.getElementById('report-year-breakdown');
   if (Object.keys(yearTot).length) {
-    const cards = [['2026', yearTot['2026']||0],['2025', yearTot['2025']||0],['2024', yearTot['2024']||0],['2023 ומטה', le2023]];
+    const cards = _yearBreakdownCards(yearTot);
     const cellHtml = (lbl,v,key)=>`<div onclick="setReportYear('${key}')" style="cursor:pointer;background:${_reportYear===key?'var(--primary)':'#f5f6fb'};color:${_reportYear===key?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">${lbl}:</span> <strong>${Math.round(v)}</strong></div>`;
     ybd.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px';
-    ybd.innerHTML = cards.map(([l,v],ix)=>cellHtml(l,v,['2026','2025','2024','le2023'][ix])).join('')
+    ybd.innerHTML = cards.map(([l,v,key])=>cellHtml(l,v,key)).join('')
       + `<div onclick="setReportYear('all')" style="cursor:pointer;background:${_reportYear==='all'?'var(--primary)':'#eef9f0'};color:${_reportYear==='all'?'#fff':'#15803d'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">סה"כ:</span> <strong>${Math.round(Object.values(yearTot).reduce((s,v)=>s+v,0))}</strong></div>`;
   } else { ybd.style.display='none'; }
 
