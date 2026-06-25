@@ -4821,12 +4821,12 @@ function runOrderPlanner() {
       sizeDist2 = mkArr(gdBySh['2'], tot2, tqSh2).map(d => {
         const byGroup = mkByGroup('2', d.sz, d.order);
         const stock   = Object.values(stockByShSzGrp['2']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
-        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, stock};
+        return {...d, soldAll: gsmCombined[d.sz]||0, soldProd: d.sold, byGroup, stock};
       });
       sizeDist1 = mkArr(gdBySh['1'], tot1, tqSh1).map(d => {
         const byGroup = mkByGroup('1', d.sz, d.order);
         const stock   = Object.values(stockByShSzGrp['1']?.[d.sz] || {}).reduce((s,v)=>s+v,0);
-        return {...d, soldAll: gsmCombined[d.sz]||0, byGroup, stock};
+        return {...d, soldAll: gsmCombined[d.sz]||0, soldProd: d.sold, byGroup, stock};
       });
       sizeDist  = [...sizeDist2, ...sizeDist1];
     } else {
@@ -4842,11 +4842,13 @@ function runOrderPlanner() {
         const sz = key.substring(key.indexOf('|')+1);
         stockBySzNS[sz] = (stockBySzNS[sz]||0) + (invMap[key]||0);
       });
-      sizeDist = sortSizes(Object.keys(gsmAll)).map(sz => {
-        const sold  = gsmAll[sz]||0, pct = totAll2>0?sold/totAll2:0;
+      // איחוד כל המידות: גם כאלה עם מלאי/מכר-מוצר בלי מכר-כלל-מוצרים (שלא ייחתכו)
+      const allSz = sortSizes([...new Set([...Object.keys(gsmAll), ...Object.keys(stockBySzNS), ...Object.keys(sizeMap)])]);
+      sizeDist = allSz.map(sz => {
+        const soldAll = gsmAll[sz]||0, pct = totAll2>0?soldAll/totAll2:0;
         const order = Math.round(pct*tgtQty);
         const stock = stockBySzNS[sz] || 0;
-        return {sz, sold, pct, order, stock};
+        return {sz, sold: soldAll, soldAll, soldProd: sizeMap[sz]||0, pct, order, stock};
       });
       sizeDist2 = null; sizeDist1 = null;
     }
@@ -4861,29 +4863,34 @@ function runOrderPlanner() {
 function buildSizeTable(dist, label, color) {
   if (!dist || !dist.length) return `<div style="color:var(--muted);font-size:12px;padding:12px">אין נתונים</div>`;
   const hasSoldAll = dist.some(d => d.soldAll !== undefined);
+  const hasProd    = dist.some(d => d.soldProd !== undefined);
   const hasStock   = dist.some(d => (d.stock||0) > 0);
   const totOrder   = dist.reduce((s,d)=>s+d.order, 0);
   const totSoldAll = hasSoldAll ? dist.reduce((s,d)=>s+(d.soldAll||0),0) : dist.reduce((s,d)=>s+d.sold,0);
+  const totProd    = dist.reduce((s,d)=>s+(d.soldProd||0),0);
   const totStock   = dist.reduce((s,d)=>s+(d.stock||0),0);
   const rows = dist.map(d => {
+    const prodCell = hasProd
+      ? `<td style="color:#7c3aed;font-size:12px;text-align:center">${(d.soldProd||0) > 0 ? (d.soldProd||0).toLocaleString() : '—'}</td>` : '';
     const stockCell = hasStock
-      ? `<td style="color:#0369a1;font-size:12px;text-align:center">${(d.stock||0) > 0 ? (d.stock||0).toLocaleString() : '—'}</td>`
-      : '';
+      ? `<td style="color:#0369a1;font-size:12px;text-align:center">${(d.stock||0) > 0 ? (d.stock||0).toLocaleString() : '—'}</td>` : '';
     return `<tr>
       <td><span class="chip size">מ' ${d.sz}</span></td>
       <td>${(hasSoldAll ? (d.soldAll||0) : d.sold).toLocaleString()}</td>
-      ${stockCell}
+      ${prodCell}${stockCell}
       <td style="color:var(--primary);font-weight:600">${(d.pct*100).toFixed(1)}%</td>
       <td style="font-weight:700">${d.order.toLocaleString()}</td>
     </tr>`;
   }).join('');
-  const stockTh  = hasStock ? `<th style="color:#0369a1">📦 במלאי</th>` : '';
+  const prodTh   = hasProd  ? `<th style="color:#7c3aed">🛒 נמכר (מוצר זה)</th>` : '';
+  const stockTh  = hasStock ? `<th style="color:#0369a1">📦 מלאי בפועל</th>` : '';
+  const prodTot  = hasProd  ? `<td style="color:#7c3aed;text-align:center">${totProd.toLocaleString()}</td>` : '';
   const stockTot = hasStock ? `<td style="color:#0369a1;text-align:center">${totStock.toLocaleString()}</td>` : '';
   return `<div class="table-wrap"><table>
-    <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th>${stockTh}<th>%</th><th>הזמנה</th></tr></thead>
+    <thead><tr><th>מידה</th><th>נמכר (כלל מוצרים)</th>${prodTh}${stockTh}<th>%</th><th>הזמנה</th></tr></thead>
     <tbody>${rows}
       <tr style="background:#f8f9ff;font-weight:700;border-top:2px solid var(--border)">
-        <td>סה"כ</td><td>${totSoldAll.toLocaleString()}</td>${stockTot}<td>100%</td><td>${totOrder.toLocaleString()}</td>
+        <td>סה"כ</td><td>${totSoldAll.toLocaleString()}</td>${prodTot}${stockTot}<td>100%</td><td>${totOrder.toLocaleString()}</td>
       </tr>
     </tbody>
   </table></div>`;
