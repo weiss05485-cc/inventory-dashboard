@@ -629,22 +629,42 @@ def main():
         print(f"  {s['StoreName']}: {s['InStock']} in stock / {int(s['TotalUnits'])} units / {int(s['StockValue']):,}")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        err = str(e)
-        # שגיאת חיבור לDB — בדוק כמה זמן הנתונים לא עודכנו
-        if any(x in err for x in ('20009', 'connect', 'Connection timed out',
-                                   'unavailable', 'does not exist', 'timeout',
-                                   'OperationalError')):
-            import time
-            data_file = 'docs/data.json'
-            if os.path.exists(data_file):
-                age_hours = (time.time() - os.path.getmtime(data_file)) / 3600
-                if age_hours > 2:
-                    print(f"[ALERT] DB unavailable כבר {age_hours:.1f} שעות! שולח התראה.")
-                    raise  # נכשל → GitHub שולח מייל
-            print(f"[SKIP] DB unavailable (פחות מ-2 שעות) — {err[:120]}")
-            print("Sync skipped. No files written. Exiting with code 0.")
+    import time
+    # מילות מפתח לשגיאת DB/רשת זמנית מול ARNET (case-insensitive)
+    _DB_HINTS = ('20009', '20047', '20003', 'connect', 'timed out', 'timeout',
+                 'unavailable', 'does not exist', 'operationalerror', 'dbprocess',
+                 'is dead', 'not connected', 'adaptive server', 'interfaceerror',
+                 'login', 'network')
+    def _is_db_err(msg):
+        m = (msg or '').lower()
+        return any(h in m for h in _DB_HINTS)
+
+    # ניסיון חוזר באותה ריצה — כל הקבצים נכתבים בסוף main(), אז retry בטוח (אין כתיבה חלקית)
+    last_err = None
+    for attempt in range(1, 4):          # עד 3 ניסיונות (2 חזרות)
+        try:
+            main()
             sys.exit(0)
-        raise
+        except SystemExit:
+            raise
+        except Exception as e:
+            last_err = e
+            if _is_db_err(str(e)) and attempt < 3:
+                print(f"[RETRY {attempt}/2] שגיאת ARNET זמנית — מנסה שוב בעוד 20ש': {str(e)[:140]}")
+                time.sleep(20)
+                continue
+            break
+
+    # כל הניסיונות נכשלו
+    err = str(last_err)
+    if _is_db_err(err):
+        data_file = 'docs/data.json'
+        if os.path.exists(data_file):
+            age_hours = (time.time() - os.path.getmtime(data_file)) / 3600
+            if age_hours > 2:
+                print(f"[ALERT] DB unavailable כבר {age_hours:.1f} שעות! שולח התראה.")
+                raise last_err  # נכשל → GitHub שולח מייל
+        print(f"[SKIP] DB unavailable (פחות מ-2 שעות) — {err[:140]}")
+        print("Sync skipped. No files written. Exiting with code 0.")
+        sys.exit(0)
+    raise last_err
