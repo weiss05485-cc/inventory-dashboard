@@ -802,6 +802,7 @@ body.emp-mode .price-col{display:none!important}
         <button class="btn btn-export" onclick="exportSaleReport()">⬇️ דוח מכירות CSV</button>
       </div>
     </div>
+    <div id="sales-year-breakdown" style="display:none;margin:0 0 12px"></div>
     <div class="table-wrap">
       <table id="sales-table">
         <thead id="sales-thead"></thead>
@@ -860,12 +861,19 @@ body.emp-mode .price-col{display:none!important}
     <div class="dept-filter" id="report-group-filter"></div>
   </div>
 
+  <!-- Year filter -->
+  <div id="report-year-wrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">לפי שנת דגם:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="report-year-btns"></div>
+  </div>
+
   <!-- Pivot table -->
   <div class="section" id="report-table-section" style="display:none;margin-bottom:16px">
     <div class="section-header">
       <h3 id="report-table-title"></h3>
       <button class="btn btn-export" onclick="exportReport()">⬇️ ייצוא CSV</button>
     </div>
+    <div id="report-year-breakdown" style="display:none;margin:0 0 12px"></div>
     <div class="table-wrap">
       <table id="report-table">
         <thead id="report-thead"></thead>
@@ -4118,8 +4126,29 @@ function getSaleDateRange() {
   return { from: fromYM, to: toYM };
 }
 
+// תיבת "מלאי לפי שנה" למוצר הנבחר (מושך מנתוני המלאי REPORT_DATA)
+function renderSalesYearBox() {
+  const box = document.getElementById('sales-year-breakdown');
+  if (!box || !activeSaleItem) return;
+  if (typeof REPORT_DATA === 'undefined' || !REPORT_DATA) {
+    if (typeof loadReportsData === 'function') loadReportsData(renderSalesYearBox);
+    return;
+  }
+  const yt = {};
+  REPORT_DATA.filter(i => i.n === activeSaleItem).forEach(i => { const y = i.yrs || {}; for (const k in y) yt[k] = (yt[k] || 0) + y[k]; });
+  if (!Object.keys(yt).length) { box.style.display = 'none'; return; }
+  const le = Object.keys(yt).filter(k => +k <= 2023).reduce((s, k) => s + yt[k], 0);
+  const cards = [['2026', yt['2026']||0],['2025', yt['2025']||0],['2024', yt['2024']||0],['2023 ומטה', le]];
+  const tot = Object.values(yt).reduce((s, v) => s + v, 0);
+  box.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center';
+  box.innerHTML = '<span style="font-size:12px;color:var(--muted);font-weight:600">📦 מלאי לפי שנה:</span>'
+    + cards.map(([l,v]) => `<div style="background:#f5f6fb;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px"><span style="color:var(--muted)">${l}:</span> <strong style="color:var(--primary)">${Math.round(v)}</strong></div>`).join('')
+    + `<div style="background:#eef9f0;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px"><span style="color:var(--muted)">סה"כ:</span> <strong style="color:#15803d">${Math.round(tot)}</strong></div>`;
+}
+
 function renderSaleTable() {
   if (!activeSaleDept || !activeSaleItem) return;
+  renderSalesYearBox();
   const range = getSaleDateRange();
 
   let items = SALES_DATA.filter(i =>
@@ -5076,6 +5105,27 @@ let _reportGroups = [];
 let _reportSizes = [];
 let _activeDrillSzIdx = null, _activeDrillGIdx = null;
 let activeReportShorot = 'all';
+let _reportYear = 'all';   // 'all' | '2026' | '2025' | '2024' | 'le2023'
+
+// כמות לפי מסנן השנה הפעיל (משתמש ב-yrs מהסנכרון)
+function qOfReport(i) {
+  if (_reportYear === 'all') return i.q || 0;
+  const y = i.yrs || {};
+  if (_reportYear === 'le2023') { let s = 0; for (const k in y) { if (+k <= 2023) s += y[k]; } return s; }
+  return y[_reportYear] || 0;
+}
+const REPORT_YEAR_BTNS = [['all','כל השנים'],['2026','2026'],['2025','2025'],['2024','2024'],['le2023','2023 ומטה']];
+function buildReportYearButtons() {
+  document.getElementById('report-year-btns').innerHTML = REPORT_YEAR_BTNS.map(([v,lbl]) =>
+    `<button class="pill ${v===_reportYear?'active':''}" onclick="setReportYear('${v}',this)">${lbl}</button>`).join('');
+}
+function setReportYear(v, btn) {
+  _reportYear = v;
+  document.querySelectorAll('#report-year-btns .pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  closeReportDrill();
+  renderReportTable();
+}
 
 function loadReportsData(cb) {
   if (reportLoaded) { cb(); return; }
@@ -5156,6 +5206,8 @@ function selectReportItem(idx) {
     .map(i => i.g))].sort();
   activeReportGroups = new Set(_reportGroups);
   buildReportGroupFilter();
+  document.getElementById('report-year-wrap').style.display = 'block';
+  buildReportYearButtons();
   renderReportTable();
 }
 
@@ -5224,16 +5276,30 @@ function renderReportTable() {
   const groups = [...activeReportGroups].sort();
   _reportSizes = sortSizes([...new Set(items.map(i => i.sz || '—'))]);
 
-  // Build pivot
+  // ── פירוק מלאי לפי שנה (כל השנים) ──
+  const yearTot = {};
+  items.forEach(i => { const y = i.yrs || {}; for (const k in y) yearTot[k] = (yearTot[k] || 0) + y[k]; });
+  const le2023 = Object.keys(yearTot).filter(k => +k <= 2023).reduce((s, k) => s + yearTot[k], 0);
+  const ybd = document.getElementById('report-year-breakdown');
+  if (Object.keys(yearTot).length) {
+    const cards = [['2026', yearTot['2026']||0],['2025', yearTot['2025']||0],['2024', yearTot['2024']||0],['2023 ומטה', le2023]];
+    const cellHtml = (lbl,v,key)=>`<div onclick="setReportYear('${key}')" style="cursor:pointer;background:${_reportYear===key?'var(--primary)':'#f5f6fb'};color:${_reportYear===key?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">${lbl}:</span> <strong>${Math.round(v)}</strong></div>`;
+    ybd.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px';
+    ybd.innerHTML = cards.map(([l,v],ix)=>cellHtml(l,v,['2026','2025','2024','le2023'][ix])).join('')
+      + `<div onclick="setReportYear('all')" style="cursor:pointer;background:${_reportYear==='all'?'var(--primary)':'#eef9f0'};color:${_reportYear==='all'?'#fff':'#15803d'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">סה"כ:</span> <strong>${Math.round(Object.values(yearTot).reduce((s,v)=>s+v,0))}</strong></div>`;
+  } else { ybd.style.display='none'; }
+
+  // Build pivot (לפי מסנן השנה הפעיל)
   const pivot = {}, groupTotals = {}, sizeTotals = {};
   let grandTotal = 0;
   items.forEach(i => {
     const sz = i.sz || '—';
+    const qv = qOfReport(i);
     if (!pivot[sz]) pivot[sz] = {};
-    pivot[sz][i.g] = (pivot[sz][i.g] || 0) + i.q;
-    groupTotals[i.g] = (groupTotals[i.g] || 0) + i.q;
-    sizeTotals[sz]   = (sizeTotals[sz]   || 0) + i.q;
-    grandTotal += i.q;
+    pivot[sz][i.g] = (pivot[sz][i.g] || 0) + qv;
+    groupTotals[i.g] = (groupTotals[i.g] || 0) + qv;
+    sizeTotals[sz]   = (sizeTotals[sz]   || 0) + qv;
+    grandTotal += qv;
   });
 
   document.getElementById('report-thead').innerHTML = `<tr>
