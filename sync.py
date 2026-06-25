@@ -439,24 +439,30 @@ def main():
                  st.StoreName, CONVERT(VARCHAR(7), t.SaleTime, 120)
     """)
 
-    # Process sales: extract size & model code from barcode
+    # Process sales: extract size, model code & year from barcode
     sales_map = {}
     for row in sales_raw:
         bc = str(row['BarcodeNumber'] or '').strip()
         m = BARCODE_RE.match(bc)
         size = m.group(5) if m else ''
         mc   = m.group(4) if m else ''
+        yr   = (2000 + int(m.group(1))) if m else 0   # שנת הברקוד
         key = (row['YearMonth'], row['Department'], row['GroupName'],
                row['Name'].strip(), mc, size, row['StoreName'])
-        if key not in sales_map:
-            sales_map[key] = 0.0
-        sales_map[key] += float(row['QtySold'] or 0)
+        rec = sales_map.get(key)
+        if rec is None:
+            rec = sales_map[key] = {'q': 0.0, 'yrs': {}}
+        qv = float(row['QtySold'] or 0)
+        rec['q'] += qv
+        if yr:
+            rec['yrs'][yr] = rec['yrs'].get(yr, 0.0) + qv
 
     sales_items = [
         {'ym': ym, 'dept': dept, 'g': group, 'n': name,
-         'mc': mc, 'sz': size, 'st': store, 'q': round(qty)}
-        for (ym, dept, group, name, mc, size, store), qty in sales_map.items()
-        if qty > 0
+         'mc': mc, 'sz': size, 'st': store, 'q': round(rec['q']),
+         'yrs': {str(y): round(v) for y, v in rec['yrs'].items() if v}}
+        for (ym, dept, group, name, mc, size, store), rec in sales_map.items()
+        if rec['q'] > 0
     ]
 
     print("  Reports by group/size...")
@@ -495,17 +501,21 @@ def main():
         m = BARCODE_RE.match(bc)
         size = m.group(5) if m else ''
         mc   = m.group(4) if m else ''
+        yr   = (2000 + int(m.group(1))) if m else 0   # שנת הברקוד
         key = (row['Department'], row['GroupName'], row['Name'].strip(), mc, size)
         if key not in report_map:
-            report_map[key] = {'stores': {}, 'total': 0.0}
+            report_map[key] = {'stores': {}, 'total': 0.0, 'years': {}}
         qty = float(row['Qty'] or 0)
         store = row['StoreName']
         report_map[key]['stores'][store] = report_map[key]['stores'].get(store, 0.0) + qty
         report_map[key]['total'] += qty
+        if yr:
+            report_map[key]['years'][yr] = report_map[key]['years'].get(yr, 0.0) + qty
 
     report_items = [
         {'dept': dept, 'g': group, 'n': name, 'mc': mc, 'sz': size,
-         's': data['stores'], 'q': data['total']}
+         's': data['stores'], 'q': data['total'],
+         'yrs': {str(y): round(v, 1) for y, v in data['years'].items() if v}}
         for (dept, group, name, mc, size), data in report_map.items()
     ]
 
