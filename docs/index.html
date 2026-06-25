@@ -5546,22 +5546,31 @@ function _orderDraftKey(){
   catch(_) { return 'cc_order_draft_x'; }
 }
 let _orderDraftMeta = null;
+let _lastDraftSig = null;
+function _draftPayload() {
+  const modal  = document.getElementById('order-form-modal');
+  const open   = modal && modal.style.display === 'flex';
+  const toEl   = document.getElementById('order-to-store');
+  const noteEl = document.getElementById('order-notes');
+  return {
+    items: _pendingOrderItems,
+    toStore: (open && toEl)   ? toEl.value   : (_orderDraftMeta ? _orderDraftMeta.toStore : ''),
+    notes:   (open && noteEl) ? noteEl.value : (_orderDraftMeta ? _orderDraftMeta.notes   : '')
+  };
+}
+// מחזיר true רק אם נשמר באמת (התוכן השתנה). כך טיוטה נטושה לא "מרעננת" את עצמה ומתיישנת.
 function saveOrderDraft() {
   try {
-    if (!_pendingOrderItems.length) { localStorage.removeItem(_orderDraftKey()); return; }
-    const modal  = document.getElementById('order-form-modal');
-    const open   = modal && modal.style.display === 'flex';
-    const toEl   = document.getElementById('order-to-store');
-    const noteEl = document.getElementById('order-notes');
-    localStorage.setItem(_orderDraftKey(), JSON.stringify({
-      ts: Date.now(),
-      items: _pendingOrderItems,
-      toStore: (open && toEl)   ? toEl.value   : (_orderDraftMeta ? _orderDraftMeta.toStore : ''),
-      notes:   (open && noteEl) ? noteEl.value : (_orderDraftMeta ? _orderDraftMeta.notes   : '')
-    }));
-  } catch(_) {}
+    if (!_pendingOrderItems.length) { localStorage.removeItem(_orderDraftKey()); _lastDraftSig = null; return false; }
+    const p = _draftPayload();
+    const sig = JSON.stringify(p);
+    if (sig === _lastDraftSig) return false;
+    _lastDraftSig = sig;
+    localStorage.setItem(_orderDraftKey(), JSON.stringify(Object.assign({ ts: Date.now() }, p)));
+    return true;
+  } catch(_) { return false; }
 }
-function clearOrderDraft() { _orderDraftMeta = null; try { localStorage.removeItem(_orderDraftKey()); } catch(_) {} _pushDraftRemote(); }
+function clearOrderDraft() { _orderDraftMeta = null; _lastDraftSig = null; try { localStorage.removeItem(_orderDraftKey()); } catch(_) {} _pushDraftRemote(); }
 
 // ── סנכרון טיוטה לשרת (בין מכשירים), מוצפן לפי עובד ──
 const DRAFT_URL = 'https://orgs.chasidim-center.co.il/ccdraft/';
@@ -5596,6 +5605,7 @@ async function _pullDraftRemote(){
 }
 const DRAFT_FRESH_MS = 24*3600*1000;   // טיוטה ישנה מ-24 שעות לא משוחזרת אוטומטית
 function _showRestoredDraft(msg){
+  try { _lastDraftSig = JSON.stringify(_draftPayload()); } catch(_) {}  // מנע רענון ts לטיוטה נטושה
   const wrap=document.getElementById('order-float-wrap');
   if(wrap){ wrap.style.display='flex'; document.getElementById('order-count').textContent=_pendingOrderItems.length; }
   showToast(msg+' — '+_pendingOrderItems.length+' פריטים 📝');
@@ -5640,7 +5650,7 @@ function restoreOrderDraft() {
   })();
   if (!window._orderDraftAuto) {
     window._orderDraftAuto = true;
-    setInterval(() => { if (_pendingOrderItems.length) { saveOrderDraft(); _pushDraftRemote(); } }, 5000);
+    setInterval(() => { if (_pendingOrderItems.length && saveOrderDraft()) _pushDraftRemote(); }, 5000);
     window.addEventListener('beforeunload', () => { if (_pendingOrderItems.length) saveOrderDraft(); });
   }
 }
