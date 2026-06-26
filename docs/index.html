@@ -6015,19 +6015,23 @@ function generateOrderPDF(order) {
     alert('ספריית ה-PDF לא נטענה. רענן את הדף (Ctrl+F5) ונסה שוב.');
     return;
   }
-  // חיבור האלמנט ל-DOM עם רוחב A4 אמיתי — קריטי כדי ש-html2canvas ירנדר מלא (אחרת PDF ריק/חתוך)
-  var wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1';
-  wrap.innerHTML = html;
-  document.body.appendChild(wrap);
-  var cleanup = function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
+  // קריטי: האלמנט שעובר ל-html2canvas חייב להיות בזרימה רגילה (static) עם רוחב A4 אמיתי,
+  // אחרת ה-PDF יוצא ריק. עוטפים אותו ב-container מוסתר (לא נראה למשתמש), והיעד עצמו רגיל.
+  var host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:0;top:0;width:794px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1';
+  var target = document.createElement('div');
+  target.style.cssText = 'width:794px;background:#fff';
+  target.innerHTML = html;
+  host.appendChild(target);
+  document.body.appendChild(host);
+  var cleanup = function () { if (host.parentNode) host.parentNode.removeChild(host); };
   html2pdf().set({
     margin: [8, 8, 8, 8],
     filename: filename,
     image: { type: 'jpeg', quality: 0.97 },
     html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(wrap).save().then(cleanup).catch(function (e) {
+  }).from(target).save().then(cleanup).catch(function (e) {
     cleanup();
     alert('שגיאה ביצירת PDF: ' + ((e && e.message) || e) + '\nנסה שוב או השתמש בכפתור הדפסה.');
   });
