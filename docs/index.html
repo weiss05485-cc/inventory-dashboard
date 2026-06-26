@@ -1167,6 +1167,10 @@ body.emp-mode .price-col{display:none!important}
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span id="orders-sync-status" style="font-size:11px;color:var(--muted)"></span>
+      <button onclick="recoverOrdersFromBackups()" id="recover-orders-btn"
+        style="padding:8px 16px;border:1.5px solid #10b981;border-radius:10px;background:#fff;color:#059669;cursor:pointer;font-family:'Rubik',sans-serif;font-size:12px;font-weight:600">
+        ♻️ שחזר הזמנות מגיבוי
+      </button>
 <button onclick="clearAllOrders()" id="clear-orders-btn"
         style="display:none;padding:8px 16px;border:1.5px solid var(--red);border-radius:10px;background:#fff;color:var(--red);cursor:pointer;font-family:'Rubik',sans-serif;font-size:12px;font-weight:600">
         🗑️ נקה הכל (מנהל)
@@ -6296,6 +6300,35 @@ function clearAllOrders() {
   localStorage.setItem('cc_orders', '[]');
   saveOrdersToGitHub([], { replace: true });  // מחיקה גורפת מפורשת בלבד
   renderOrdersPage();
+}
+
+// שחזור הזמנות שאבדו: סורק את כל הגיבויים המקומיים + ההזמנות הנוכחיות,
+// מאחד לפי id, ודוחף לערוץ המשותף — כך הזמנות שנשמרו רק במחשב הזה חוזרות וכולם רואים.
+async function recoverOrdersFromBackups() {
+  const byId = {};
+  getOrders().forEach(o => { if (o && o.id != null) byId[o.id] = o; });
+  let scanned = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || k.indexOf('cc_orders_bak_') !== 0 || k === 'cc_orders_bak_idx') continue;
+    try {
+      const bak = JSON.parse(localStorage.getItem(k) || '{}');
+      const arr = Array.isArray(bak) ? bak : (bak.orders || []);
+      arr.forEach(o => { if (o && o.id != null && !(o.id in byId)) byId[o.id] = o; });
+      scanned++;
+    } catch (e) {}
+  }
+  const before = getOrders().length;
+  const merged = Object.values(byId).sort((a, b) => (b.id || 0) - (a.id || 0));
+  const recovered = merged.length - before;
+  if (recovered <= 0) {
+    alert('לא נמצאו הזמנות נוספות בגיבוי המקומי (' + scanned + ' גיבויים נסרקו).');
+    return;
+  }
+  localStorage.setItem('cc_orders', JSON.stringify(merged));
+  await saveOrdersToGitHub(merged);   // דוחף לערוץ המשותף כדי שכולם יראו
+  renderOrdersPage();
+  alert('שוחזרו ' + recovered + ' הזמנות מהגיבוי המקומי ונשלחו לכולם ✓');
 }
 
 /* ========== CALLS (מעקב שיחות מ-MosesDial) ========== */
