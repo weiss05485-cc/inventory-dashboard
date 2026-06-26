@@ -6007,13 +6007,26 @@ function generateOrderPDF(order) {
     'חסידים סנטר | מערכת ניהול מלאי | <span style="direction:ltr;display:inline-block">' + order.dateStr + '</span></div>' +
     '</div>';
 
+  if (typeof html2pdf === 'undefined') {
+    alert('ספריית ה-PDF לא נטענה. רענן את הדף (Ctrl+F5) ונסה שוב.');
+    return;
+  }
+  // חיבור האלמנט ל-DOM עם רוחב A4 אמיתי — קריטי כדי ש-html2canvas ירנדר מלא (אחרת PDF ריק/חתוך)
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  var cleanup = function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
   html2pdf().set({
     margin: [8, 8, 8, 8],
     filename: filename,
     image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(html).save();
+  }).from(wrap).save().then(cleanup).catch(function (e) {
+    cleanup();
+    alert('שגיאה ביצירת PDF: ' + ((e && e.message) || e) + '\nנסה שוב או השתמש בכפתור הדפסה.');
+  });
 }
 
 /* ========== ORDERS PAGE ========== */
@@ -6047,21 +6060,25 @@ async function syncOrdersFromGitHub(force) {
     const r = await fetch(GAS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(await _gasToken()));
     if (!r.ok) { showOrderSyncStatus(''); return; }
     const raw = await r.json();
-    // מצב שחזור בטוח: מציגים את מה שיש (מפענחים מוצפן, מקבלים גם טקסט גלוי),
-    // ו*לא דורסים* את הערוץ בשום מקרה (כדי לא לאבד נתונים).
-    let data = raw;
+    // פענוח הערוץ המשותף (מוצפן או טקסט גלוי). אם הפענוח נכשל — לא נוגעים במקומי.
+    let remote = raw;
     if (raw && raw.enc && raw.ct) {
-      try { data = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
-      catch(e) { showOrderSyncStatus(''); return; }   // פענוח נכשל — לא נוגעים
+      try { remote = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
+      catch(e) { showOrderSyncStatus(''); return; }
     }
-    if (!Array.isArray(data)) { showOrderSyncStatus(''); return; }
-    if (data.length > 0) {
-      localStorage.setItem('cc_orders', JSON.stringify(data));
-      renderOrdersPage();
-      showOrderSyncStatus('מסונכרן ✓', true);
-    } else {
-      showOrderSyncStatus('');
-    }
+    if (!Array.isArray(remote)) remote = [];
+    // ── מיזוג דו-כיווני (איחוד לפי id) — כך כל עובד רואה את *כל* ההזמנות ושום הזמנה לא נעלמת ──
+    // הערוץ גובר על מקומי בקונפליקט (כדי לקבל עדכוני סטטוס מההנהלה), אבל הזמנות מקומיות נשמרות.
+    const local = getOrders();
+    const byId = {};
+    remote.forEach(o => { if (o && o.id != null) byId[o.id] = o; });
+    local.forEach(o => { if (o && o.id != null && !(o.id in byId)) byId[o.id] = o; });
+    const merged = Object.values(byId).sort((a, b) => (b.id || 0) - (a.id || 0));
+    localStorage.setItem('cc_orders', JSON.stringify(merged));
+    renderOrdersPage();
+    showOrderSyncStatus('מסונכרן ✓', true);
+    // אם יש הזמנות מקומיות שעדיין לא בערוץ — דחוף את האיחוד חזרה כדי שכולם יראו אותן
+    if (merged.length > remote.length) { saveOrdersToGitHub(merged); }
   } catch(e) { showOrderSyncStatus(''); }
 }
 
