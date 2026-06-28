@@ -6438,9 +6438,16 @@ async function recoverOrdersFromBackups() {
           (recovered > 0 ? ' (כולל ' + recovered + ' ששוחזרו מגיבוי)' : '') +
           '. כעת כולם יראו אותן.');
   } else {
-    // השרת לא נגיש מהמכשיר הזה — תן טקסט להעתקה לשחזור ידני
-    window.prompt('⚠️ לא הצלחנו להגיע לשרת מהמכשיר הזה.\nהעתק את כל הטקסט הזה ושלח אותו (וואטסאפ/מייל) — נזריק את ההזמנות ידנית:',
-      JSON.stringify(merged));
+    // השרת לא נגיש מהמכשיר הזה — הורד קובץ מלא (לא נחתך כמו העתקה) לשליחה ושחזור ידני
+    try {
+      const blob = new Blob([JSON.stringify(merged)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'הזמנות_לשחזור.json';
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 1500);
+    } catch (e) {}
+    alert('⚠️ המכשיר הזה לא מצליח להגיע לשרת.\nהורד קובץ "הזמנות_לשחזור.json" (' + merged.length + ' הזמנות).\nשלח אותו אליי (וואטסאפ/מייל) ואזריק את ההזמנות לשרת ידנית.');
   }
 }
 
