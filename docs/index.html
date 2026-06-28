@@ -6196,6 +6196,7 @@ async function saveOrdersToGitHub(orders, opts) {
     return;
   }
   _gasSaving = true;
+  let _saveOk = false;
   showOrderSyncStatus('שומר...');
   try {
     let toSave = Array.isArray(orders) ? orders : [];
@@ -6219,7 +6220,7 @@ async function saveOrdersToGitHub(orders, opts) {
         showOrderSyncStatus('השמירה נעצרה — לא ניתן לקרוא את הערוץ (לא נדרס כלום)', false, true);
         _gasSaving = false;
         _flushPendingSave();
-        return;
+        return false;
       }
       // 2) מיזוג לפי מזהה: הערוץ + המקומי (מקומי גובר), ואז הסרת מחיקות מפורשות
       const byId = {};
@@ -6240,6 +6241,7 @@ async function saveOrdersToGitHub(orders, opts) {
       body: JSON.stringify(payload)
     });
     if (resp.ok) {
+      _saveOk = true;
       showOrderSyncStatus('נשמר ✓', true);
       renderOrdersPage();
     } else {
@@ -6248,6 +6250,7 @@ async function saveOrdersToGitHub(orders, opts) {
   } catch(e) { showOrderSyncStatus('אין חיבור', false, true); }
   _gasSaving = false;
   _flushPendingSave();
+  return _saveOk;
 }
 
 function showOrderSyncStatus(msg, success, error) {
@@ -6425,14 +6428,20 @@ async function recoverOrdersFromBackups() {
   const before = getOrders().length;
   const merged = Object.values(byId).sort((a, b) => (b.id || 0) - (a.id || 0));
   const recovered = merged.length - before;
-  if (recovered <= 0) {
-    alert('לא נמצאו הזמנות נוספות בגיבוי המקומי (' + scanned + ' גיבויים נסרקו).');
-    return;
-  }
   localStorage.setItem('cc_orders', JSON.stringify(merged));
-  await saveOrdersToGitHub(merged);   // דוחף לערוץ המשותף כדי שכולם יראו
   renderOrdersPage();
-  alert('שוחזרו ' + recovered + ' הזמנות מהגיבוי המקומי ונשלחו לכולם ✓');
+  // *תמיד* דוחפים לשרת את כל ההזמנות שבמכשיר הזה (גם אם אין מה "לשחזר" מגיבוי) —
+  // זו הדרך להוציא הזמנות שתקועות במכשיר אל הערוץ המשותף שכולם רואים.
+  const ok = await saveOrdersToGitHub(merged);
+  if (ok) {
+    alert('✓ ' + merged.length + ' הזמנות מהמכשיר הזה נשלחו לשרת' +
+          (recovered > 0 ? ' (כולל ' + recovered + ' ששוחזרו מגיבוי)' : '') +
+          '. כעת כולם יראו אותן.');
+  } else {
+    // השרת לא נגיש מהמכשיר הזה — תן טקסט להעתקה לשחזור ידני
+    window.prompt('⚠️ לא הצלחנו להגיע לשרת מהמכשיר הזה.\nהעתק את כל הטקסט הזה ושלח אותו (וואטסאפ/מייל) — נזריק את ההזמנות ידנית:',
+      JSON.stringify(merged));
+  }
 }
 
 /* ========== CALLS (מעקב שיחות מ-MosesDial) ========== */
