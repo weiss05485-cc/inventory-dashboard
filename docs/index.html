@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-2';
+  var APP_VERSION = '2026-06-28-3';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6148,6 +6148,21 @@ async function _encryptObj(obj, password) {
 // טוקן אימות לערוץ ההזמנות = SHA-256 של סיסמת המערכת (לא נמצא בקוד הציבורי)
 async function _gasToken() { return _encPassword ? await sha256hex(_encPassword) : ''; }
 
+// fetch עם ניסיונות חוזרים — מתגבר על חיבור לא יציב בין המכשיר לשרת (4G/רשת מקרטעת)
+async function _fetchRetry(url, opts, tries) {
+  tries = tries || 3;
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, opts);
+      if (r.ok) return r;
+      lastErr = new Error('http ' + r.status);
+    } catch (e) { lastErr = e; }
+    if (i < tries - 1) await new Promise(res => setTimeout(res, 700 * (i + 1)));
+  }
+  throw lastErr;
+}
+
 function _ordersSig(arr) { return (arr || []).map(o => (o.id || '') + ':' + (o.status || '')).sort().join('|'); }
 
 // silent=true לסנכרון רקע (בלי להבהב סטטוס, ובלי לרנדר אם כלום לא השתנה)
@@ -6223,8 +6238,7 @@ async function saveOrdersToGitHub(orders, opts) {
       // 1) קרא את הערוץ הנוכחי כדי למזג — הגנה מפני אובדן נתונים
       let remote = null;
       try {
-        const r = await fetch(GAS_URL + '?v=' + (new Date()).getTime() + '&token=' + encodeURIComponent(await _gasToken()));
-        if (!r.ok) throw new Error('http ' + r.status);
+        const r = await _fetchRetry(GAS_URL + '?v=' + (new Date()).getTime() + '&token=' + encodeURIComponent(await _gasToken()), undefined, 3);
         const raw = await r.json();
         if (raw && raw.enc && raw.ct) {
           remote = JSON.parse(await _decryptEnvelope(raw, _encPassword)); // יזרוק אם הפענוח נכשל
@@ -6254,10 +6268,10 @@ async function saveOrdersToGitHub(orders, opts) {
 
     // 4) הצפן ושלח (כך הערוץ מחזיר ג'יבריש לזרים)
     const payload = _encPassword ? await _encryptObj(toSave, _encPassword) : toSave;
-    const resp = await fetch(GAS_URL + '?token=' + encodeURIComponent(await _gasToken()), {
+    const resp = await _fetchRetry(GAS_URL + '?token=' + encodeURIComponent(await _gasToken()), {
       method: 'POST',
       body: JSON.stringify(payload)
-    });
+    }, 4);
     if (resp.ok) {
       _saveOk = true;
       showOrderSyncStatus('נשמר ✓', true);
