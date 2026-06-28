@@ -285,6 +285,20 @@ body.emp-mode .price-col{display:none!important}
   border-radius:50%;width:44px;height:44px;font-size:17px;cursor:pointer;
   box-shadow:0 4px 16px rgba(0,0,0,.18);font-weight:700;line-height:1;transition:background .2s}
 #order-discard-btn:hover{background:#fef2f2}
+#order-restore-wrap{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:8px;z-index:1000}
+#order-restore-btn{
+  background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;
+  border-radius:50px;padding:13px 28px;font-size:14px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;gap:10px;
+  box-shadow:0 6px 24px rgba(124,58,237,.4);
+  font-family:'Rubik',sans-serif;white-space:nowrap;transition:opacity .2s,transform .2s}
+#order-restore-btn:hover{opacity:.92;transform:scale(1.03)}
+#order-restore-dismiss{background:#fff;color:#6b7280;border:1.5px solid #e5e7eb;
+  border-radius:50%;width:40px;height:40px;font-size:15px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.15);font-weight:700;line-height:1;transition:background .2s}
+#order-restore-dismiss:hover{background:#f3f4f6}
+#order-restore-count{background:rgba(255,255,255,.25);border-radius:20px;padding:2px 10px;font-size:13px}
 #order-count{background:rgba(255,255,255,.3);border-radius:20px;padding:2px 10px;font-size:13px}
 .order-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
 .order-qty{width:52px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:center;display:none;margin-right:4px;font-family:'Rubik',sans-serif;vertical-align:middle}
@@ -337,6 +351,14 @@ body.emp-mode .price-col{display:none!important}
     📦 שלח הזמנה <span id="order-count">0</span> פריטים
   </button>
   <button id="order-discard-btn" onclick="discardOrderDraft()" title="בטל ומחק טיוטה">🗑️</button>
+</div>
+
+<!-- ORDER DRAFT RESTORE (מופיע רק אם יש טיוטה שלא נשלחה — נטען רק בלחיצה, לא קופץ אוטומטית) -->
+<div id="order-restore-wrap">
+  <button id="order-restore-btn" onclick="applyRestorableDraft()" title="שחזר הזמנה שהתחלת ולא שלחת">
+    📝 שחזר טיוטה <span id="order-restore-count">0</span>
+  </button>
+  <button id="order-restore-dismiss" onclick="dismissRestorableDraft()" title="התעלם מהטיוטה">✕</button>
 </div>
 
 <!-- ORDER FORM MODAL (step 1: fill details) -->
@@ -2625,6 +2647,9 @@ async function startApp(role, userInfo) {
   applyRole(role, userInfo);
   showPage(role === 'emp' ? 'search' : 'overview');
   restoreOrderDraft();
+  // סנכרון הזמנות מיד עם הכניסה (דוחף הזמנות מקומיות לשרת) + ברקע כל 30ש'
+  syncOrdersFromGitHub();
+  startOrdersAutoSync();
 }
 
 async function sha256hex(str) {
@@ -5694,6 +5719,7 @@ function updatePendingQty(input) {
 function updateOrderBtn() {
   const wrap = document.getElementById('order-float-wrap');
   if (wrap) wrap.style.display = _pendingOrderItems.length > 0 ? 'flex' : 'none';
+  if (_pendingOrderItems.length) { const rw=document.getElementById('order-restore-wrap'); if(rw) rw.style.display='none'; }
   document.getElementById('order-count').textContent = _pendingOrderItems.length;
   saveOrderDraft();
 }
@@ -5777,35 +5803,56 @@ function discardOrderDraft(){
   updateOrderBtn();
   showToast('הטיוטה נמחקה ✓');
 }
+// ── טיוטה זמינה לשחזור — *לא* נטענת אוטומטית. המשתמש לוחץ "שחזר טיוטה" רק אם הוא רוצה ──
+let _restorableDraft = null;
+function _showRestoreButton(draft){
+  _restorableDraft = draft;
+  const wrap = document.getElementById('order-restore-wrap');
+  const cnt  = document.getElementById('order-restore-count');
+  if (!wrap) return;
+  if (_pendingOrderItems.length) { wrap.style.display='none'; return; }  // עגלה פעילה גוברת
+  if (cnt) cnt.textContent = draft.items.length + ' פריטים';
+  wrap.style.display = 'flex';
+}
+function applyRestorableDraft(){
+  if (!_restorableDraft || !Array.isArray(_restorableDraft.items) || !_restorableDraft.items.length) {
+    dismissRestorableDraft(); return;
+  }
+  _pendingOrderItems = _restorableDraft.items;
+  _orderDraftMeta = { toStore:_restorableDraft.toStore||'', notes:_restorableDraft.notes||'', ts:_restorableDraft.ts||0 };
+  _restorableDraft = null;
+  const rw=document.getElementById('order-restore-wrap'); if(rw) rw.style.display='none';
+  saveOrderDraft();
+  updateOrderBtn();
+  showToast('הטיוטה שוחזרה — '+_pendingOrderItems.length+' פריטים 📝');
+}
+function dismissRestorableDraft(){
+  _restorableDraft = null;
+  const rw=document.getElementById('order-restore-wrap'); if(rw) rw.style.display='none';
+}
+
 function restoreOrderDraft() {
-  let localTs = 0;
+  let local = null, localTs = 0;
   try {
     const d = JSON.parse(localStorage.getItem(_orderDraftKey()) || 'null');
     if (d && Array.isArray(d.items) && d.items.length) {
       if ((Date.now() - (d.ts||0)) > DRAFT_FRESH_MS) {
-        clearOrderDraft();   // ישנה מדי — נקה ואל תשחזר
+        clearOrderDraft();   // ישנה מדי — נקה ואל תציע
       } else {
-        _pendingOrderItems = d.items;
-        _orderDraftMeta = { toStore: d.toStore || '', notes: d.notes || '', ts: d.ts || 0 };
-        localTs = d.ts || 0;
-        _showRestoredDraft('שוחזרה הזמנה שלא נשלחה');
+        local = d; localTs = d.ts || 0;
       }
     }
   } catch(_) {}
-  // סנכרון מהשרת — רק טיוטה טרייה וחדשה יותר ממכשיר אחר
+  // בחר את הטיוטה הטרייה ביותר (מקומי מול שרת) — *רק מציע* כפתור שחזור, לא טוען אוטומטית
   (async function(){
+    let best = local, bestTs = localTs;
     const remote = await _pullDraftRemote();
     if (remote && Array.isArray(remote.items) && remote.items.length) {
       const fresh = (Date.now() - (remote.ts||0)) < DRAFT_FRESH_MS;
-      if (fresh && (remote.ts||0) > localTs && !_pendingOrderItems.length) {
-        _pendingOrderItems = remote.items;
-        _orderDraftMeta = { toStore: remote.toStore || '', notes: remote.notes || '', ts: remote.ts || 0 };
-        saveOrderDraft();
-        _showRestoredDraft('שוחזרה הזמנה ממכשיר אחר');
-      } else if (!fresh && !_pendingOrderItems.length) {
-        _pushDraftRemote();   // טיוטת שרת ישנה — נקה כדי שלא תקפוץ שוב (_pendingOrderItems ריק => {})
-      }
+      if (fresh && (remote.ts||0) > bestTs) { best = remote; bestTs = remote.ts||0; }
+      else if (!fresh && !local) { _pushDraftRemote(); }  // נקה טיוטת שרת ישנה (עגלה ריקה => {})
     }
+    if (best && !_pendingOrderItems.length) _showRestoreButton(best);
   })();
   if (!window._orderDraftAuto) {
     window._orderDraftAuto = true;
@@ -6047,49 +6094,82 @@ let _ordersFilter = 'all';
 // על orgs.chasidim-center.co.il (אותו שרת, HTTPS) — המשתמשים לא רואים אותה.
 const GAS_URL = 'https://orgs.chasidim-center.co.il/ccorders/orders';
 let _gasSaving = false;
+let _gasPending = null;   // שמירה שהגיעה תוך כדי שמירה אחרת — *לא* נזרקת, מתורת ומורצת בסוף
+
+// מריץ שמירה ממתינה אם נצברה אחת תוך כדי השמירה הקודמת (כך אף הזמנה/עדכון לא הולך לאיבוד)
+function _flushPendingSave() {
+  if (_gasSaving || !_gasPending) return;
+  const p = _gasPending; _gasPending = null;
+  saveOrdersToGitHub(p.orders, p.opts);
+}
 
 // הצפנת אובייקט בצד-לקוח (תואם _decryptEnvelope) — להגנת ההזמנות
-async function _encryptObj(obj, password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
+// ── ביצועים: salt קבוע לערוץ ההזמנות/טיוטות → גוזרים מפתח PBKDF2 *פעם אחת* לכל הסשן
+// במקום 200K איטרציות בכל שמירה/דחיפת-טיוטה (זו הייתה הסיבה העיקרית לאיטיות).
+// ה-IV עדיין אקראי בכל הודעה (אבטחה סמנטית נשמרת); נתונים ישנים עם salt אקראי עדיין
+// מתפענחים כי הפענוח קורא את ה-salt מתוך כל מעטפה.
+const _ORDERS_SALT_B64 = btoa('ccorders-fixed-salt-v1');
+let _ordersEncKey = null;   // { pw, key } — מטמון מפתח הצפנה לערוץ
+async function _ordersEncryptKey(password) {
+  if (_ordersEncKey && _ordersEncKey.pw === password) return _ordersEncKey.key;
   const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
   const key = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:200000, hash:'SHA-256' },
+    { name:'PBKDF2', salt:_b64ToBytes(_ORDERS_SALT_B64), iterations:200000, hash:'SHA-256' },
     baseKey, { name:'AES-GCM', length:256 }, false, ['encrypt']);
-  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  _ordersEncKey = { pw: password, key };
+  return key;
+}
+async function _encryptObj(obj, password) {
+  const iv  = crypto.getRandomValues(new Uint8Array(12));
+  const key = await _ordersEncryptKey(password);
+  const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
   const b64 = u8 => btoa(String.fromCharCode(...new Uint8Array(u8)));
-  return { v:1, enc:1, salt:b64(salt), iv:b64(iv), ct:b64(ct) };
+  return { v:1, enc:1, salt:_ORDERS_SALT_B64, iv:b64(iv), ct:b64(ct) };
 }
 
 // טוקן אימות לערוץ ההזמנות = SHA-256 של סיסמת המערכת (לא נמצא בקוד הציבורי)
 async function _gasToken() { return _encPassword ? await sha256hex(_encPassword) : ''; }
 
-async function syncOrdersFromGitHub(force) {
-  showOrderSyncStatus('מסנכרן...');
+function _ordersSig(arr) { return (arr || []).map(o => (o.id || '') + ':' + (o.status || '')).sort().join('|'); }
+
+// silent=true לסנכרון רקע (בלי להבהב סטטוס, ובלי לרנדר אם כלום לא השתנה)
+async function syncOrdersFromGitHub(force, silent) {
+  if (!silent) showOrderSyncStatus('מסנכרן...');
   try {
     const r = await fetch(GAS_URL + '?v=' + Date.now() + '&token=' + encodeURIComponent(await _gasToken()));
-    if (!r.ok) { showOrderSyncStatus(''); return; }
+    if (!r.ok) { if (!silent) showOrderSyncStatus(''); return; }
     const raw = await r.json();
     // פענוח הערוץ המשותף (מוצפן או טקסט גלוי). אם הפענוח נכשל — לא נוגעים במקומי.
     let remote = raw;
     if (raw && raw.enc && raw.ct) {
       try { remote = JSON.parse(await _decryptEnvelope(raw, _encPassword)); }
-      catch(e) { showOrderSyncStatus(''); return; }
+      catch(e) { if (!silent) showOrderSyncStatus(''); return; }
     }
     if (!Array.isArray(remote)) remote = [];
     // ── מיזוג דו-כיווני (איחוד לפי id) — כך כל עובד רואה את *כל* ההזמנות ושום הזמנה לא נעלמת ──
     // הערוץ גובר על מקומי בקונפליקט (כדי לקבל עדכוני סטטוס מההנהלה), אבל הזמנות מקומיות נשמרות.
     const local = getOrders();
+    const prevSig = _ordersSig(local);
     const byId = {};
     remote.forEach(o => { if (o && o.id != null) byId[o.id] = o; });
     local.forEach(o => { if (o && o.id != null && !(o.id in byId)) byId[o.id] = o; });
     const merged = Object.values(byId).sort((a, b) => (b.id || 0) - (a.id || 0));
+    const changed = _ordersSig(merged) !== prevSig;
     localStorage.setItem('cc_orders', JSON.stringify(merged));
-    renderOrdersPage();
-    showOrderSyncStatus('מסונכרן ✓', true);
+    // לרנדר רק אם משהו השתנה — כדי לא להפריע למשתמש בסנכרון רקע כל 30ש'
+    if (changed) renderOrdersPage();
+    if (!silent) showOrderSyncStatus('מסונכרן ✓', true);
     // אם יש הזמנות מקומיות שעדיין לא בערוץ — דחוף את האיחוד חזרה כדי שכולם יראו אותן
     if (merged.length > remote.length) { saveOrdersToGitHub(merged); }
-  } catch(e) { showOrderSyncStatus(''); }
+  } catch(e) { if (!silent) showOrderSyncStatus(''); }
+}
+
+// סנכרון הזמנות אוטומטי ברקע — כל הזמנה מכל מכשיר מגיעה לשרת ולכולם תוך שניות, בלי פעולה ידנית
+function startOrdersAutoSync() {
+  if (window._ordersAutoSyncTimer) return;
+  window._ordersAutoSyncTimer = setInterval(function () {
+    if (!document.hidden && _encPassword) syncOrdersFromGitHub(false, true);
+  }, 30000);
 }
 
 // גיבוי מקומי מתגלגל — שומר עד 15 גרסאות אחרונות בדפדפן (רשת ביטחון)
@@ -6108,7 +6188,13 @@ function _backupOrdersLocal(orders) {
 // opts.removedIds = מזהים שנמחקו במפורש | opts.replace = דריסה מלאה (רק "מחק הכל")
 async function saveOrdersToGitHub(orders, opts) {
   opts = opts || {};
-  if (_gasSaving) return;
+  if (_gasSaving) {
+    // שמירה כבר באוויר — אל תזרוק! תור את האחרונה (מחיקות מצטברות) ותרוץ כשהנוכחית תסתיים.
+    const prevRemoved = (_gasPending && _gasPending.opts && _gasPending.opts.removedIds) || [];
+    const curRemoved  = opts.removedIds || [];
+    _gasPending = { orders: orders, opts: Object.assign({}, opts, { removedIds: prevRemoved.concat(curRemoved) }) };
+    return;
+  }
   _gasSaving = true;
   showOrderSyncStatus('שומר...');
   try {
@@ -6132,6 +6218,7 @@ async function saveOrdersToGitHub(orders, opts) {
         // לא הצלחנו לקרוא/לפענח את הערוץ — אל תדרוס! עצור כדי לא לאבד נתונים.
         showOrderSyncStatus('השמירה נעצרה — לא ניתן לקרוא את הערוץ (לא נדרס כלום)', false, true);
         _gasSaving = false;
+        _flushPendingSave();
         return;
       }
       // 2) מיזוג לפי מזהה: הערוץ + המקומי (מקומי גובר), ואז הסרת מחיקות מפורשות
@@ -6160,6 +6247,7 @@ async function saveOrdersToGitHub(orders, opts) {
     }
   } catch(e) { showOrderSyncStatus('אין חיבור', false, true); }
   _gasSaving = false;
+  _flushPendingSave();
 }
 
 function showOrderSyncStatus(msg, success, error) {
