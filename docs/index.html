@@ -4,6 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>חסידים סנטר | דשבורד מלאי</title>
+<script>
+// ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
+(function(){
+  var APP_VERSION = '2026-06-28-2';
+  window.__APP_VERSION = APP_VERSION;
+  try {
+    fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (j && j.v && j.v !== APP_VERSION && sessionStorage.getItem('cc_reloaded_for') !== j.v) {
+          sessionStorage.setItem('cc_reloaded_for', j.v);
+          location.replace(location.pathname + '?v=' + encodeURIComponent(j.v));
+        }
+      })
+      .catch(function(){});
+  } catch(e){}
+})();
+</script>
 <link rel="icon" type="image/png" href="favicon-gb.png?v=3">
 <link rel="shortcut icon" type="image/png" href="favicon-gb.png?v=3">
 <link rel="apple-touch-icon" href="favicon-gb.png?v=3">
