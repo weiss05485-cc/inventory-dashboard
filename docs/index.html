@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-10';
+  var APP_VERSION = '2026-06-28-11';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6116,18 +6116,44 @@ function generateOrderPDF(order) {
   var dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/ /g,'_');
   var filename = 'הזמנה_' + order.fromStore + '_' + dateTag + '.pdf';
 
-  var sortedItems = sortOrderItems(order.items);
-  var itemRows = sortedItems.map(function(it, i) {
-    return '<tr style="background:' + (i%2===1?'#f8f9fc':'#fff') + '">' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (i+1) + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;font-weight:600">' + (it.name||'-') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center">' + (it.size||'-') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:10px">' + (it.bc||'-') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (it.season?(it.season+' '+it.year):'-') + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + it.stock + '</td>' +
-      '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:14px">' + it.orderQty + '</td>' +
+  // מקבצים לפי מוצר (גזרה מקוד-הדגם בברקוד → חליפות מפוצלות 2-שורות/שורה-אחת), ובכל קבוצה לפי מידה
+  var withCut = order.items.map(function(it) {
+    var p = (typeof parseBarcode === 'function') ? parseBarcode(it.bc) : {};
+    return { it: it, cut: ((p.product || it.name || '-') + '').trim() || '-' };
+  });
+  withCut.sort(function(a, b) {
+    var n = _normName(a.cut).localeCompare(_normName(b.cut), 'he');
+    if (n !== 0) return n;
+    var sa = _sizeSortVal(a.it.size), sb = _sizeSortVal(b.it.size);
+    if (sa.num !== sb.num) return sa.num - sb.num;
+    if (sa.w   !== sb.w)   return sa.w - sb.w;
+    return sa.letter.localeCompare(sb.letter);
+  });
+  var itemRows = '', rowN = 0, i = 0;
+  while (i < withCut.length) {
+    var cut = withCut[i].cut, groupQty = 0, grp = '';
+    while (i < withCut.length && withCut[i].cut === cut) {
+      var it = withCut[i].it; rowN++; groupQty += (it.orderQty || 0);
+      grp +=
+        '<tr style="background:' + (rowN%2===1?'#fff':'#f8f9fc') + '">' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + rowN + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;font-weight:600">' + cut + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center">' + (it.size||'-') + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-family:monospace;font-size:10px">' + (it.bc||'-') + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + (it.season?(it.season+' '+it.year):'-') + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;color:#8492a6">' + it.stock + '</td>' +
+        '<td style="padding:7px 8px;border-bottom:1px solid #e8ecf4;text-align:center;font-weight:700;color:#4f46e5;font-size:14px">' + it.orderQty + '</td>' +
+        '</tr>';
+      i++;
+    }
+    grp +=
+      '<tr style="background:#eef2f7">' +
+      '<td style="padding:6px 8px"></td>' +
+      '<td colspan="5" style="padding:6px 8px;font-weight:800;color:#4f46e5">סה"כ ' + cut + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;font-weight:800;color:#4f46e5">' + groupQty + '</td>' +
       '</tr>';
-  }).join('');
+    itemRows += grp;
+  }
 
   var notesCell = order.notes
     ? '<td style="padding:6px 10px"><span style="font-size:10px;font-weight:700;color:#8492a6">הערות: </span><span style="font-weight:600">' + order.notes + '</span></td>'
