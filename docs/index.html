@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-4';
+  var APP_VERSION = '2026-06-28-6';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -27,6 +27,7 @@
 <link rel="apple-touch-icon" href="favicon-gb.png?v=3">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2613,6 +2614,8 @@ async function _decryptEnvelope(env, password) {
   const key = await _deriveKey(password, env.salt);
   const pt = await crypto.subtle.decrypt(
     { name:'AES-GCM', iv:_b64ToBytes(env.iv) }, key, _b64ToBytes(env.ct));
+  // z:1 = הנתונים דחוסים (gzip) לפני ההצפנה — פורסים. אחרת טקסט רגיל (תואם נתונים ישנים/קבצי .enc).
+  if (env && env.z === 1) return pako.ungzip(new Uint8Array(pt), { to: 'string' });
   return new TextDecoder().decode(pt);
 }
 // טוען קובץ נתונים מוצפן ומחזיר אובייקט מפוענח (זורק אם אין סיסמה/הפענוח נכשל)
@@ -6110,7 +6113,7 @@ let _ordersFilter = 'all';
 // ── אחסון הזמנות על השרת הפרטי (VPS) — PostgreSQL/דיסק עם גיבוי אוטומטי ──
 // השרת שומר רק blob מוצפן (zero-knowledge) + מאמת טוקן. הכתובת היא נתיב פנימי
 // על orgs.chasidim-center.co.il (אותו שרת, HTTPS) — המשתמשים לא רואים אותה.
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbySsP8NVBou-Udq9YresIFTnGEBlB3ZxdTtwjFJw564-PaKnASoA5yngf97ZT1ba3SyTw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyt3QEpUiWhFa0Al4rtE1_-nsE35_QbL3ENOXJzP5j6uByx3ZS-BkKIUx70s_q11hHeBg/exec';
 let _gasSaving = false;
 let _gasPending = null;   // שמירה שהגיעה תוך כדי שמירה אחרת — *לא* נזרקת, מתורת ומורצת בסוף
 
@@ -6140,9 +6143,13 @@ async function _ordersEncryptKey(password) {
 async function _encryptObj(obj, password) {
   const iv  = crypto.getRandomValues(new Uint8Array(12));
   const key = await _ordersEncryptKey(password);
-  const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
-  const b64 = u8 => btoa(String.fromCharCode(...new Uint8Array(u8)));
-  return { v:1, enc:1, salt:_ORDERS_SALT_B64, iv:b64(iv), ct:b64(ct) };
+  // דוחסים (gzip) לפני הצפנה — הזמנות עם שמות חוזרים מתכווצות פי ~10, כך שהשליחה בנתחים מהירה
+  const gz  = pako.gzip(JSON.stringify(obj));
+  const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, gz);
+  let bin = ''; const u8 = new Uint8Array(ct);
+  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);   // בלי spread (בטוח לגדלים גדולים)
+  const ivb = btoa(String.fromCharCode(...iv));
+  return { v:1, enc:1, z:1, salt:_ORDERS_SALT_B64, iv:ivb, ct:btoa(bin) };
 }
 
 // טוקן אימות לערוץ ההזמנות = SHA-256 של סיסמת המערכת (לא נמצא בקוד הציבורי)
@@ -6266,13 +6273,19 @@ async function saveOrdersToGitHub(orders, opts) {
     _backupOrdersLocal(toSave);
     localStorage.setItem('cc_orders', JSON.stringify(toSave));
 
-    // 4) הצפן ושלח (כך הערוץ מחזיר ג'יבריש לזרים)
+    // 4) הצפן ושלח. רשת החנות חוסמת POST — לכן שולחים בנתחים דרך GET (action=up) ואז commit.
     const payload = _encPassword ? await _encryptObj(toSave, _encPassword) : toSave;
-    const resp = await _fetchRetry(GAS_URL + '?token=' + encodeURIComponent(await _gasToken()), {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }, 4);
-    if (resp.ok) {
+    const body = JSON.stringify(payload);
+    const tok  = encodeURIComponent(await _gasToken());
+    const CH = 3000, total = Math.ceil(body.length / CH) || 1;
+    const uid = 'u' + Date.now() + '_' + Math.floor(((self.performance && performance.now()) || 0) + (Date.now() % 1000));
+    await Promise.all(Array.from({ length: total }, (_, i) =>
+      _fetchRetry(GAS_URL + '?token=' + tok + '&action=up&uid=' + uid + '&i=' + i + '&n=' + total +
+        '&d=' + encodeURIComponent(body.slice(i * CH, (i + 1) * CH)), undefined, 4)
+    ));
+    const cr = await _fetchRetry(GAS_URL + '?token=' + tok + '&action=commit&uid=' + uid + '&n=' + total, undefined, 4);
+    const ctxt = await cr.text();
+    if (ctxt.indexOf('"ok":true') >= 0) {
       _saveOk = true;
       showOrderSyncStatus('נשמר ✓', true);
       renderOrdersPage();
