@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-13';
+  var APP_VERSION = '2026-06-28-14';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -400,6 +400,11 @@ body.emp-mode .price-col{display:none!important}
       <option value="מחסן">מחסן</option>
       <option value="מנהל">מנהל</option>
     </select>
+
+    <label class="order-form-label">📧 שלח במייל ל (אופציונלי)</label>
+    <input class="order-form-input" id="order-email" type="text" list="order-email-list"
+      placeholder="כתובת מייל — או כמה מופרדות בפסיק" autocomplete="off">
+    <datalist id="order-email-list"></datalist>
 
     <label class="order-form-label">הערות (אופציונלי)</label>
     <textarea class="order-form-input" id="order-notes" rows="2" placeholder="הערות נוספות..."></textarea>
@@ -5939,6 +5944,7 @@ function sendOrder() {
   document.getElementById('order-to-store').value = _orderDraftMeta ? (_orderDraftMeta.toStore || '') : '';
   if (_orderDraftMeta && _orderDraftMeta.notes) { const _n=document.getElementById('order-notes'); if(_n) _n.value=_orderDraftMeta.notes; }
 
+  _fillOrderEmailList();   // השלמת כתובות מייל אחרונות + מילוי האחרונה
   document.getElementById('order-form-error').textContent = '';
   document.getElementById('order-form-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('order-to-store').focus(), 100);
@@ -5963,12 +5969,15 @@ async function confirmOrder() {
   const fromStore = userInfo.store   || '—';
   const toStore   = document.getElementById('order-to-store').value.trim();
   const notes     = document.getElementById('order-notes').value.trim();
+  const emailEl   = document.getElementById('order-email');
+  const emailTo   = emailEl ? emailEl.value.trim() : '';
   const errEl     = document.getElementById('order-form-error');
 
   if (!toStore) { errEl.textContent = 'יש לבחור יעד להזמנה'; return; }
   // הגנה קריטית: לעולם לא לשלוח/לשמור הזמנה ריקה (וכך גם לא למחוק טיוטה)
   if (!_pendingOrderItems.length) { errEl.textContent = 'ההזמנה ריקה — לא נשלח. הוסף פריטים (אם משהו נעלם, הטיוטה נשמרה).'; return; }
   errEl.textContent = '';
+  if (emailTo) _rememberOrderEmail(emailTo);   // שמירת הכתובת לרשימת ההשלמה
 
   // בדיקת מלאי. פריטים שאזלו → מודאל: להראות איפה יש מלאי + להעביר, או לשלוח רק זמינים.
   // אם היעד הוא סניף אמיתי — בודקים מלאי שם; אם הברקוד לא נמצא במאגר, נופלים למלאי שבפריט (העמודה "מלאי").
@@ -5981,18 +5990,39 @@ async function confirmOrder() {
       if (at !== null && at <= 0) outOfStock.push(it); else inStock.push(it);
     });
     if (outOfStock.length) {
-      _showOutOfStockModal(outOfStock, inStock, { fromStore, toStore, notes, empName });
+      _showOutOfStockModal(outOfStock, inStock, { fromStore, toStore, notes, empName, emailTo });
       return;   // המודאל ממשיך את הזרימה
     }
   }
 
-  _createAndSaveOrder(_pendingOrderItems, fromStore, toStore, notes, empName);
+  _createAndSaveOrder(_pendingOrderItems, fromStore, toStore, notes, empName, emailTo);
   _finalizeOrderSend();
 }
 
+// זיכרון כתובות מייל אחרונות (להשלמה אוטומטית) + מילוי datalist
+function _rememberOrderEmail(val) {
+  try {
+    var parts = String(val).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    var list = JSON.parse(localStorage.getItem('cc_order_emails') || '[]');
+    parts.forEach(function (p) { list = [p].concat(list.filter(function (x) { return x !== p; })); });
+    list = list.slice(0, 15);
+    localStorage.setItem('cc_order_emails', JSON.stringify(list));
+    localStorage.setItem('cc_order_email_last', parts[parts.length - 1] || '');
+  } catch (e) {}
+}
+function _fillOrderEmailList() {
+  try {
+    var dl = document.getElementById('order-email-list');
+    var list = JSON.parse(localStorage.getItem('cc_order_emails') || '[]');
+    if (dl) dl.innerHTML = list.map(function (e) { return '<option value="' + e + '">'; }).join('');
+    var inp = document.getElementById('order-email');
+    if (inp && !inp.value) inp.value = localStorage.getItem('cc_order_email_last') || '';
+  } catch (e) {}
+}
+
 let _orderIdSeq = 0;
-// בונה, שומר ומפיק PDF להזמנה אחת. מחזיר את אובייקט ההזמנה.
-function _createAndSaveOrder(items, fromStore, toStore, notes, empName) {
+// בונה, שומר ומפיק PDF להזמנה אחת (ושולח במייל אם ניתן יעד). מחזיר את אובייקט ההזמנה.
+function _createAndSaveOrder(items, fromStore, toStore, notes, empName, emailTo) {
   if (!items || !items.length) return null;
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
@@ -6007,7 +6037,7 @@ function _createAndSaveOrder(items, fromStore, toStore, notes, empName) {
   const orders = getOrders();
   orders.unshift(order);
   setOrders(orders);
-  generateOrderPDF(order);
+  generateOrderPDF(order, { emailTo: emailTo });
   return order;
 }
 
@@ -6062,7 +6092,7 @@ function _showOutOfStockModal(outOfStock, inStock, meta) {
   const skipBtn = wrap.querySelector('#oos-skip');
   if (skipBtn) skipBtn.onclick = () => {
     close();
-    _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName);
+    _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName, meta.emailTo);
     _finalizeOrderSend();
   };
   const trBtn = wrap.querySelector('#oos-transfer');
@@ -6076,9 +6106,9 @@ function _showOutOfStockModal(outOfStock, inStock, meta) {
     });
     Object.keys(byStore).forEach(store => {
       _createAndSaveOrder(byStore[store], meta.fromStore, store,
-        (meta.notes ? meta.notes + ' · ' : '') + 'הועבר (אזל ב' + meta.toStore + ')', meta.empName);
+        (meta.notes ? meta.notes + ' · ' : '') + 'הועבר (אזל ב' + meta.toStore + ')', meta.empName, meta.emailTo);
     });
-    if (inStock.length) _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName);
+    if (inStock.length) _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName, meta.emailTo);
     _finalizeOrderSend();
     if (undeliverable.length) {
       alert('הערה: ' + undeliverable.length + ' פריטים לא נמצאו באף סניף ולא נשלחו:\n' +
@@ -6114,7 +6144,8 @@ function sortOrderItems(items) {
   });
 }
 
-function generateOrderPDF(order) {
+function generateOrderPDF(order, opts) {
+  opts = opts || {};
   if (!order || !order.items || !order.items.length) { alert('ההזמנה ריקה — אין פריטים, לא הופק PDF.'); return; }
   var totalQty = order.items.reduce(function(s, it) { return s + it.orderQty; }, 0);
   var dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/ /g,'_');
@@ -6223,10 +6254,37 @@ function generateOrderPDF(order) {
     image: { type: 'jpeg', quality: 0.97 },
     html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(target).save().then(cleanup).catch(function (e) {
+  }).from(target).toPdf().get('pdf').then(function (pdf) {
+    pdf.save(filename);   // הורדה למחשב
+    cleanup();
+    if (opts.emailTo) {
+      var b64 = pdf.output('datauristring').split(',')[1];
+      _emailOrderPDF(order, b64, opts.emailTo, filename);
+    }
+  }).catch(function (e) {
     cleanup();
     alert('שגיאה ביצירת PDF: ' + ((e && e.message) || e) + '\nנסה שוב או השתמש בכפתור הדפסה.');
   });
+}
+
+// שולח את ה-PDF של ההזמנה במייל דרך גוגל (נתחי GET, עוקף את חסימת ה-POST של הרשת)
+async function _emailOrderPDF(order, b64, to, filename) {
+  try {
+    var tok = encodeURIComponent(await _gasToken());
+    var CH = 3000, total = Math.ceil(b64.length / CH) || 1, uid = 'm' + Date.now() + '_' + Math.floor((Date.now() % 100000));
+    await Promise.all(Array.from({ length: total }, function (_, i) {
+      return _fetchRetry(GAS_URL + '?token=' + tok + '&action=mailup&uid=' + uid + '&i=' + i + '&n=' + total +
+        '&d=' + encodeURIComponent(b64.slice(i * CH, (i + 1) * CH)), undefined, 4);
+    }));
+    var subj = encodeURIComponent('הזמנה חדשה — ' + (order.fromStore || '') + ' ← ' + (order.toStore || '') + ' (' + (order.dateStr || '') + ')');
+    var body = encodeURIComponent('מצורפת הזמנה חדשה ממערכת חסידים סנטר.\nעובד: ' + (order.employee || '') + ' | מסניף: ' + (order.fromStore || '') + ' | לכבוד: ' + (order.toStore || ''));
+    var fn = encodeURIComponent(filename || 'order.pdf');
+    var r = await _fetchRetry(GAS_URL + '?token=' + tok + '&action=mailsend&uid=' + uid + '&n=' + total +
+      '&to=' + encodeURIComponent(to) + '&subj=' + subj + '&body=' + body + '&fn=' + fn, undefined, 4);
+    var t = await r.text();
+    if (t.indexOf('"ok":true') >= 0) showOrderSyncStatus('נשלח במייל ✓', true);
+    else showOrderSyncStatus('המייל לא נשלח', false, true);
+  } catch (e) { showOrderSyncStatus('המייל לא נשלח', false, true); }
 }
 
 /* ========== ORDERS PAGE ========== */
