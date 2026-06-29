@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-15';
+  var APP_VERSION = '2026-06-28-16';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6293,7 +6293,7 @@ let _ordersFilter = 'all';
 // ── אחסון הזמנות על השרת הפרטי (VPS) — PostgreSQL/דיסק עם גיבוי אוטומטי ──
 // השרת שומר רק blob מוצפן (zero-knowledge) + מאמת טוקן. הכתובת היא נתיב פנימי
 // על orgs.chasidim-center.co.il (אותו שרת, HTTPS) — המשתמשים לא רואים אותה.
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxCf-QiIkNhB0gQh1Y7ig8dI2OYStOFY2bw9eCS3MBmUOjZCHThPr62yrEAlZBeympXRw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz7SgZKn4T-73qyz4OORqmMje_sqtMMU-qJYTzVdMY_kOyXainfyXx9Y0blx-1ERByE_g/exec';
 let _gasSaving = false;
 let _gasPending = null;   // שמירה שהגיעה תוך כדי שמירה אחרת — *לא* נזרקת, מתורת ומורצת בסוף
 
