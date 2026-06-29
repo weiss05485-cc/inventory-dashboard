@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-6';
+  var APP_VERSION = '2026-06-28-7';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6002,19 +6002,26 @@ async function confirmOrder() {
 }
 
 /* ========== PDF GENERATION ========== */
-// ערך מיון מידה: מספר ראשי ואז אות (X12, M16, L46 → 12,16,46)
+// ערך מיון מידה: מספר ראשי, ואז רוחב בסדר S→M→L→X (לבקשת המחסנאי), ריק קודם
+const _WIDTH_RANK = { '': 0, 'S': 1, 'M': 2, 'L': 3, 'X': 4 };
 function _sizeSortVal(sz) {
   sz = String(sz || '').toUpperCase();
   const numM = sz.match(/\d+/);
-  return { num: numM ? parseInt(numM[0], 10) : 0, letter: sz.replace(/\d+/g, '') };
+  const letter = sz.replace(/[^A-Z]/g, '');   // האות בלבד (S/M/L/X), בלי תלות במיקום
+  return {
+    num: numM ? parseInt(numM[0], 10) : 0,
+    w: (letter in _WIDTH_RANK) ? _WIDTH_RANK[letter] : 9,
+    letter
+  };
 }
-// מיון פריטי הזמנה: קודם לפי מוצר (שם), ואז לפי מידה בתוך כל מוצר
+// מיון פריטי הזמנה: קודם לפי מוצר (שם), ואז מידה: מספר עולה, ואז רוחב S→M→L→X
 function sortOrderItems(items) {
   return items.slice().sort(function(a, b) {
     const n = (a.name || '').localeCompare(b.name || '', 'he');
     if (n !== 0) return n;
     const sa = _sizeSortVal(a.size), sb = _sizeSortVal(b.size);
     if (sa.num !== sb.num) return sa.num - sb.num;
+    if (sa.w   !== sb.w)   return sa.w - sb.w;
     return sa.letter.localeCompare(sb.letter);
   });
 }
@@ -6393,7 +6400,7 @@ function renderOrdersPage() {
                 <th style="text-align:center;padding:6px 10px;background:#f0f4ff;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">כמות הזמנה</th>
               </tr></thead>
               <tbody>
-              ${(o.items || []).map((it, j) => `
+              ${sortOrderItems(o.items || []).map((it, j) => `
                 <tr>
                   <td style="padding:5px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid #f2f4f9">${j+1}</td>
                   <td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #f2f4f9">${it.name}${it.season ? ' <span style="color:var(--muted)">(' + it.season + ' ' + it.year + ')</span>' : ''}</td>
