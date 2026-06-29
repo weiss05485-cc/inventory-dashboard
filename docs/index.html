@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-12';
+  var APP_VERSION = '2026-06-28-13';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6115,6 +6115,7 @@ function sortOrderItems(items) {
 }
 
 function generateOrderPDF(order) {
+  if (!order || !order.items || !order.items.length) { alert('ההזמנה ריקה — אין פריטים, לא הופק PDF.'); return; }
   var totalQty = order.items.reduce(function(s, it) { return s + it.orderQty; }, 0);
   var dateTag  = (order.dateStr || '').replace(/[/:]/g,'-').replace(/ /g,'_');
   var filename = 'הזמנה_' + order.fromStore + '_' + dateTag + '.pdf';
