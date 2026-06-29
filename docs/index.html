@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-7';
+  var APP_VERSION = '2026-06-28-8';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -5948,6 +5948,14 @@ function closeOrderForm() {
   document.getElementById('order-form-modal').style.display = 'none';
 }
 
+// מלאי של פריט (לפי ברקוד) בסניף מסוים — מחזיר null אם לא ידוע (כדי לא להסיר בטעות)
+function _stockAtStore(bc, store) {
+  if (!bc || typeof SEARCH_DATA === 'undefined' || !SEARCH_DATA) return null;
+  const it = SEARCH_DATA.find(x => x.b === bc);
+  if (!it || !it.s) return null;
+  return it.s[store] || 0;
+}
+
 // --- step 2: generate PDF + save order ---
 async function confirmOrder() {
   const userInfo  = JSON.parse(localStorage.getItem('cc_user') || '{}');
@@ -5961,6 +5969,29 @@ async function confirmOrder() {
   // הגנה קריטית: לעולם לא לשלוח/לשמור הזמנה ריקה (וכך גם לא למחוק טיוטה)
   if (!_pendingOrderItems.length) { errEl.textContent = 'ההזמנה ריקה — לא נשלח. הוסף פריטים (אם משהו נעלם, הטיוטה נשמרה).'; return; }
   errEl.textContent = '';
+
+  // בדיקת מלאי מול היעד (לכבוד): פריטים שאזלו שם — מתריעים ומסירים אוטומטית מההזמנה
+  if (storeList && storeList.indexOf(toStore) >= 0) {
+    const outOfStock = [];
+    _pendingOrderItems = _pendingOrderItems.filter(it => {
+      const at = _stockAtStore(it.bc, toStore);
+      if (at !== null && at <= 0) { outOfStock.push(it); return false; }
+      return true;
+    });
+    if (outOfStock.length) {
+      outOfStock.forEach(it => {
+        const cb = document.querySelector('.order-check[data-bc="' + (it.bc || '') + '"]');
+        if (cb) { cb.checked = false; const qi = cb.nextElementSibling; if (qi) qi.classList.remove('show'); }
+      });
+      updateOrderBtn();
+      alert('⚠️ ' + outOfStock.length + ' פריטים אזלו מהמלאי ב' + toStore + ' והוסרו מההזמנה:\n\n' +
+        outOfStock.map(it => '• ' + it.name + (it.size ? ' (מ\'' + it.size + ')' : '')).join('\n'));
+      if (!_pendingOrderItems.length) {
+        errEl.textContent = 'כל הפריטים אזלו מהמלאי ב' + toStore + ' — אין מה לשלוח.';
+        return;
+      }
+    }
+  }
 
   const now     = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
