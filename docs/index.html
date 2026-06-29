@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-9';
+  var APP_VERSION = '2026-06-28-10';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6098,9 +6098,11 @@ function _sizeSortVal(sz) {
   };
 }
 // מיון פריטי הזמנה: קודם לפי מוצר (שם), ואז מידה: מספר עולה, ואז רוחב S→M→L→X
+// נרמול שם (trim + איחוד רווחים) — כדי ש-"מוצר" ו-"מוצר " (רווח בסוף) לא ייחשבו כשני מוצרים
+function _normName(s) { return String(s || '').trim().replace(/\s+/g, ' '); }
 function sortOrderItems(items) {
   return items.slice().sort(function(a, b) {
-    const n = (a.name || '').localeCompare(b.name || '', 'he');
+    const n = _normName(a.name).localeCompare(_normName(b.name), 'he');
     if (n !== 0) return n;
     const sa = _sizeSortVal(a.size), sb = _sizeSortVal(b.size);
     if (sa.num !== sb.num) return sa.num - sb.num;
