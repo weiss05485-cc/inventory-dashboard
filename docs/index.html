@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-8';
+  var APP_VERSION = '2026-06-28-9';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -5970,56 +5970,46 @@ async function confirmOrder() {
   if (!_pendingOrderItems.length) { errEl.textContent = 'ההזמנה ריקה — לא נשלח. הוסף פריטים (אם משהו נעלם, הטיוטה נשמרה).'; return; }
   errEl.textContent = '';
 
-  // בדיקת מלאי מול היעד (לכבוד): פריטים שאזלו שם — מתריעים ומסירים אוטומטית מההזמנה
+  // בדיקת מלאי מול היעד (לכבוד). פריטים שאזלו שם → מודאל: להראות איפה יש מלאי + להעביר, או לשלוח רק זמינים
   if (storeList && storeList.indexOf(toStore) >= 0) {
-    const outOfStock = [];
-    _pendingOrderItems = _pendingOrderItems.filter(it => {
+    const inStock = [], outOfStock = [];
+    _pendingOrderItems.forEach(it => {
       const at = _stockAtStore(it.bc, toStore);
-      if (at !== null && at <= 0) { outOfStock.push(it); return false; }
-      return true;
+      if (at !== null && at <= 0) outOfStock.push(it); else inStock.push(it);
     });
     if (outOfStock.length) {
-      outOfStock.forEach(it => {
-        const cb = document.querySelector('.order-check[data-bc="' + (it.bc || '') + '"]');
-        if (cb) { cb.checked = false; const qi = cb.nextElementSibling; if (qi) qi.classList.remove('show'); }
-      });
-      updateOrderBtn();
-      alert('⚠️ ' + outOfStock.length + ' פריטים אזלו מהמלאי ב' + toStore + ' והוסרו מההזמנה:\n\n' +
-        outOfStock.map(it => '• ' + it.name + (it.size ? ' (מ\'' + it.size + ')' : '')).join('\n'));
-      if (!_pendingOrderItems.length) {
-        errEl.textContent = 'כל הפריטים אזלו מהמלאי ב' + toStore + ' — אין מה לשלוח.';
-        return;
-      }
+      _showOutOfStockModal(outOfStock, inStock, { fromStore, toStore, notes, empName });
+      return;   // המודאל ממשיך את הזרימה
     }
   }
 
-  const now     = new Date();
+  _createAndSaveOrder(_pendingOrderItems, fromStore, toStore, notes, empName);
+  _finalizeOrderSend();
+}
+
+let _orderIdSeq = 0;
+// בונה, שומר ומפיק PDF להזמנה אחת. מחזיר את אובייקט ההזמנה.
+function _createAndSaveOrder(items, fromStore, toStore, notes, empName) {
+  if (!items || !items.length) return null;
+  const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
-  const timeStr = now.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-  const orderId = now.getTime();
-  const totalQty = _pendingOrderItems.reduce((s, it) => s + it.orderQty, 0);
-
+  const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   const order = {
-    id:        orderId,
-    date:      now.toISOString(),
-    dateStr:   dateStr + ' ' + timeStr,
-    employee:  empName,
-    fromStore: fromStore,
-    toStore:   toStore,
-    notes:     notes,
-    items:     sortOrderItems(_pendingOrderItems),
-    status:    'ממתין'
+    id: now.getTime() + (_orderIdSeq++),
+    date: now.toISOString(),
+    dateStr: dateStr + ' ' + timeStr,
+    employee: empName, fromStore: fromStore, toStore: toStore, notes: notes,
+    items: sortOrderItems(items), status: 'ממתין'
   };
-
-  // ── Save orders (localStorage + GitHub) ──
   const orders = getOrders();
   orders.unshift(order);
   setOrders(orders);
-
-  // ── Generate PDF ──
   generateOrderPDF(order);
+  return order;
+}
 
-  // close form, clear pending items + checkboxes, show done modal
+// ניקוי וסגירת הטופס אחרי שליחה
+function _finalizeOrderSend() {
   _pendingOrderItems = [];
   clearOrderDraft();
   closeOrderForm();
@@ -6030,6 +6020,68 @@ async function confirmOrder() {
   });
   updateOrderBtn();
   document.getElementById('order-done-modal').style.display = 'flex';
+}
+
+// מודאל: פריטים שאזלו ביעד — מציג איפה יש מלאי, ומאפשר להעביר אותם להזמנה נפרדת ליעד עם המלאי
+function _showOutOfStockModal(outOfStock, inStock, meta) {
+  const others = (storeList || []).filter(s => s !== meta.toStore);
+  const rows = outOfStock.map(it => {
+    const alts = others.map(s => ({ s, q: _stockAtStore(it.bc, s) || 0 }))
+      .filter(x => x.q > 0).sort((a, b) => b.q - a.q);
+    return { it, alts };
+  });
+  const anyTransferable = rows.some(r => r.alts.length);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const listHtml = rows.map(r => {
+    const av = r.alts.length
+      ? r.alts.map(a => esc(a.s) + ': <strong>' + a.q + '</strong>').join(' · ')
+      : '<span style="color:#ef4444">אין באף סניף</span>';
+    return '<div style="padding:8px 10px;border-bottom:1px solid #eef2f7">' +
+      '<div style="font-weight:600;font-size:13px">' + esc(r.it.name) + (r.it.size ? ' (מ\'' + esc(r.it.size) + ')' : '') + '</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-top:2px">זמין ב: ' + av + '</div></div>';
+  }).join('');
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:99999;direction:rtl;font-family:Rubik,sans-serif';
+  wrap.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:480px;width:92%;max-height:85vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+      '<div style="font-size:16px;font-weight:800;color:#b45309;margin-bottom:4px">⚠️ ' + outOfStock.length + ' פריטים אזלו ב' + esc(meta.toStore) + '</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:10px">בחר מה לעשות עם הפריטים שאזלו:</div>' +
+      '<div style="border:1px solid #eef2f7;border-radius:10px;margin-bottom:14px">' + listHtml + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        (anyTransferable ? '<button id="oos-transfer" style="padding:11px;border:0;border-radius:10px;background:#10b981;color:#fff;font-weight:700;cursor:pointer;font-family:Rubik;font-size:14px">📦 העבר ליעד עם מלאי ושלח</button>' : '') +
+        (inStock.length ? '<button id="oos-skip" style="padding:10px;border:1.5px solid #4f46e5;border-radius:10px;background:#fff;color:#4f46e5;font-weight:600;cursor:pointer;font-family:Rubik;font-size:13px">שלח רק את ' + inStock.length + ' הזמינים</button>' : '') +
+        '<button id="oos-cancel" style="padding:9px;border:0;border-radius:10px;background:#f1f5f9;color:#334155;cursor:pointer;font-family:Rubik;font-size:13px">ביטול (חזרה לעריכה)</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(wrap);
+  const close = () => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
+  wrap.querySelector('#oos-cancel').onclick = close;
+  const skipBtn = wrap.querySelector('#oos-skip');
+  if (skipBtn) skipBtn.onclick = () => {
+    close();
+    _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName);
+    _finalizeOrderSend();
+  };
+  const trBtn = wrap.querySelector('#oos-transfer');
+  if (trBtn) trBtn.onclick = () => {
+    close();
+    const byStore = {}, undeliverable = [];
+    rows.forEach(r => {
+      if (!r.alts.length) { undeliverable.push(r.it); return; }
+      const best = r.alts[0].s;
+      (byStore[best] = byStore[best] || []).push(r.it);
+    });
+    Object.keys(byStore).forEach(store => {
+      _createAndSaveOrder(byStore[store], meta.fromStore, store,
+        (meta.notes ? meta.notes + ' · ' : '') + 'הועבר (אזל ב' + meta.toStore + ')', meta.empName);
+    });
+    if (inStock.length) _createAndSaveOrder(inStock, meta.fromStore, meta.toStore, meta.notes, meta.empName);
+    _finalizeOrderSend();
+    if (undeliverable.length) {
+      alert('הערה: ' + undeliverable.length + ' פריטים לא נמצאו באף סניף ולא נשלחו:\n' +
+        undeliverable.map(it => '• ' + it.name + (it.size ? ' (מ\'' + it.size + ')' : '')).join('\n'));
+    }
+  };
 }
 
 /* ========== PDF GENERATION ========== */
