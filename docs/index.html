@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-16';
+  var APP_VERSION = '2026-06-28-17';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -402,9 +402,15 @@ body.emp-mode .price-col{display:none!important}
     </select>
 
     <label class="order-form-label">📧 שלח במייל ל (אופציונלי)</label>
-    <input class="order-form-input" id="order-email" type="text" list="order-email-list"
-      placeholder="כתובת מייל — או כמה מופרדות בפסיק" autocomplete="off">
-    <datalist id="order-email-list"></datalist>
+    <select class="order-form-input" id="order-email-select" onchange="_onOrderEmailSelect()">
+      <option value="">— ללא מייל —</option>
+      <option value="b0548527263@gmail.com">מחסנאי — בנימין גרינוולד</option>
+      <option value="ggi310310@gmail.com">GB סניף ירושלים</option>
+      <option value="gbbb0733678888@gmail.com">סניף בני ברק</option>
+      <option value="__other__">✍️ מייל אחר (הקלד)...</option>
+    </select>
+    <input class="order-form-input" id="order-email" type="text"
+      placeholder="הקלד כתובת מייל (אפשר כמה, מופרדות בפסיק)" autocomplete="off" style="display:none;margin-top:6px">
 
     <label class="order-form-label">הערות (אופציונלי)</label>
     <textarea class="order-form-input" id="order-notes" rows="2" placeholder="הערות נוספות..."></textarea>
@@ -5944,7 +5950,7 @@ function sendOrder() {
   document.getElementById('order-to-store').value = _orderDraftMeta ? (_orderDraftMeta.toStore || '') : '';
   if (_orderDraftMeta && _orderDraftMeta.notes) { const _n=document.getElementById('order-notes'); if(_n) _n.value=_orderDraftMeta.notes; }
 
-  _fillOrderEmailList();   // השלמת כתובות מייל אחרונות + מילוי האחרונה
+  _initOrderEmail();   // אתחול בורר המייל (3 סניפים + מייל אחר), לפי הבחירה האחרונה
   document.getElementById('order-form-error').textContent = '';
   document.getElementById('order-form-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('order-to-store').focus(), 100);
@@ -6010,13 +6016,23 @@ function _rememberOrderEmail(val) {
     localStorage.setItem('cc_order_email_last', parts[parts.length - 1] || '');
   } catch (e) {}
 }
-function _fillOrderEmailList() {
+var _PREDEF_EMAILS = ['b0548527263@gmail.com', 'ggi310310@gmail.com', 'gbbb0733678888@gmail.com'];
+// בחירת יעד מהבורר — סניף קבוע, או "מייל אחר" שחושף שדה הקלדה
+function _onOrderEmailSelect() {
+  var sel = document.getElementById('order-email-select'), inp = document.getElementById('order-email');
+  if (!sel || !inp) return;
+  if (sel.value === '__other__') { inp.style.display = ''; inp.value = ''; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = sel.value; }
+}
+// אתחול הבורר לפי הבחירה האחרונה (נוחות) — סניף קבוע / מייל מותאם / ללא
+function _initOrderEmail() {
   try {
-    var dl = document.getElementById('order-email-list');
-    var list = JSON.parse(localStorage.getItem('cc_order_emails') || '[]');
-    if (dl) dl.innerHTML = list.map(function (e) { return '<option value="' + e + '">'; }).join('');
-    var inp = document.getElementById('order-email');
-    if (inp && !inp.value) inp.value = localStorage.getItem('cc_order_email_last') || '';
+    var sel = document.getElementById('order-email-select'), inp = document.getElementById('order-email');
+    if (!sel || !inp) return;
+    var last = localStorage.getItem('cc_order_email_last') || '';
+    if (last && _PREDEF_EMAILS.indexOf(last) >= 0) { sel.value = last; inp.style.display = 'none'; inp.value = last; }
+    else if (last) { sel.value = '__other__'; inp.style.display = ''; inp.value = last; }
+    else { sel.value = ''; inp.style.display = 'none'; inp.value = ''; }
   } catch (e) {}
 }
 
