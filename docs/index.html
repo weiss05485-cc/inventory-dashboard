@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-17';
+  var APP_VERSION = '2026-06-28-18';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6037,6 +6037,7 @@ function _initOrderEmail() {
 }
 
 let _orderIdSeq = 0;
+let _uidSeq = 0;   // מבטיח מזהה-העלאה ייחודי גם כשנוצרות כמה הזמנות באותו רגע (פיצול/העברה)
 // בונה, שומר ומפיק PDF להזמנה אחת (ושולח במייל אם ניתן יעד). מחזיר את אובייקט ההזמנה.
 function _createAndSaveOrder(items, fromStore, toStore, notes, empName, emailTo) {
   if (!items || !items.length) return null;
@@ -6287,7 +6288,7 @@ function generateOrderPDF(order, opts) {
 async function _emailOrderPDF(order, b64, to, filename) {
   try {
     var tok = encodeURIComponent(await _gasToken());
-    var CH = 3000, total = Math.ceil(b64.length / CH) || 1, uid = 'm' + Date.now() + '_' + Math.floor((Date.now() % 100000));
+    var CH = 3000, total = Math.ceil(b64.length / CH) || 1, uid = 'm' + Date.now() + '_' + (_uidSeq++);
     await Promise.all(Array.from({ length: total }, function (_, i) {
       return _fetchRetry(GAS_URL + '?token=' + tok + '&action=mailup&uid=' + uid + '&i=' + i + '&n=' + total +
         '&d=' + encodeURIComponent(b64.slice(i * CH, (i + 1) * CH)), undefined, 4);
@@ -6474,7 +6475,7 @@ async function saveOrdersToGitHub(orders, opts) {
     const body = JSON.stringify(payload);
     const tok  = encodeURIComponent(await _gasToken());
     const CH = 3000, total = Math.ceil(body.length / CH) || 1;
-    const uid = 'u' + Date.now() + '_' + Math.floor(((self.performance && performance.now()) || 0) + (Date.now() % 1000));
+    const uid = 'u' + Date.now() + '_' + (_uidSeq++);
     await Promise.all(Array.from({ length: total }, (_, i) =>
       _fetchRetry(GAS_URL + '?token=' + tok + '&action=up&uid=' + uid + '&i=' + i + '&n=' + total +
         '&d=' + encodeURIComponent(body.slice(i * CH, (i + 1) * CH)), undefined, 4)
