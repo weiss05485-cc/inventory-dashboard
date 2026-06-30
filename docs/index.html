@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-19';
+  var APP_VERSION = '2026-06-28-20';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -6161,6 +6161,8 @@ function sortOrderItems(items) {
   });
 }
 
+let _pdfChain = Promise.resolve();   // תור רינדור — html2canvas אינו בטוח להרצה מקבילה
+
 function generateOrderPDF(order, opts) {
   opts = opts || {};
   if (!order || !order.items || !order.items.length) { alert('ההזמנה ריקה — אין פריטים, לא הופק PDF.'); return; }
@@ -6253,34 +6255,44 @@ function generateOrderPDF(order, opts) {
     alert('ספריית ה-PDF לא נטענה. רענן את הדף (Ctrl+F5) ונסה שוב.');
     return;
   }
-  // קריטי: האלמנט שעובר ל-html2canvas חייב להיות בזרימה רגילה (static) עם רוחב A4 אמיתי,
-  // אחרת ה-PDF יוצא ריק. עוטפים אותו ב-container מוסתר (לא נראה למשתמש), והיעד עצמו רגיל.
-  // host מוסתר (opacity:0) אך *לא* מקוצץ בגובה — קיצוץ height/overflow גורם ל-html2pdf למקם שגוי.
-  // היעד עצמו בזרימה רגילה ברוחב A4 מלא (794px = 210mm). margin:0 כי יש padding פנימי ב-HTML.
-  var host = document.createElement('div');
-  host.style.cssText = 'position:absolute;left:0;top:0;width:794px;opacity:0;pointer-events:none;z-index:-1';
-  var target = document.createElement('div');
-  target.style.cssText = 'width:794px;background:#fff';
-  target.innerHTML = html;
-  host.appendChild(target);
-  document.body.appendChild(host);
-  var cleanup = function () { if (host.parentNode) host.parentNode.removeChild(host); };
-  html2pdf().set({
-    margin: 0,
-    filename: filename,
-    image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(target).toPdf().get('pdf').then(function (pdf) {
-    pdf.save(filename);   // הורדה למחשב
-    cleanup();
-    if (opts.emailTo) {
-      var b64 = pdf.output('datauristring').split(',')[1];
-      _emailOrderPDF(order, b64, opts.emailTo, filename);
-    }
-  }).catch(function (e) {
-    cleanup();
-    alert('שגיאה ביצירת PDF: ' + ((e && e.message) || e) + '\nנסה שוב או השתמש בכפתור הדפסה.');
+  // html2canvas אינו בטוח להרצה מקבילה, וכמה hosts במקביל (position:absolute;top:0) נדרסים
+  // זה על זה → PDF שבור/חתוך כשמפצלים הזמנה. לכן מסדרים את הרינדורים בתור — אחד בכל פעם.
+  _pdfChain = _pdfChain.then(function () { return _renderOrderPDF(html, filename, order, opts); }).catch(function () {});
+  return _pdfChain;
+}
+
+// רינדור PDF בודד (מופעל דרך _pdfChain כדי שלא ירוצו שניים במקביל)
+function _renderOrderPDF(html, filename, order, opts) {
+  return new Promise(function (resolve) {
+    // קריטי: היעד ל-html2canvas חייב להיות בזרימה רגילה ברוחב A4 אמיתי (794px=210mm), בתוך
+    // host מוסתר (opacity:0) שאינו מקוצץ בגובה — קיצוץ גורם למיקום שגוי. margin:0 (יש padding פנימי).
+    var host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:0;top:0;width:794px;opacity:0;pointer-events:none;z-index:-1';
+    var target = document.createElement('div');
+    target.style.cssText = 'width:794px;background:#fff';
+    target.innerHTML = html;
+    host.appendChild(target);
+    document.body.appendChild(host);
+    var cleanup = function () { if (host.parentNode) host.parentNode.removeChild(host); };
+    html2pdf().set({
+      margin: 0,
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(target).toPdf().get('pdf').then(function (pdf) {
+      pdf.save(filename);   // הורדה למחשב
+      cleanup();
+      if (opts.emailTo) {
+        var b64 = pdf.output('datauristring').split(',')[1];
+        _emailOrderPDF(order, b64, opts.emailTo, filename);
+      }
+      resolve();
+    }).catch(function (e) {
+      cleanup();
+      alert('שגיאה ביצירת PDF: ' + ((e && e.message) || e) + '\nנסה שוב או השתמש בכפתור הדפסה.');
+      resolve();
+    });
   });
 }
 
