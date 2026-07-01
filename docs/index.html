@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-21';
+  var APP_VERSION = '2026-06-28-22';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -5542,14 +5542,15 @@ function exportReport() {
   items.forEach(i => {
     const sz = i.sz||'—';
     if (!pivot[sz]) pivot[sz] = {};
-    pivot[sz][i.g] = (pivot[sz][i.g]||0) + i.q;
+    pivot[sz][i.g] = (pivot[sz][i.g]||0) + qOfReport(i);   // רק השנים שנבחרו (כמו בטבלה)
   });
   const rows = [['מידה', ...groups, 'סה"כ']];
   sizes.forEach(sz => {
     const cells = groups.map(g => Math.round(pivot[sz]?.[g]||0));
     rows.push([sz, ...cells, cells.reduce((a,b)=>a+b,0)]);
   });
-  downloadCSV(rows, `דוח_${activeReportItem}.csv`);
+  const ysuf = _reportYears.size ? '_' + [..._reportYears].map(k => k.indexOf('le')===0 ? k.slice(2)+'ומטה' : k).sort().join('-') : '';
+  downloadCSV(rows, `דוח_${activeReportItem}${ysuf}.csv`);
 }
 
 /* ========== CSV EXPORT ========== */
