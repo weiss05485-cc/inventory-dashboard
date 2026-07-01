@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-20';
+  var APP_VERSION = '2026-06-28-21';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -915,7 +915,7 @@ body.emp-mode .price-col{display:none!important}
 
   <!-- Year filter -->
   <div id="report-year-wrap" style="display:none;margin-bottom:12px">
-    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">לפי שנת דגם:</div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">לפי שנת דגם (אפשר לבחור כמה שנים יחד):</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap" id="report-year-btns"></div>
   </div>
 
@@ -5256,25 +5256,32 @@ let _reportGroups = [];
 let _reportSizes = [];
 let _activeDrillSzIdx = null, _activeDrillGIdx = null;
 let activeReportShorot = 'all';
-let _reportYear = 'all';   // 'all' | '2026' | '2025' | '2024' | 'le2023'
+let _reportYears = new Set();   // ריק = כל השנים. אחרת קבוצת מפתחות: '2026','2025','2024','le2023' — מסכם את כולן יחד
 
-// כמות לפי מסנן השנה הפעיל (משתמש ב-yrs מהסנכרון)
+// כמות לפי מסנני השנה הפעילים (אפשר כמה יחד; משתמש ב-yrs מהסנכרון)
 function qOfReport(i) {
-  if (_reportYear === 'all') return i.q || 0;
+  if (_reportYears.size === 0) return i.q || 0;   // כל השנים
   const y = i.yrs || {};
-  if (typeof _reportYear === 'string' && _reportYear.indexOf('le') === 0) { const th = +_reportYear.slice(2); let s = 0; for (const k in y) { if (+k <= th) s += y[k]; } return s; }
-  return y[_reportYear] || 0;
+  let s = 0;
+  _reportYears.forEach(key => {
+    if (key.indexOf('le') === 0) { const th = +key.slice(2); for (const k in y) { if (+k <= th) s += y[k]; } }
+    else s += (y[key] || 0);
+  });
+  return s;
 }
 const REPORT_YEAR_BTNS = _YEAR_FILTER_OPTS.map(o => [o.v, o.lbl]);
+function _isReportYearActive(v) { return v === 'all' ? _reportYears.size === 0 : _reportYears.has(v); }
 function buildReportYearButtons() {
   document.getElementById('report-year-btns').innerHTML = REPORT_YEAR_BTNS.map(([v,lbl]) =>
-    `<button class="pill ${v===_reportYear?'active':''}" onclick="setReportYear('${v}',this)">${lbl}</button>`).join('');
+    `<button class="pill ${_isReportYearActive(v)?'active':''}" onclick="toggleReportYear('${v}')">${lbl}</button>`).join('');
 }
-function setReportYear(v, btn) {
-  _reportYear = v;
-  document.querySelectorAll('#report-year-btns .pill').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+// לחיצה מוסיפה/מסירה שנה (רב-בחירה). "כל השנים" מנקה את הבחירה. אם מבטלים את האחרונה — חוזר לכל השנים.
+function toggleReportYear(v) {
+  if (v === 'all') { _reportYears.clear(); }
+  else if (_reportYears.has(v)) { _reportYears.delete(v); }
+  else { _reportYears.add(v); }
   closeReportDrill();
+  buildReportYearButtons();
   renderReportTable();
 }
 
@@ -5433,10 +5440,10 @@ function renderReportTable() {
   const ybd = document.getElementById('report-year-breakdown');
   if (Object.keys(yearTot).length) {
     const cards = _yearBreakdownCards(yearTot);
-    const cellHtml = (lbl,v,key)=>`<div onclick="setReportYear('${key}')" style="cursor:pointer;background:${_reportYear===key?'var(--primary)':'#f5f6fb'};color:${_reportYear===key?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">${lbl}:</span> <strong>${Math.round(v)}</strong></div>`;
+    const cellHtml = (lbl,v,key)=>`<div onclick="toggleReportYear('${key}')" style="cursor:pointer;background:${_reportYears.has(key)?'var(--primary)':'#f5f6fb'};color:${_reportYears.has(key)?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">${lbl}:</span> <strong>${Math.round(v)}</strong></div>`;
     ybd.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px';
     ybd.innerHTML = cards.map(([l,v,key])=>cellHtml(l,v,key)).join('')
-      + `<div onclick="setReportYear('all')" style="cursor:pointer;background:${_reportYear==='all'?'var(--primary)':'#eef9f0'};color:${_reportYear==='all'?'#fff':'#15803d'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">סה"כ:</span> <strong>${Math.round(Object.values(yearTot).reduce((s,v)=>s+v,0))}</strong></div>`;
+      + `<div onclick="toggleReportYear('all')" style="cursor:pointer;background:${_reportYears.size===0?'var(--primary)':'#eef9f0'};color:${_reportYears.size===0?'#fff':'#15803d'};border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px"><span style="opacity:.75">סה"כ:</span> <strong>${Math.round(Object.values(yearTot).reduce((s,v)=>s+v,0))}</strong></div>`;
   } else { ybd.style.display='none'; }
 
   // Build pivot (לפי מסנן השנה הפעיל)
