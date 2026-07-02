@@ -82,6 +82,12 @@ nav::-webkit-scrollbar{display:none}
 
 /* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+.shift-card{background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #e0e7ff;border-radius:14px;
+  padding:16px 18px;cursor:pointer;transition:transform .15s,box-shadow .15s;text-align:center}
+.shift-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(99,102,241,.22)}
+.shift-card .sc-store{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.shift-card .sc-count{font-size:32px;font-weight:800;color:#6366f1;line-height:1.1}
+.shift-card .sc-label{font-size:11px;color:var(--muted);margin-top:2px}
 .kpi{border-radius:var(--radius);padding:18px 16px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
 .kpi::after{content:'';position:absolute;top:0;right:0;width:4px;height:100%}
 .kpi.green{background:linear-gradient(135deg,#ecfdf5,#d1fae5)}
@@ -548,7 +554,22 @@ body.emp-mode .price-col{display:none!important}
       <div class="chart-wrap"><canvas id="chart-dept-ov"></canvas></div>
     </div>
   </div>
+  <div id="shifts-section" style="display:none;margin-top:4px">
+    <h3 style="margin:0 0 12px;font-size:15px;color:var(--text)">👥 עובדים במשמרת עכשיו</h3>
+    <div class="kpi-grid" id="shifts-cards" style="margin-bottom:0"></div>
+  </div>
 </div>
+</div>
+
+<!-- SHIFT DETAILS MODAL -->
+<div id="shift-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9997;display:none;align-items:center;justify-content:center" onclick="if(event.target===this)closeShiftModal()">
+  <div style="background:#fff;border-radius:20px;padding:24px 26px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.28)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 id="shift-modal-title" style="margin:0;color:var(--primary);font-size:18px"></h3>
+      <button onclick="closeShiftModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1">✕</button>
+    </div>
+    <div id="shift-modal-body"></div>
+  </div>
 </div>
 
 <!-- PAGE: SEARCH -->
@@ -2970,6 +2991,56 @@ function renderOverview() {
   renderKPIs(activeOverviewStore);
   renderStatusChart(activeOverviewStore);
   renderDeptOvChart(activeOverviewStore);
+  renderShifts();
+}
+
+// ── עובדים במשמרת (משעון הנוכחות של ARNET) ──
+function renderShifts() {
+  const section = document.getElementById('shifts-section');
+  const wrap    = document.getElementById('shifts-cards');
+  if (!section || !wrap) return;
+  const shifts = (DATA && DATA.shifts) || {};
+  const stores = Object.keys(shifts);
+  if (!stores.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  // סדר לפי storeList, ואז כל השאר
+  const ordered = storeList.filter(s => shifts[s]).concat(stores.filter(s => !storeList.includes(s)));
+  wrap.innerHTML = ordered.map(store => {
+    const n = (shifts[store].onShift) || 0;
+    const safe = store.replace(/'/g, "\\'");
+    return `<div class="shift-card" onclick="openShiftModal('${safe}')">
+      <div class="sc-store">${storeName(store)}</div>
+      <div class="sc-count">${n}</div>
+      <div class="sc-label">${n === 1 ? 'עובד במשמרת' : 'עובדים במשמרת'} · לחץ לפרטים</div>
+    </div>`;
+  }).join('');
+}
+
+function openShiftModal(store) {
+  const d = ((DATA && DATA.shifts) || {})[store];
+  if (!d) return;
+  const emps = d.employees || [];
+  document.getElementById('shift-modal-title').textContent =
+    '👥 ' + storeName(store) + ' — ' + (d.onShift || 0) + ' במשמרת';
+  const body = document.getElementById('shift-modal-body');
+  if (!emps.length) {
+    body.innerHTML = '<div style="color:var(--muted);padding:8px">אין עובדים במשמרת כרגע</div>';
+  } else {
+    const th = (t, align) => `<th style="text-align:${align||'right'};padding:7px 10px;background:#f4f6fb;font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">${t}</th>`;
+    body.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr>' + th('עובד') + th('שעת כניסה', 'center') + th('מכירות היום', 'center') + '</tr></thead><tbody>' +
+      emps.map(e => `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;font-weight:600">${e.name || '—'}${e.no ? ` <span style="color:var(--muted);font-size:11px">#${e.no}</span>` : ''}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;text-align:center">${e.start || '—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;text-align:center;font-weight:700;color:var(--primary)">${e.sales ? ('₪' + Number(e.sales).toLocaleString('he-IL')) : '—'}${e.txns ? ` <span style="color:var(--muted);font-size:11px">(${e.txns})</span>` : ''}</td>
+      </tr>`).join('') +
+      '</tbody></table>';
+  }
+  document.getElementById('shift-modal').style.display = 'flex';
+}
+
+function closeShiftModal() {
+  document.getElementById('shift-modal').style.display = 'none';
 }
 
 function buildStoreTabs() {

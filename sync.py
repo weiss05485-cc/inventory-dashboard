@@ -595,6 +595,59 @@ def main():
         print("PROMO_QUERY_ERROR:", repr(e))
         promos_list = []
 
+    # ── עובדים במשמרת עכשיו (שעון נוכחות PresenceView) + מכירות היום לעובד ──
+    print("  Shifts (who's on shift now)...")
+    try:
+        pres = q(cur, """
+            SELECT pv.UserID, pv.Name, pv.UserNo, st.StoreName,
+                   pv.Login1, pv.Logout1, pv.Login2, pv.Logout2, pv.Login3, pv.Logout3,
+                   pv.Login4, pv.Logout4, pv.Login5, pv.Logout5, pv.Login6, pv.Logout6
+            FROM PresenceView pv
+            JOIN Store st ON st.StoreID = pv.StoreID AND st.Status = 1 AND st.Code <> '3'
+            WHERE CAST(pv.PreDate AS DATE) = CAST(GETDATE() AS DATE)
+        """)
+        # מכירות היום לכל מוכרן (SellerID) — סכום + מס' עסקאות
+        sales_today = q(cur, """
+            SELECT CAST(t.SellerID AS NVARCHAR(50)) AS SellerID,
+                   CAST(SUM(t.Total) AS DECIMAL(18,0)) AS Sales, COUNT(*) AS Txns
+            FROM [Transaction] t
+            WHERE CAST(t.SaleTime AS DATE) = CAST(GETDATE() AS DATE) AND t.SellerID IS NOT NULL
+            GROUP BY t.SellerID
+        """)
+        sales_map = {str(r["SellerID"]).lower(): {"sales": float(r["Sales"] or 0), "txns": int(r["Txns"] or 0)}
+                     for r in sales_today}
+
+        def _hm(dt):
+            return dt.strftime("%H:%M") if dt else None
+
+        shifts = {}
+        for r in pres:
+            last_in = last_out = None
+            for i in range(1, 7):
+                li = r.get("Login%d" % i); lo = r.get("Logout%d" % i)
+                if li: last_in = li
+                if lo: last_out = lo
+            on_shift = bool(last_in) and (last_out is None or last_in > last_out)
+            if not on_shift:
+                continue  # מציגים רק מי שכרגע במשמרת (Login פתוח בלי Logout)
+            store = r["StoreName"]
+            slot = shifts.setdefault(store, {"onShift": 0, "employees": []})
+            sm = sales_map.get(str(r["UserID"]).lower(), {"sales": 0, "txns": 0})
+            slot["onShift"] += 1
+            slot["employees"].append({
+                "name":  (r["Name"] or "").strip(),
+                "no":    r["UserNo"],
+                "start": _hm(r.get("Login1")),
+                "sales": sm["sales"],
+                "txns":  sm["txns"],
+            })
+        for slot in shifts.values():
+            slot["employees"].sort(key=lambda e: -e["sales"])
+        print(f"  Shifts: {sum(v['onShift'] for v in shifts.values())} on shift across {len(shifts)} stores")
+    except Exception as e:
+        print("SHIFTS_QUERY_ERROR:", repr(e))
+        shifts = {}
+
     conn.close()
 
     os.makedirs("docs", exist_ok=True)
@@ -604,6 +657,7 @@ def main():
         "store_summary": store_summary,
         "low_stock": low_stock,
         "by_department": by_department,
+        "shifts": shifts,
     }
     with open("docs/data.json", "w", encoding="utf-8") as f:
         json.dump(main_data, f, ensure_ascii=False, default=serial)
