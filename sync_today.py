@@ -353,6 +353,25 @@ print(f"  {len(hours_raw)} שורות שעות")
 
 conn.close()
 
+# ── נטו סימפלי מהפורטל: הערך האמיתי של מימושי הגיפטקארד היום, אחרי אחוז ההנחה של הקהילה ──
+# (נכשל בשקט — אם הפורטל/סשן סימפלי לא זמין, פשוט לא נציג נטו; הברוטו מ-ARNET תמיד קיים)
+print("שולף נטו סימפלי מהפורטל...")
+simply_net = None
+try:
+    import os as _os, urllib.request as _ureq, urllib.parse as _up
+    _sec = _os.environ.get('EXECUTOR_SECRET')
+    if _sec:
+        _url = 'https://orgs.chasidim-center.co.il/api/net-simply?' + _up.urlencode({'key': _sec})
+        with _ureq.urlopen(_url, timeout=20) as _resp:
+            simply_net = json.loads(_resp.read().decode('utf-8'))
+        _t = simply_net.get('total', {})
+        print(f"  נטו סימפלי: ברוטו={_t.get('gross')} נטו={_t.get('net')} sessionOk={simply_net.get('sessionOk')}")
+    else:
+        print("  דילוג — EXECUTOR_SECRET לא מוגדר")
+except Exception as e:
+    print("SIMPLY_NET_ERROR:", repr(e))
+    simply_net = None
+
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {
     'today':            today_str,
@@ -364,6 +383,7 @@ out = {
     'sup_monthly':      sup_monthly_raw,
     'sup_docs':         sup_docs_raw,
     'hours_by_store':   hours_raw,
+    'simply_net':       simply_net,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:

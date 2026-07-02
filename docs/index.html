@@ -1957,6 +1957,13 @@ function _renderTodayContent() {
   // אמצעי תשלום
   const pays = dayData.payments || [];
   const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
+  // נטו סימפלי (מהפורטל) — רק להיום, לפי הערך האמיתי אחרי אחוז ההנחה של הקהילה
+  let simplyNet = null, simplyStale = false;
+  if (isToday && data.simply_net && data.simply_net.byStore) {
+    const bs = data.simply_net.byStore['חסידים סנטר'], t = data.simply_net.total;
+    const info = (bs && bs.gross > 0) ? bs : ((t && t.gross > 0) ? t : null);
+    if (info) { simplyNet = info; simplyStale = data.simply_net.sessionOk === false || !!data.simply_net.stale; }
+  }
   document.getElementById('today-payment-list').innerHTML = pays.length
     ? pays.map(r => {
         const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
@@ -1965,12 +1972,21 @@ function _renderTodayContent() {
                    : r.PayMethod.includes('צ\'ק') || r.PayMethod.includes('צק') ? '📄'
                    : r.PayMethod.includes('ביט') ? '📱'
                    : r.PayMethod.includes('העברה') ? '🏦'
+                   : r.PayMethod.includes('סימפלי') ? '🎁'
                    : '💰';
+        const isSimply = r.PayMethod.includes('סימפלי');
+        const netNote = (isSimply && simplyNet)
+          ? `<div style="font-size:11px;color:#059669;font-weight:700;margin-top:3px">
+               נטו אחרי הנחות: ${fmt(simplyNet.net)}${simplyStale ? ' <span style="color:#b45309">(מהמטמון)</span>' : ''}
+               <span style="color:var(--muted);font-weight:500"> · הנחה בפועל ${simplyNet.gross>0?(100-simplyNet.net/simplyNet.gross*100).toFixed(1):0}%</span>
+             </div>`
+          : '';
         return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span>${icon} ${r.PayMethod}</span>
             <span style="font-weight:600;font-size:13px">${fmt(r.TotalAmount)}</span>
           </div>
+          ${netNote}
           <div style="background:var(--border);border-radius:4px;height:4px;margin-top:4px">
             <div style="background:var(--navy);border-radius:4px;height:4px;width:${pct}%"></div>
           </div>
