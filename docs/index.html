@@ -88,6 +88,7 @@ nav::-webkit-scrollbar{display:none}
 .shift-card .sc-store{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
 .shift-card .sc-count{font-size:32px;font-weight:800;color:#6366f1;line-height:1.1}
 .shift-card .sc-label{font-size:11px;color:var(--muted);margin-top:2px}
+.shift-card .sc-sub{font-size:11px;color:#6366f1;font-weight:600;margin-top:6px}
 .kpi{border-radius:var(--radius);padding:18px 16px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
 .kpi::after{content:'';position:absolute;top:0;right:0;width:4px;height:100%}
 .kpi.green{background:linear-gradient(135deg,#ecfdf5,#d1fae5)}
@@ -3006,12 +3007,14 @@ function renderShifts() {
   // סדר לפי storeList, ואז כל השאר
   const ordered = storeList.filter(s => shifts[s]).concat(stores.filter(s => !storeList.includes(s)));
   wrap.innerHTML = ordered.map(store => {
-    const n = (shifts[store].onShift) || 0;
+    const d = shifts[store];
+    const n = d.onShift || 0, today = d.today || 0;
     const safe = store.replace(/'/g, "\\'");
     return `<div class="shift-card" onclick="openShiftModal('${safe}')">
       <div class="sc-store">${storeName(store)}</div>
       <div class="sc-count">${n}</div>
-      <div class="sc-label">${n === 1 ? 'עובד במשמרת' : 'עובדים במשמרת'} · לחץ לפרטים</div>
+      <div class="sc-label">${n === 1 ? 'עובד במשמרת עכשיו' : 'עובדים במשמרת עכשיו'}</div>
+      <div class="sc-sub">היום עבדו: ${today} · 📊 היסטוריה</div>
     </div>`;
   }).join('');
 }
@@ -3019,23 +3022,39 @@ function renderShifts() {
 function openShiftModal(store) {
   const d = ((DATA && DATA.shifts) || {})[store];
   if (!d) return;
-  const emps = d.employees || [];
+  const emps = d.employees || [], hist = d.history || [];
   document.getElementById('shift-modal-title').textContent =
-    '👥 ' + storeName(store) + ' — ' + (d.onShift || 0) + ' במשמרת';
-  const body = document.getElementById('shift-modal-body');
+    '👥 ' + storeName(store) + ' — ' + (d.onShift || 0) + ' במשמרת עכשיו';
+  const th = (t, align) => `<th style="text-align:${align||'right'};padding:7px 10px;background:#f4f6fb;font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">${t}</th>`;
+  let html = '<h4 style="margin:0 0 8px;font-size:13px;color:var(--text)">במשמרת עכשיו</h4>';
   if (!emps.length) {
-    body.innerHTML = '<div style="color:var(--muted);padding:8px">אין עובדים במשמרת כרגע</div>';
+    html += '<div style="color:var(--muted);padding:4px 0 8px">אין עובדים במשמרת כרגע</div>';
   } else {
-    const th = (t, align) => `<th style="text-align:${align||'right'};padding:7px 10px;background:#f4f6fb;font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">${t}</th>`;
-    body.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
-      '<thead><tr>' + th('עובד') + th('שעת כניסה', 'center') + th('מכירות היום', 'center') + '</tr></thead><tbody>' +
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:14px"><thead><tr>' +
+      th('עובד') + th('שעת כניסה', 'center') + th('מכירות היום', 'center') + '</tr></thead><tbody>' +
       emps.map(e => `<tr>
         <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;font-weight:600">${e.name || '—'}${e.no ? ` <span style="color:var(--muted);font-size:11px">#${e.no}</span>` : ''}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;text-align:center">${e.start || '—'}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #f2f4f9;text-align:center;font-weight:700;color:var(--primary)">${e.sales ? ('₪' + Number(e.sales).toLocaleString('he-IL')) : '—'}${e.txns ? ` <span style="color:var(--muted);font-size:11px">(${e.txns})</span>` : ''}</td>
-      </tr>`).join('') +
-      '</tbody></table>';
+      </tr>`).join('') + '</tbody></table>';
   }
+  html += '<h4 style="margin:14px 0 8px;font-size:13px;color:var(--text)">📊 היסטוריה — עובדים ליום (14 יום אחרונים)</h4>';
+  if (!hist.length) {
+    html += '<div style="color:var(--muted)">אין נתונים</div>';
+  } else {
+    const maxC = Math.max.apply(null, hist.map(h => h.count || 0).concat([1]));
+    html += '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+      th('תאריך') + th('עובדים', 'center') + th('') + '</tr></thead><tbody>' +
+      hist.map(h => {
+        const pct = Math.round(((h.count || 0) / maxC) * 100);
+        return `<tr>
+          <td style="padding:6px 10px;border-bottom:1px solid #f2f4f9">${h.date}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f2f4f9;text-align:center;font-weight:700">${h.count}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f2f4f9;width:55%"><div style="background:#eef2ff;border-radius:6px;height:10px"><div style="background:#6366f1;height:10px;border-radius:6px;width:${pct}%"></div></div></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+  }
+  document.getElementById('shift-modal-body').innerHTML = html;
   document.getElementById('shift-modal').style.display = 'flex';
 }
 

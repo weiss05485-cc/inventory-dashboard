@@ -595,10 +595,10 @@ def main():
         print("PROMO_QUERY_ERROR:", repr(e))
         promos_list = []
 
-    # ── עובדים במשמרת עכשיו (שעון נוכחות PresenceView) + מכירות היום לעובד ──
-    print("  Shifts (who's on shift now)...")
+    # ── עובדים במשמרת (עכשיו + היום + היסטוריה 14 יום) משעון הנוכחות PresenceView ──
+    print("  Shifts (now + today + 14-day history)...")
     try:
-        pres = q(cur, """
+        pres_today = q(cur, """
             SELECT pv.UserID, pv.Name, pv.UserNo, st.StoreName,
                    pv.Login1, pv.Logout1, pv.Login2, pv.Logout2, pv.Login3, pv.Logout3,
                    pv.Login4, pv.Logout4, pv.Login5, pv.Logout5, pv.Login6, pv.Logout6
@@ -606,13 +606,21 @@ def main():
             JOIN Store st ON st.StoreID = pv.StoreID AND st.Status = 1 AND st.Code <> '3'
             WHERE CAST(pv.PreDate AS DATE) = CAST(GETDATE() AS DATE)
         """)
-        # מכירות היום לכל מוכרן (SellerID) — סכום + מס' עסקאות
+        # מכירות היום לכל מוכרן (SellerID)
         sales_today = q(cur, """
             SELECT CAST(t.SellerID AS NVARCHAR(50)) AS SellerID,
                    CAST(SUM(t.Total) AS DECIMAL(18,0)) AS Sales, COUNT(*) AS Txns
             FROM [Transaction] t
             WHERE CAST(t.SaleTime AS DATE) = CAST(GETDATE() AS DATE) AND t.SellerID IS NOT NULL
             GROUP BY t.SellerID
+        """)
+        # היסטוריה: כמה עובדים (מובחנים) עבדו כל יום ב-14 הימים האחרונים, לכל סניף
+        hist = q(cur, """
+            SELECT st.StoreName, CAST(pv.PreDate AS DATE) AS D, COUNT(DISTINCT pv.UserID) AS Cnt
+            FROM PresenceView pv
+            JOIN Store st ON st.StoreID = pv.StoreID AND st.Status = 1 AND st.Code <> '3'
+            WHERE pv.PreDate >= DATEADD(DAY, -14, CAST(GETDATE() AS DATE))
+            GROUP BY st.StoreName, CAST(pv.PreDate AS DATE)
         """)
         sales_map = {str(r["SellerID"]).lower(): {"sales": float(r["Sales"] or 0), "txns": int(r["Txns"] or 0)}
                      for r in sales_today}
@@ -621,17 +629,33 @@ def main():
             return dt.strftime("%H:%M") if dt else None
 
         shifts = {}
-        for r in pres:
+        def _slot(store):
+            return shifts.setdefault(store, {"onShift": 0, "today": 0, "employees": [], "history": []})
+
+        # היסטוריה (כולל היום אם יש)
+        for r in hist:
+            d = r["D"]
+            _slot(r["StoreName"])["history"].append({
+                "date": d.strftime("%d/%m") if hasattr(d, "strftime") else str(d),
+                "iso":  d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
+                "count": int(r["Cnt"] or 0),
+            })
+        _today_iso = datetime.now().strftime("%Y-%m-%d")
+        for slot in shifts.values():
+            slot["history"].sort(key=lambda x: x["iso"], reverse=True)
+            if slot["history"] and slot["history"][0]["iso"] == _today_iso:
+                slot["today"] = slot["history"][0]["count"]
+
+        # במשמרת עכשיו (Login פתוח בלי Logout תואם)
+        for r in pres_today:
             last_in = last_out = None
             for i in range(1, 7):
                 li = r.get("Login%d" % i); lo = r.get("Logout%d" % i)
                 if li: last_in = li
                 if lo: last_out = lo
-            on_shift = bool(last_in) and (last_out is None or last_in > last_out)
-            if not on_shift:
-                continue  # מציגים רק מי שכרגע במשמרת (Login פתוח בלי Logout)
-            store = r["StoreName"]
-            slot = shifts.setdefault(store, {"onShift": 0, "employees": []})
+            if not (last_in and (last_out is None or last_in > last_out)):
+                continue
+            slot = _slot(r["StoreName"])
             sm = sales_map.get(str(r["UserID"]).lower(), {"sales": 0, "txns": 0})
             slot["onShift"] += 1
             slot["employees"].append({
@@ -643,7 +667,7 @@ def main():
             })
         for slot in shifts.values():
             slot["employees"].sort(key=lambda e: -e["sales"])
-        print(f"  Shifts: {sum(v['onShift'] for v in shifts.values())} on shift across {len(shifts)} stores")
+        print(f"  Shifts: now={sum(v['onShift'] for v in shifts.values())}, stores={len(shifts)}")
     except Exception as e:
         print("SHIFTS_QUERY_ERROR:", repr(e))
         shifts = {}
