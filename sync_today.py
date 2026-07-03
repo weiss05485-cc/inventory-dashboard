@@ -151,6 +151,7 @@ cur.execute("""
         LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
         WHERE t.Status > -1
           AND te.Status > -1
+          AND t.TransactionType NOT IN (14, 21)   /* אותו סינון כמו סך המכירות — כדי שיתאזן */
 
         UNION ALL
 
@@ -167,6 +168,7 @@ cur.execute("""
           AND tei.Status > -1
           AND tei.TransactionEntryType = 18
           AND tei.Total < 0
+          AND t.TransactionType NOT IN (14, 21)   /* אותו סינון כמו סך המכירות */
     ) base
     GROUP BY SaleDate, PayMethod
     ORDER BY SaleDate, TotalAmount DESC
