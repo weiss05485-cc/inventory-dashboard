@@ -1914,17 +1914,19 @@ function _renderTodayContent() {
   // נתוני התאריך הנבחר
   const dayData = data.by_date[selDate] || {stores:[], depts:[], sellers:[]};
 
-  // נטו סימפלי (מהפורטל) — רק להיום. עדיפות לפי-סניף (בני ברק/ירושלים); נפילה לרמת-רשת אם אין פירוט.
+  // נטו סימפלי (מהפורטל) — ל*כל יום* שיש עליו נתון (מ-simply_net_days לפי התאריך הנבחר).
   let simplyNet = null, simplyStale = false;
   const simplyBranchAdj = {}; let branchAdjTotal = 0, chainAdj = 0;
-  if (isToday && data.simply_net) {
-    simplyStale = data.simply_net.sessionOk === false || !!data.simply_net.stale;
-    const bb = data.simply_net.byBranch || {};
+  const _snDay = (data.simply_net_days && data.simply_net_days[selDate])
+              || (isToday ? data.simply_net : null);
+  if (_snDay) {
+    simplyStale = _snDay.sessionOk === false || !!_snDay.stale;
+    const bb = _snDay.byBranch || {};
     for (const [st, info] of Object.entries(bb)) {
       const adj = Math.max(0, (info.gross || 0) - (info.net || 0));
       simplyBranchAdj[st] = adj; branchAdjTotal += adj;
     }
-    const cs = (data.simply_net.byStore || {})['חסידים סנטר'], t = data.simply_net.total;
+    const cs = (_snDay.byStore || {})['חסידים סנטר'], t = _snDay.total;
     const chainInfo = (cs && cs.gross > 0) ? cs : ((t && t.gross > 0) ? t : null);
     if (chainInfo) { simplyNet = chainInfo; chainAdj = Math.max(0, chainInfo.gross - chainInfo.net); }
   }

@@ -355,22 +355,34 @@ conn.close()
 
 # ── נטו סימפלי מהפורטל: הערך האמיתי של מימושי הגיפטקארד היום, אחרי אחוז ההנחה של הקהילה ──
 # (נכשל בשקט — אם הפורטל/סשן סימפלי לא זמין, פשוט לא נציג נטו; הברוטו מ-ARNET תמיד קיים)
-print("שולף נטו סימפלי מהפורטל...")
-simply_net = None
+print("שולף נטו סימפלי מהפורטל (פר-יום, 60 יום)...")
+simply_net = None            # היום — לשורת אמצעי התשלום
+simply_net_days = None       # מפה לפי תאריך ISO — לכל יום שהדשבורד מציג
 try:
     import os as _os, urllib.request as _ureq, urllib.parse as _up
     _sec = _os.environ.get('EXECUTOR_SECRET')
     if _sec:
-        _url = 'https://orgs.chasidim-center.co.il/api/net-simply?' + _up.urlencode({'key': _sec})
-        with _ureq.urlopen(_url, timeout=20) as _resp:
-            simply_net = json.loads(_resp.read().decode('utf-8'))
-        _t = simply_net.get('total', {})
-        print(f"  נטו סימפלי: ברוטו={_t.get('gross')} נטו={_t.get('net')} sessionOk={simply_net.get('sessionOk')}")
+        _url = 'https://orgs.chasidim-center.co.il/api/net-simply?' + _up.urlencode({'key': _sec, 'days': '60', 'max': '5'})
+        with _ureq.urlopen(_url, timeout=60) as _resp:
+            _r = json.loads(_resp.read().decode('utf-8'))
+        _days = _r.get('days', {}) or {}
+        simply_net_days = {}
+        for _k, _v in _days.items():
+            try:
+                _dd, _mm, _yy = _k.split('/'); _iso = f"{_yy}-{_mm.zfill(2)}-{_dd.zfill(2)}"
+            except Exception:
+                _iso = _k
+            simply_net_days[_iso] = _v
+        _today_iso = datetime.now().strftime('%Y-%m-%d')
+        simply_net = simply_net_days.get(_today_iso)
+        if isinstance(simply_net, dict):
+            simply_net = dict(simply_net); simply_net['sessionOk'] = _r.get('sessionOk', True)
+        print(f"  נטו סימפלי: {len(simply_net_days)} ימים | fetched={_r.get('fetched')} pending={_r.get('pending')} sessionOk={_r.get('sessionOk')}")
     else:
         print("  דילוג — EXECUTOR_SECRET לא מוגדר")
 except Exception as e:
     print("SIMPLY_NET_ERROR:", repr(e))
-    simply_net = None
+    simply_net = None; simply_net_days = None
 
 today_str = datetime.now().strftime('%Y-%m-%d')
 out = {
@@ -384,6 +396,7 @@ out = {
     'sup_docs':         sup_docs_raw,
     'hours_by_store':   hours_raw,
     'simply_net':       simply_net,
+    'simply_net_days':  simply_net_days,
 }
 print("שומר today.json...")
 with open('docs/today.json', 'w', encoding='utf-8') as f:
