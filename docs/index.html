@@ -1914,6 +1914,18 @@ function _renderTodayContent() {
   // נתוני התאריך הנבחר
   const dayData = data.by_date[selDate] || {stores:[], depts:[], sellers:[]};
 
+  // נטו סימפלי (מהפורטל) — רק להיום. ההפרש ברוטו-נטו (simplyAdj) יופחת מסך המכירות → "הכל נטו".
+  let simplyNet = null, simplyStale = false, simplyAdj = 0;
+  if (isToday && data.simply_net && data.simply_net.byStore) {
+    const bs = data.simply_net.byStore['חסידים סנטר'], t = data.simply_net.total;
+    const info = (bs && bs.gross > 0) ? bs : ((t && t.gross > 0) ? t : null);
+    if (info) {
+      simplyNet = info;
+      simplyStale = data.simply_net.sessionOk === false || !!data.simply_net.stale;
+      simplyAdj = Math.max(0, info.gross - info.net);
+    }
+  }
+
   // כרטיסי סניף
   let totSales = 0, totTrans = 0;
   const storeHtml = dayData.stores.map(s => {
@@ -1927,9 +1939,9 @@ function _renderTodayContent() {
   }).join('');
   document.getElementById('today-store-cards').innerHTML = (storeHtml || '<div style="color:var(--muted);padding:12px">אין נתונים לתאריך זה</div>') +
     (totSales > 0 ? `<div class="kpi-card" style="border:2px solid var(--navy)">
-      <div class="kpi-label" style="font-weight:700">סה"כ מכירות</div>
-      <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(totSales)}</div>
-      <div class="kpi-sub">${totTrans} עסקאות</div>
+      <div class="kpi-label" style="font-weight:700">סה"כ מכירות${simplyAdj > 0 ? ' (נטו)' : ''}</div>
+      <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(totSales - simplyAdj)}</div>
+      <div class="kpi-sub">${totTrans} עסקאות${simplyAdj > 0 ? ` · אחרי תיקון סימפלי −${fmt(simplyAdj)}` : ''}</div>
     </div>` : '');
 
   // מחלקות
@@ -1957,13 +1969,7 @@ function _renderTodayContent() {
   // אמצעי תשלום
   const pays = dayData.payments || [];
   const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
-  // נטו סימפלי (מהפורטל) — רק להיום, לפי הערך האמיתי אחרי אחוז ההנחה של הקהילה
-  let simplyNet = null, simplyStale = false;
-  if (isToday && data.simply_net && data.simply_net.byStore) {
-    const bs = data.simply_net.byStore['חסידים סנטר'], t = data.simply_net.total;
-    const info = (bs && bs.gross > 0) ? bs : ((t && t.gross > 0) ? t : null);
-    if (info) { simplyNet = info; simplyStale = data.simply_net.sessionOk === false || !!data.simply_net.stale; }
-  }
+  // simplyNet/simplyStale כבר חושבו למעלה (לצורך תיקון סך המכירות)
   document.getElementById('today-payment-list').innerHTML = pays.length
     ? pays.map(r => {
         const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
