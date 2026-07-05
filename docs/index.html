@@ -1914,44 +1914,41 @@ function _renderTodayContent() {
   // נתוני התאריך הנבחר
   const dayData = data.by_date[selDate] || {stores:[], depts:[], sellers:[]};
 
-  // נטו סימפלי (מהפורטל) — ל*כל יום* שיש עליו נתון (מ-simply_net_days לפי התאריך הנבחר).
+  // סימפלי נטו (מהפורטל) — ל*כל יום*. מכירות הגיפטקארד רשומות ב-ARNET כ-Total=0 (לא נספרות),
+  // לכן מוסיפים את הנטו שנגבה בפועל לכל סניף → "מכירות ששולמו" = תקבולים, ומתאזן עם אמצעי התשלום.
   let simplyNet = null, simplyStale = false;
-  const simplyBranchAdj = {}; let branchAdjTotal = 0, chainAdj = 0;
+  const simplyBranchNet = {}; let branchNetTotal = 0, chainNet = 0;
   const _snDay = (data.simply_net_days && data.simply_net_days[selDate])
               || (isToday ? data.simply_net : null);
   if (_snDay) {
     simplyStale = _snDay.sessionOk === false || !!_snDay.stale;
     const bb = _snDay.byBranch || {};
-    for (const [st, info] of Object.entries(bb)) {
-      const adj = Math.max(0, (info.gross || 0) - (info.net || 0));
-      simplyBranchAdj[st] = adj; branchAdjTotal += adj;
-    }
+    for (const [st, info] of Object.entries(bb)) { const n = info.net || 0; if (n > 0) { simplyBranchNet[st] = n; branchNetTotal += n; } }
     const cs = (_snDay.byStore || {})['חסידים סנטר'], t = _snDay.total;
     const chainInfo = (cs && cs.gross > 0) ? cs : ((t && t.gross > 0) ? t : null);
-    if (chainInfo) { simplyNet = chainInfo; chainAdj = Math.max(0, chainInfo.gross - chainInfo.net); }
+    if (chainInfo) { simplyNet = chainInfo; chainNet = chainInfo.net || 0; }
   }
-  const useBranch = branchAdjTotal > 0;
-  const simplyAdj = useBranch ? branchAdjTotal : chainAdj;
+  const useBranch = branchNetTotal > 0;
 
-  // כרטיסי סניף (נטו לפי סניף כשיש פירוט פר-סניף מהפורטל)
+  // כרטיסי סניף — מכירות ששולמו + נטו סימפלי לאותו סניף
   let totSales = 0, totTrans = 0;
   const storeHtml = dayData.stores.map(s => {
-    const adj = useBranch ? (simplyBranchAdj[s.StoreName] || 0) : 0;
-    const net = s.TotalSales - adj;
-    totSales += net; totTrans += s.Transactions;
-    const col = net > 0 ? 'var(--green)' : 'var(--muted)';
+    const add = useBranch ? (simplyBranchNet[s.StoreName] || 0) : 0;
+    const shown = s.TotalSales + add;
+    totSales += shown; totTrans += s.Transactions;
+    const col = shown > 0 ? 'var(--green)' : 'var(--muted)';
     return `<div class="kpi-card">
       <div class="kpi-label">${s.StoreName}</div>
-      <div class="kpi-value" style="color:${col};font-size:19px">${fmt(net)}</div>
-      <div class="kpi-sub">${s.Transactions} עסקאות${adj > 0 ? ` · נטו (−${fmt(adj)})` : ''}</div>
+      <div class="kpi-value" style="color:${col};font-size:19px">${fmt(shown)}</div>
+      <div class="kpi-sub">${s.Transactions} עסקאות${add > 0 ? ` · כולל סימפלי נטו ${fmt(add)}` : ''}</div>
     </div>`;
   }).join('');
-  const grandTotal = totSales - (useBranch ? 0 : chainAdj);
+  const grandTotal = totSales + (useBranch ? 0 : chainNet);
   document.getElementById('today-store-cards').innerHTML = (storeHtml || '<div style="color:var(--muted);padding:12px">אין נתונים לתאריך זה</div>') +
     (dayData.stores.length ? `<div class="kpi-card" style="border:2px solid var(--navy)">
-      <div class="kpi-label" style="font-weight:700">סה"כ מכירות${simplyAdj > 0 ? ' (נטו)' : ''}</div>
+      <div class="kpi-label" style="font-weight:700">סה"כ מכירות</div>
       <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(grandTotal)}</div>
-      <div class="kpi-sub">${totTrans} עסקאות${simplyAdj > 0 ? ` · אחרי תיקון סימפלי −${fmt(simplyAdj)}` : ''}</div>
+      <div class="kpi-sub">${totTrans} עסקאות</div>
     </div>` : '');
 
   // מחלקות

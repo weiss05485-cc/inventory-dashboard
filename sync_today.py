@@ -53,7 +53,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 21)
+      AND t.TransactionType NOT IN (14, 15, 19, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), st.StoreID, st.StoreName
     ORDER BY SaleDate, st.StoreName
 """)
@@ -77,7 +77,7 @@ cur.execute("""
     LEFT JOIN Department d ON te.DepartmentID = d.DepartmentID
     WHERE t.Status > -1 AND te.Status > -1
       AND te.TransactionEntryType NOT IN (4,10,12,16)
-      AND t.TransactionType NOT IN (14, 21)
+      AND t.TransactionType NOT IN (14, 15, 19, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), d.Name
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -99,7 +99,7 @@ cur.execute("""
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     LEFT JOIN Users u ON u.UserId = t.SellerID AND u.Status=1
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 21)
+      AND t.TransactionType NOT IN (14, 15, 19, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), u.UserFName, u.UserLName
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -120,7 +120,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 21)
+      AND t.TransactionType NOT IN (14, 15, 19, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
     ORDER BY SaleDate
 """)
@@ -151,7 +151,7 @@ cur.execute("""
         LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
         WHERE t.Status > -1
           AND te.Status > -1
-          AND t.TransactionType NOT IN (14, 21)   /* אותו סינון כמו סך המכירות — כדי שיתאזן */
+          AND t.TransactionType NOT IN (14, 15, 19, 21)   /* אותו סינון כמו סך המכירות — כדי שיתאזן */
 
         UNION ALL
 
@@ -168,7 +168,7 @@ cur.execute("""
           AND tei.Status > -1
           AND tei.TransactionEntryType = 18
           AND tei.Total < 0
-          AND t.TransactionType NOT IN (14, 21)   /* אותו סינון כמו סך המכירות */
+          AND t.TransactionType NOT IN (14, 15, 19, 21)   /* אותו סינון כמו סך המכירות */
     ) base
     GROUP BY SaleDate, PayMethod
     ORDER BY SaleDate, TotalAmount DESC
@@ -338,7 +338,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 21)
+      AND t.TransactionType NOT IN (14, 15, 19, 21)
       AND t.SaleTime >= DATEADD(DAY, -90, GETDATE())
     GROUP BY DATEPART(HOUR, t.SaleTime), st.StoreID, st.StoreName
     ORDER BY Hour, st.StoreName
