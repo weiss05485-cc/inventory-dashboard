@@ -5691,9 +5691,17 @@ function buildOrderAllDeptFilter() {
   // אסוף מחלקות ייחודיות מהחוסרים
   const depts = [...new Set(allShortageItems.map(i => i.dept || i.d || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   if (!depts.length) { wrap.innerHTML=''; return; }
-  // אם זו הפעם הראשונה — בחר הכל
-  if (orderAllDepts.size === 0) depts.forEach(d => orderAllDepts.add(d));
-  wrap.innerHTML = depts.map(d => {
+  // אם זו הפעם הראשונה (והמשתמש עוד לא נגע בבחירה) — בחר הכל
+  if (orderAllDepts.size === 0 && !window._orderAllDeptsTouched) depts.forEach(d => orderAllDepts.add(d));
+  // כפתור "הכל" — בוחר את כל המחלקות בלחיצה; אם הכל כבר נבחר, לחיצה מנקה את הבחירה
+  const allSelected = depts.every(d => orderAllDepts.has(d));
+  const allBtn = `<button onclick="toggleOrderAllDeptAll()"
+      style="padding:4px 12px;border-radius:20px;border:1.5px solid ${allSelected?'#059669':'var(--border)'};
+             background:${allSelected?'#059669':'#fff'};color:${allSelected?'#fff':'var(--muted)'};
+             font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+      ✓ כל המחלקות
+    </button>`;
+  wrap.innerHTML = allBtn + depts.map(d => {
     const active = orderAllDepts.has(d);
     return `<button onclick="toggleOrderAllDept('${d}')"
       style="padding:4px 10px;border-radius:20px;border:1.5px solid ${active?'var(--primary)':'var(--border)'};
@@ -5705,8 +5713,19 @@ function buildOrderAllDeptFilter() {
 }
 
 function toggleOrderAllDept(dept) {
+  window._orderAllDeptsTouched = true;
   if (orderAllDepts.has(dept)) orderAllDepts.delete(dept);
   else orderAllDepts.add(dept);
+  buildOrderAllDeptFilter();
+}
+
+// "כל המחלקות": בוחר את כולן; אם כולן כבר נבחרו — מנקה (כדי לבחור ידנית מאפס)
+function toggleOrderAllDeptAll() {
+  window._orderAllDeptsTouched = true;
+  const depts = [...new Set(allShortageItems.map(i => i.dept || i.d || '').filter(Boolean))];
+  const allSelected = depts.length && depts.every(d => orderAllDepts.has(d));
+  orderAllDepts.clear();
+  if (!allSelected) depts.forEach(d => orderAllDepts.add(d));
   buildOrderAllDeptFilter();
 }
 
