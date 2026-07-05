@@ -1914,40 +1914,32 @@ function _renderTodayContent() {
   // נתוני התאריך הנבחר
   const dayData = data.by_date[selDate] || {stores:[], depts:[], sellers:[]};
 
-  // סימפלי נטו (מהפורטל) — ל*כל יום*. מכירות הגיפטקארד רשומות ב-ARNET כ-Total=0 (לא נספרות),
-  // לכן מוסיפים את הנטו שנגבה בפועל לכל סניף → "מכירות ששולמו" = תקבולים, ומתאזן עם אמצעי התשלום.
-  let simplyNet = null, simplyStale = false;
-  const simplyBranchNet = {}; let branchNetTotal = 0, chainNet = 0;
+  // סימפלי (מהפורטל) — שורת-מידע נפרדת בלבד. לא מעורב במכירות/תשלומים (ARNET לא מציג אותו כלל).
+  let simplyInfo = null, simplyStale = false;   // {gross, net, pct}
   const _snDay = (data.simply_net_days && data.simply_net_days[selDate])
               || (isToday ? data.simply_net : null);
   if (_snDay) {
     simplyStale = _snDay.sessionOk === false || !!_snDay.stale;
-    const bb = _snDay.byBranch || {};
-    for (const [st, info] of Object.entries(bb)) { const n = info.net || 0; if (n > 0) { simplyBranchNet[st] = n; branchNetTotal += n; } }
     const cs = (_snDay.byStore || {})['חסידים סנטר'], t = _snDay.total;
-    const chainInfo = (cs && cs.gross > 0) ? cs : ((t && t.gross > 0) ? t : null);
-    if (chainInfo) { simplyNet = chainInfo; chainNet = chainInfo.net || 0; }
+    const info = (cs && cs.gross > 0) ? cs : ((t && t.gross > 0) ? t : null);
+    if (info) simplyInfo = { gross: info.gross, net: info.net, pct: info.gross > 0 ? (100 - info.net / info.gross * 100) : 0 };
   }
-  const useBranch = branchNetTotal > 0;
 
-  // כרטיסי סניף — מכירות ששולמו + נטו סימפלי לאותו סניף
+  // כרטיסי סניף — בדיוק כמו ARNET (ברוטו, ללא סימפלי)
   let totSales = 0, totTrans = 0;
   const storeHtml = dayData.stores.map(s => {
-    const add = useBranch ? (simplyBranchNet[s.StoreName] || 0) : 0;
-    const shown = s.TotalSales + add;
-    totSales += shown; totTrans += s.Transactions;
-    const col = shown > 0 ? 'var(--green)' : 'var(--muted)';
+    totSales += s.TotalSales; totTrans += s.Transactions;
+    const col = s.TotalSales > 0 ? 'var(--green)' : 'var(--muted)';
     return `<div class="kpi-card">
       <div class="kpi-label">${s.StoreName}</div>
-      <div class="kpi-value" style="color:${col};font-size:19px">${fmt(shown)}</div>
-      <div class="kpi-sub">${s.Transactions} עסקאות${add > 0 ? ` · כולל סימפלי נטו ${fmt(add)}` : ''}</div>
+      <div class="kpi-value" style="color:${col};font-size:19px">${fmt(s.TotalSales)}</div>
+      <div class="kpi-sub">${s.Transactions} עסקאות</div>
     </div>`;
   }).join('');
-  const grandTotal = totSales + (useBranch ? 0 : chainNet);
   document.getElementById('today-store-cards').innerHTML = (storeHtml || '<div style="color:var(--muted);padding:12px">אין נתונים לתאריך זה</div>') +
-    (dayData.stores.length ? `<div class="kpi-card" style="border:2px solid var(--navy)">
+    (totSales > 0 ? `<div class="kpi-card" style="border:2px solid var(--navy)">
       <div class="kpi-label" style="font-weight:700">סה"כ מכירות</div>
-      <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(grandTotal)}</div>
+      <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(totSales)}</div>
       <div class="kpi-sub">${totTrans} עסקאות</div>
     </div>` : '');
 
@@ -1973,34 +1965,23 @@ function _renderTodayContent() {
         </div>`).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // אמצעי תשלום — הכל נטו: שורת סימפלי מוצגת לפי הערך אחרי ההנחה (3,750 ולא 5,000), וכך גם האחוזים.
+  // אמצעי תשלום — בדיוק כמו ARNET (טנדרים בלבד; סימפלי מוצג בשורת-מידע נפרדת מתחת).
   const pays = dayData.payments || [];
-  const _isSimply = r => r.PayMethod.includes('סימפלי');
-  const _payAmt = r => (_isSimply(r) && simplyNet) ? simplyNet.net : r.TotalAmount;   // סימפלי = נטו
-  const payTotal = pays.reduce((s,r) => s + _payAmt(r), 0);
-  document.getElementById('today-payment-list').innerHTML = pays.length
+  const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
+  const payHtml = pays.length
     ? pays.map(r => {
-        const amt = _payAmt(r);
-        const pct = payTotal > 0 ? (amt / payTotal * 100).toFixed(1) : 0;
+        const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
         const icon = r.PayMethod.includes('אשראי') || r.PayMethod.includes('כארד') || r.PayMethod.includes('קרדיט') ? '💳'
                    : r.PayMethod.includes('מזומן') ? '💵'
                    : r.PayMethod.includes('צ\'ק') || r.PayMethod.includes('צק') ? '📄'
                    : r.PayMethod.includes('ביט') ? '📱'
                    : r.PayMethod.includes('העברה') ? '🏦'
-                   : _isSimply(r) ? '🎁'
                    : '💰';
-        // בשורת סימפלי: הסכום הוא כבר הנטו; מציגים הערה קטנה עם הברוטו וההנחה
-        const grossNote = (_isSimply(r) && simplyNet)
-          ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">
-               ברוטו ${fmt(simplyNet.gross)} · הנחה ${simplyNet.gross>0?(100-simplyNet.net/simplyNet.gross*100).toFixed(1):0}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''}
-             </div>`
-          : '';
         return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>${icon} ${r.PayMethod}${_isSimply(r) && simplyNet ? ' <span style="color:#059669;font-size:11px;font-weight:700">(נטו)</span>' : ''}</span>
-            <span style="font-weight:600;font-size:13px${_isSimply(r) && simplyNet ? ';color:#059669' : ''}">${fmt(amt)}</span>
+            <span>${icon} ${r.PayMethod}</span>
+            <span style="font-weight:600;font-size:13px">${fmt(r.TotalAmount)}</span>
           </div>
-          ${grossNote}
           <div style="background:var(--border);border-radius:4px;height:4px;margin-top:4px">
             <div style="background:var(--navy);border-radius:4px;height:4px;width:${pct}%"></div>
           </div>
@@ -2008,6 +1989,17 @@ function _renderTodayContent() {
         </div>`;
       }).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
+  // שורת-מידע נפרדת: מומש בגיפטקארד סימפלי (נטו) — לא נספר באמצעי התשלום, תוספת מהפורטל
+  const simplyLine = (simplyInfo && simplyInfo.gross > 0)
+    ? `<div style="margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #e0e7ff;border-radius:10px">
+         <div style="display:flex;justify-content:space-between;align-items:center">
+           <span style="font-weight:700;color:#6366f1">🎁 מומש בגיפטקארד סימפלי (נטו)</span>
+           <span style="font-weight:800;color:#6366f1;font-size:14px">${fmt(simplyInfo.net)}</span>
+         </div>
+         <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(simplyInfo.gross)} · הנחה ${simplyInfo.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
+       </div>`
+    : '';
+  document.getElementById('today-payment-list').innerHTML = payHtml + simplyLine;
 
   // גרף
   _renderTodayChart();

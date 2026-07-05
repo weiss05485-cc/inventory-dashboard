@@ -53,7 +53,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 15, 19, 21)
+      AND t.TransactionType NOT IN (14, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), st.StoreID, st.StoreName
     ORDER BY SaleDate, st.StoreName
 """)
@@ -77,7 +77,7 @@ cur.execute("""
     LEFT JOIN Department d ON te.DepartmentID = d.DepartmentID
     WHERE t.Status > -1 AND te.Status > -1
       AND te.TransactionEntryType NOT IN (4,10,12,16)
-      AND t.TransactionType NOT IN (14, 15, 19, 21)
+      AND t.TransactionType NOT IN (14, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), d.Name
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -99,7 +99,7 @@ cur.execute("""
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     LEFT JOIN Users u ON u.UserId = t.SellerID AND u.Status=1
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 15, 19, 21)
+      AND t.TransactionType NOT IN (14, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), u.UserFName, u.UserLName
     ORDER BY SaleDate, TotalSales DESC
 """)
@@ -120,7 +120,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 15, 19, 21)
+      AND t.TransactionType NOT IN (14, 21)
     GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
     ORDER BY SaleDate
 """)
@@ -137,40 +137,20 @@ print(f"  {len(daily)} ימים")
 # ── 5. אמצעי תשלום × יום (כל ההיסטוריה) ─────────────────────────────────
 print("שולף נתוני אמצעי תשלום...")
 cur.execute("""
-    SELECT SaleDate, PayMethod, SUM(TotalAmount) AS TotalAmount, SUM(Cnt) AS Cnt
-    FROM (
-        /* 5a. תשלומים רגילים מ-TenderEntry */
-        SELECT
-            CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
-            ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
-            te.Amount                                                    AS TotalAmount,
-            1                                                            AS Cnt
-        FROM TenderEntry te
-        JOIN [Transaction] t  ON te.TransactionID = t.TransactionID
-        JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
-        LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
-        WHERE t.Status > -1
-          AND te.Status > -1
-          AND t.TransactionType NOT IN (14, 15, 19, 21)   /* אותו סינון כמו סך המכירות — כדי שיתאזן */
-
-        UNION ALL
-
-        /* 5b. מימוש גיפטקארד / סימפלי קלאב — שורות שליליות ב-TransactionEntry */
-        SELECT
-            CONVERT(VARCHAR(10), t.SaleTime, 23)  AS SaleDate,
-            N'גיפטקארד סימפלי'                    AS PayMethod,
-            ABS(tei.Total)                        AS TotalAmount,
-            1                                     AS Cnt
-        FROM TransactionEntry tei
-        JOIN [Transaction] t  ON tei.TransactionID = t.TransactionID
-        JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
-        WHERE t.Status > -1
-          AND tei.Status > -1
-          AND tei.TransactionEntryType = 18
-          AND tei.Total < 0
-          AND t.TransactionType NOT IN (14, 15, 19, 21)   /* אותו סינון כמו סך המכירות */
-    ) base
-    GROUP BY SaleDate, PayMethod
+    /* אמצעי תשלום = בדיוק כמו ARNET: כל הטנדרים, בלי סינון סוגי-עסקה, בלי גיפטקארד.
+       (הגיפטקארד סימפלי אינו tender ב-ARNET; הוא מוצג בנפרד בדשבורד מנתוני הפורטל.) */
+    SELECT
+        CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
+        ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
+        SUM(te.Amount)                                              AS TotalAmount,
+        COUNT(*)                                                    AS Cnt
+    FROM TenderEntry te
+    JOIN [Transaction] t  ON te.TransactionID = t.TransactionID
+    JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
+    LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
+    WHERE t.Status > -1 AND te.Status > -1
+    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23),
+             ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))
     ORDER BY SaleDate, TotalAmount DESC
 """)
 cols = [d[0] for d in cur.description]
@@ -338,7 +318,7 @@ cur.execute("""
     FROM [Transaction] t
     JOIN Store st ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     WHERE t.Status > -1
-      AND t.TransactionType NOT IN (14, 15, 19, 21)
+      AND t.TransactionType NOT IN (14, 21)
       AND t.SaleTime >= DATEADD(DAY, -90, GETDATE())
     GROUP BY DATEPART(HOUR, t.SaleTime), st.StoreID, st.StoreName
     ORDER BY Hour, st.StoreName
