@@ -1976,33 +1976,34 @@ function _renderTodayContent() {
         </div>`).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // אמצעי תשלום
+  // אמצעי תשלום — הכל נטו: שורת סימפלי מוצגת לפי הערך אחרי ההנחה (3,750 ולא 5,000), וכך גם האחוזים.
   const pays = dayData.payments || [];
-  const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
-  // simplyNet/simplyStale כבר חושבו למעלה (לצורך תיקון סך המכירות)
+  const _isSimply = r => r.PayMethod.includes('סימפלי');
+  const _payAmt = r => (_isSimply(r) && simplyNet) ? simplyNet.net : r.TotalAmount;   // סימפלי = נטו
+  const payTotal = pays.reduce((s,r) => s + _payAmt(r), 0);
   document.getElementById('today-payment-list').innerHTML = pays.length
     ? pays.map(r => {
-        const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
+        const amt = _payAmt(r);
+        const pct = payTotal > 0 ? (amt / payTotal * 100).toFixed(1) : 0;
         const icon = r.PayMethod.includes('אשראי') || r.PayMethod.includes('כארד') || r.PayMethod.includes('קרדיט') ? '💳'
                    : r.PayMethod.includes('מזומן') ? '💵'
                    : r.PayMethod.includes('צ\'ק') || r.PayMethod.includes('צק') ? '📄'
                    : r.PayMethod.includes('ביט') ? '📱'
                    : r.PayMethod.includes('העברה') ? '🏦'
-                   : r.PayMethod.includes('סימפלי') ? '🎁'
+                   : _isSimply(r) ? '🎁'
                    : '💰';
-        const isSimply = r.PayMethod.includes('סימפלי');
-        const netNote = (isSimply && simplyNet)
-          ? `<div style="font-size:11px;color:#059669;font-weight:700;margin-top:3px">
-               נטו אחרי הנחות: ${fmt(simplyNet.net)}${simplyStale ? ' <span style="color:#b45309">(מהמטמון)</span>' : ''}
-               <span style="color:var(--muted);font-weight:500"> · הנחה בפועל ${simplyNet.gross>0?(100-simplyNet.net/simplyNet.gross*100).toFixed(1):0}%</span>
+        // בשורת סימפלי: הסכום הוא כבר הנטו; מציגים הערה קטנה עם הברוטו וההנחה
+        const grossNote = (_isSimply(r) && simplyNet)
+          ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">
+               ברוטו ${fmt(simplyNet.gross)} · הנחה ${simplyNet.gross>0?(100-simplyNet.net/simplyNet.gross*100).toFixed(1):0}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''}
              </div>`
           : '';
         return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>${icon} ${r.PayMethod}</span>
-            <span style="font-weight:600;font-size:13px">${fmt(r.TotalAmount)}</span>
+            <span>${icon} ${r.PayMethod}${_isSimply(r) && simplyNet ? ' <span style="color:#059669;font-size:11px;font-weight:700">(נטו)</span>' : ''}</span>
+            <span style="font-weight:600;font-size:13px${_isSimply(r) && simplyNet ? ';color:#059669' : ''}">${fmt(amt)}</span>
           </div>
-          ${netNote}
+          ${grossNote}
           <div style="background:var(--border);border-radius:4px;height:4px;margin-top:4px">
             <div style="background:var(--navy);border-radius:4px;height:4px;width:${pct}%"></div>
           </div>
