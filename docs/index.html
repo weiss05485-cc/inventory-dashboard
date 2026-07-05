@@ -3639,37 +3639,11 @@ function buildShortageItems(store, otherStores) {
   const excludedNames = STORE_EXCLUDED_NAMES[store] || [];
   const isExcluded = name => excludedNames.some(ex => (name||''). includes(ex));
 
-  /* A) חליפות + פרחוני — group by PRODUCT NAME (קבוצה) across all year/season/size.
-        If the store already has ≥ MODEL_SHORTAGE_THRESHOLD of a group name, skip it. */
-  const modelRaw = SEARCH_DATA.filter(item => MODEL_LEVEL_DEPTS.some(d => item.d === d || item.d.startsWith(d + ' ')) && !isExcluded(item.n));
-  const modelGroups = {};
-  modelRaw.forEach(item => {
-    const groupName = (item.n || '').trim();
-    if (!groupName) return;
-    const baseDept = MODEL_LEVEL_DEPTS.find(d => item.d === d || item.d.startsWith(d + ' ')) || item.d;
-    const key = baseDept + ':' + groupName;
-    if (!modelGroups[key]) {
-      const p = parseBarcode(item.b);
-      modelGroups[key] = {
-        _type:'model', dept: baseDept, modelCode: p.modelCode || '',
-        modelName: groupName,
-        storeQty: {}
-      };
-      storeList.forEach(s => { modelGroups[key].storeQty[s] = 0; });
-    }
-    storeList.forEach(s => { modelGroups[key].storeQty[s] += (item.s[s] || 0); });
-  });
-  Object.values(modelGroups).forEach(g => {
-    const myQty = g.storeQty[store] || 0;
-    const otherAvail = otherStores.reduce((sum,s) => sum+(g.storeQty[s]||0), 0);
-    if (myQty < MODEL_SHORTAGE_THRESHOLD && otherAvail > 0) {
-      items.push({...g, _modelCode: g.modelCode, _fullNames: g.modelName,
-        _myQty: myQty, _otherAvail: otherAvail});
-    }
-  });
+  /* A) (בוטל 07/2026) חליפות+פרחוני קובצו בעבר לפי שם-מוצר (סף 5) — לא הופיעו כמעט אף פעם
+        ולא היו ניתנים להזמנה. עכשיו הם מקובצים לפי דגם+מידה כמו 'חלק' (סעיף B). */
 
-  /* B) חלק + קבוצות מאוחדות-עונה — group by stripped barcode (strip year+season, keep size) */
-  const chalkRaw = SEARCH_DATA.filter(item => isChalkLike(item) && !isModelDept(item) && !isExcluded(item.n));
+  /* B) חלק + חליפות + פרחוני + קבוצות מאוחדות-עונה — group by stripped barcode (strip year+season, keep size) */
+  const chalkRaw = SEARCH_DATA.filter(item => (isChalkLike(item) || isModelDept(item)) && !isExcluded(item.n));
   const chalkGroups = {};
   chalkRaw.forEach(item => {
     const key = _chalkMergeBase(item);
