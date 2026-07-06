@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-23';
+  var APP_VERSION = '2026-06-28-24';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -714,8 +714,7 @@ body.emp-mode .price-col{display:none!important}
                 📦 הזמן הכל
               </button>
             </div>
-            <div style="font-size:11px;color:var(--muted);font-family:'Rubik',sans-serif;font-weight:700">בחר מחלקות להזמנה:</div>
-            <div id="order-all-dept-filter" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            <div style="font-size:11px;color:var(--muted);font-family:'Rubik',sans-serif">📦 "הזמן הכל" מזמין את הפריטים המוצגים לפי הסינון למטה (מחלקה / מוצר / חיפוש).</div>
           </div>
         </div>
         <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -5756,6 +5755,10 @@ function orderAllShortages() {
   const fromStore = fromSel ? fromSel.value : '';
   const otherStores = storeList.filter(s => s !== store);
   const items = buildShortageItems(store, otherStores);
+  // מסנן פעיל מהדרופדאון התחתון — מזמין בדיוק את מה שמוצג בטבלה
+  const _ordDept = document.getElementById('shortage-dept-sel')?.value || '';
+  const _ordProd = document.getElementById('shortage-prod-sel')?.value || '';
+  const _ordQ    = (document.getElementById('shortage-search')?.value || '').trim().toLowerCase();
   let added = 0;
 
   items.forEach(item => {
@@ -5771,9 +5774,13 @@ function orderAllShortages() {
 
     if (availInFrom <= 0) return;
 
-    // סנן לפי מחלקות שנבחרו
-    const itemDept = item.dept || item.d || '';
-    if (orderAllDepts.size > 0 && !orderAllDepts.has(itemDept)) return;
+    // סנן לפי המסנן התחתון (מחלקה / מוצר / חיפוש) — מזמין רק את המוצג
+    if (_ordDept && _shDept(item) !== _ordDept) return;
+    if (_ordProd && _shName(item) !== _ordProd) return;
+    if (_ordQ) {
+      const txt = [item.modelName, item.name, item.n, item._fullNames, item.modelCode, item.base, item.b].filter(Boolean).join(' ').toLowerCase();
+      if (!_ordQ.split(/\s+/).every(t => txt.includes(t))) return;
+    }
 
     if (_pendingOrderItems.find(it => it.bc === bc)) return;
 
