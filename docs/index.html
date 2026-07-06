@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-22';
+  var APP_VERSION = '2026-06-28-23';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -3586,9 +3586,9 @@ function _buildSeasonAgnosticBases() {
   });
 }
 function isChalkLike(item) {
-  if (CHALK_DEPTS.includes(item.d)) return true;
-  if (_seasonAgnosticBases === null && SEARCH_DATA && SEARCH_DATA.length) _buildSeasonAgnosticBases();
-  return _seasonAgnosticBases ? _seasonAgnosticBases.has(stripYearSeason(item.b)) : false;
+  // רק מחלקת "חלק" מאוחדת בין שנים (אותו בד כל שנה). בשאר המחלקות (פרחוני/חליפות וכו')
+  // כל שנה = הדפס/דגם אחר → שומרים את השנה בברקוד ומתאימים העברות רק מאותה שנה.
+  return CHALK_DEPTS.includes(item.d);
 }
 
 function buildShortageStoreSelector() {
@@ -3646,11 +3646,14 @@ function buildShortageItems(store, otherStores) {
   const chalkRaw = SEARCH_DATA.filter(item => (isChalkLike(item) || isModelDept(item)) && !isExcluded(item.n));
   const chalkGroups = {};
   chalkRaw.forEach(item => {
-    const key = _chalkMergeBase(item);
+    // רק "חלק" מאבד שנה (מאוחד בין שנים). פרחוני/חליפות שומרים שנה — כל שנה דגם אחר,
+    // אז מקבצים לפי הברקוד המלא (כולל שנה+עונה) כדי שלא יתאחדו בין שנים.
+    const strip = isChalkLike(item);
+    const key = strip ? _chalkMergeBase(item) : String(item.b || '').toUpperCase();
     if (!chalkGroups[key]) {
       const p = parseBarcode(item.b);
       chalkGroups[key] = {
-        _type:'chalk', base: stripYearSeason(item.b), name: item.n, dept: item.d || 'חלק',
+        _type:'chalk', base: strip ? stripYearSeason(item.b) : (item.b || ''), name: item.n, dept: item.d || 'חלק',
         modelCode: p.modelCode || '', modelName: p.product || '',
         product: p.product || '', size: p.size || '', storeQty: {}
       };
