@@ -737,12 +737,13 @@ if __name__ == "__main__":
     err = str(last_err)
     if _is_db_err(err):
         data_file = 'docs/data.json'
-        if os.path.exists(data_file):
-            age_hours = (time.time() - os.path.getmtime(data_file)) / 3600
-            if age_hours > 2:
-                print(f"[ALERT] DB unavailable כבר {age_hours:.1f} שעות! שולח התראה.")
-                raise last_err  # נכשל → GitHub שולח מייל
-        print(f"[SKIP] DB unavailable (פחות מ-2 שעות) — {err[:140]}")
+        age_hours = ((time.time() - os.path.getmtime(data_file)) / 3600) if os.path.exists(data_file) else 0.0
+        # מתריעים במייל *פעם אחת* בלבד — רק בחלון של ~10 דק' מיד אחרי חציית סף 2 השעות ללא סנכרון.
+        # אחרי זה מדלגים בשקט לכל אורך הנפילה (לא מציפים מייל בכל ריצה כל 5 דק').
+        if 2.0 <= age_hours < 2.17:
+            print(f"[ALERT] ARNET לא זמין כבר {age_hours:.1f} שעות — שולח התראה חד-פעמית.")
+            raise last_err  # נכשל → GitHub שולח מייל (פעם אחת)
+        print(f"[SKIP] ARNET לא זמין (גיל נתונים {age_hours:.1f}ש') — מדלג בשקט, ללא מייל. {err[:120]}")
         print("Sync skipped. No files written. Exiting with code 0.")
         sys.exit(0)
     raise last_err
