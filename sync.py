@@ -156,7 +156,7 @@ ONHAND_CTE = """
         JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.StoreID
         WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type <> 2
           AND sd.Type NOT IN (5, 6)
-          AND (sd.DocStatus IN (7, 8, 9, 10) OR (sd.Type = 3 AND sd.DocStatus = 4))
+          AND (sd.DocStatus IN (7, 8, 9, 10) OR (sd.Type = 3 AND sd.DocStatus IN (4, 11)))
           AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
         UNION ALL
         SELECT sde.ItemID, sd.ToStoreID, sde.Qty
@@ -164,6 +164,17 @@ ONHAND_CTE = """
         JOIN SuppliersDocs sd ON sd.ID = sde.ID
         JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.ToStoreID
         WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 5
+          AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
+        UNION ALL
+        -- העברות חריגות שנתקעו כ-Type=3/DocStatus=11 (שורות entryType=4, Qty=0, הכמות ב-SentQty):
+        -- זקיפה לסניף היעד (המקור כבר יורד בענף שלמעלה). היעד 'מחסן עודפים' מוסתר בדשבורד,
+        -- אבל מסמך בני-ברק->ירושלים כן גלוי ולכן חייבים לזכות את היעד.
+        SELECT sde.ItemID, sd.ToStoreID, sde.SentQty
+        FROM SuppliersDocsEntry sde
+        JOIN SuppliersDocs sd ON sd.ID = sde.ID
+        JOIN Dec31Baseline db ON db.ItemID = sde.ItemID AND db.StoreID = sd.ToStoreID
+        WHERE sde.Status > 0 AND sd.Status > 0 AND sde.Type = 4
+          AND sd.Type = 3 AND sd.DocStatus = 11
           AND sd.DateT >= CAST(N'2025-12-31' AS DATE)
         UNION ALL
         SELECT dpl.ItemID, dd.StoreID,
