@@ -2006,14 +2006,21 @@ function _renderTodayContent() {
         </div>`;
       }).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
-  // שורת-מידע נפרדת: מומש בגיפטקארד סימפלי (נטו) — לא נספר באמצעי התשלום, תוספת מהפורטל
-  const simplyLine = (simplyInfo && simplyInfo.gross > 0)
+  // שורת-מידע נפרדת: מומש בגיפטקארד סימפלי (נטו). במצב 'הכל' = כל הרשת (byStore); במצב סניף = מ-byBranch (בני ברק/ירושלים).
+  let paySimply = simplyInfo;
+  if (_payStore !== 'all') {
+    const _bb = (_snDay && _snDay.byBranch) || {};
+    const _bk = Object.keys(_bb).find(k => k === _payStore || _payStore.includes(k) || k.includes(_payStore));
+    const _src = _bk ? _bb[_bk] : null;
+    paySimply = (_src && _src.gross > 0) ? { gross: _src.gross, net: _src.net, pct: _src.gross > 0 ? (100 - _src.net / _src.gross * 100) : 0 } : null;
+  }
+  const simplyLine = (paySimply && paySimply.gross > 0)
     ? `<div style="margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #e0e7ff;border-radius:10px">
          <div style="display:flex;justify-content:space-between;align-items:center">
-           <span style="font-weight:700;color:#6366f1">🎁 מומש בגיפטקארד סימפלי (נטו)</span>
-           <span style="font-weight:800;color:#6366f1;font-size:14px">${fmt(simplyInfo.net)}</span>
+           <span style="font-weight:700;color:#6366f1">🎁 מומש בגיפטקארד סימפלי (נטו)${_payStore !== 'all' ? ' · ' + _payStore : ''}</span>
+           <span style="font-weight:800;color:#6366f1;font-size:14px">${fmt(paySimply.net)}</span>
          </div>
-         <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(simplyInfo.gross)} · הנחה ${simplyInfo.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
+         <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(paySimply.gross)} · הנחה ${paySimply.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
        </div>`
     : '';
   // הסבר + פירוק ההפרש בין מכירות לתשלומים (הקפה / פירעון / זיכוי / החזרה)
@@ -2032,7 +2039,7 @@ function _renderTodayContent() {
          </details>
        </div>`
     : '';
-  document.getElementById('today-payment-list').innerHTML = payFilter + payHtml + (_payStore === 'all' ? (gapLine + simplyLine) : '');
+  document.getElementById('today-payment-list').innerHTML = payFilter + payHtml + (_payStore === 'all' ? gapLine : '') + simplyLine;
 
   // גרף
   _renderTodayChart();
