@@ -160,6 +160,38 @@ for r in payments_raw:
     r['Cnt'] = int(r['Cnt'])
 print(f"  {len(payments_raw)} שורות תשלומים")
 
+# ── 5b. פירוק ההפרש מכירות↔תשלומים לכל יום ────────────────────────────────
+#   ההפרש נובע מסוגי-עסקה שנספרים אחרת: 15=הקפה (מכירה בלי כסף), 14=פירעון חוב
+#   (כסף בלי מכירה), 19=זיכוי (במכירות בלבד), 21=החזרה (בכסף בלבד).
+print("שולף פירוק הפרש...")
+recon_by_date = defaultdict(lambda: {'acct': 0.0, 'debt': 0.0, 'cred': 0.0, 'ret': 0.0})
+cur.execute("""
+    SELECT CONVERT(VARCHAR(10), t.SaleTime, 23) AS SaleDate,
+        SUM(CASE WHEN t.TransactionType=15 THEN t.Total ELSE 0 END) AS Acct,
+        SUM(CASE WHEN t.TransactionType=19 THEN t.Total ELSE 0 END) AS Cred
+    FROM [Transaction] t
+    JOIN Store st ON t.StoreID=st.StoreID AND st.Status=1 AND st.Code<>'3'
+    WHERE t.Status > -1 AND t.TransactionType IN (15,19)
+    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
+""")
+for dt, acct, cred in cur.fetchall():
+    recon_by_date[dt]['acct'] = round(float(acct or 0), 2)
+    recon_by_date[dt]['cred'] = round(float(cred or 0), 2)
+cur.execute("""
+    SELECT CONVERT(VARCHAR(10), t.SaleTime, 23) AS SaleDate,
+        SUM(CASE WHEN t.TransactionType=14 THEN te.Amount ELSE 0 END) AS Debt,
+        SUM(CASE WHEN t.TransactionType=21 THEN te.Amount ELSE 0 END) AS Ret
+    FROM TenderEntry te
+    JOIN [Transaction] t ON te.TransactionID=t.TransactionID
+    JOIN Store st ON t.StoreID=st.StoreID AND st.Status=1 AND st.Code<>'3'
+    WHERE t.Status > -1 AND te.Status > -1 AND t.TransactionType IN (14,21)
+    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23)
+""")
+for dt, debt, ret in cur.fetchall():
+    recon_by_date[dt]['debt'] = round(float(debt or 0), 2)
+    recon_by_date[dt]['ret'] = round(float(ret or 0), 2)
+print(f"  {len(recon_by_date)} ימי פירוק")
+
 # ── ארגון לפי תאריך ───────────────────────────────────────────────────────
 by_date = defaultdict(lambda: {'stores': [], 'depts': [], 'sellers': [], 'payments': []})
 for r in stores_raw:
@@ -174,6 +206,8 @@ for r in sellers_raw:
 for r in payments_raw:
     dt = r.pop('SaleDate')
     by_date[dt]['payments'].append(r)
+for dt, rc in recon_by_date.items():
+    by_date[dt]['recon'] = rc
 
 # ── 6. נתוני רווחית (חשבונאות) ────────────────────────────────────────────
 print("שולף נתוני רווחית...")
