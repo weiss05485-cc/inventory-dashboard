@@ -141,6 +141,7 @@ cur.execute("""
        (הגיפטקארד סימפלי אינו tender ב-ARNET; הוא מוצג בנפרד בדשבורד מנתוני הפורטל.) */
     SELECT
         CONVERT(VARCHAR(10), t.SaleTime, 23)                        AS SaleDate,
+        st.StoreName                                                AS StoreName,
         ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))  AS PayMethod,
         SUM(te.Amount)                                              AS TotalAmount,
         COUNT(*)                                                    AS Cnt
@@ -149,7 +150,7 @@ cur.execute("""
     JOIN Store st         ON t.StoreID = st.StoreID AND st.Status=1 AND st.Code<>'3'
     LEFT JOIN Tender tn   ON te.TenderID = tn.TenderID
     WHERE t.Status > -1 AND te.Status > -1
-    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23),
+    GROUP BY CONVERT(VARCHAR(10), t.SaleTime, 23), st.StoreName,
              ISNULL(tn.TenderNameHe, CAST(te.TenderID AS NVARCHAR(10)))
     ORDER BY SaleDate, TotalAmount DESC
 """)
