@@ -2003,14 +2003,19 @@ function _renderTodayContent() {
          <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(simplyInfo.gross)} · הנחה ${simplyInfo.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
        </div>`
     : '';
-  // הסבר ההפרש בין מכירות לתשלומים (הקפה / פירעון חובות / החזרות) — כדי שיבינו
+  // הסבר + פירוק ההפרש בין מכירות לתשלומים (הקפה / פירעון / זיכוי / החזרה)
   const _gap = payTotal - totSales;
+  const _rc = dayData.recon;
+  const _rcRow = (lbl, v) => (v && Math.abs(v) >= 1) ? `<div style="display:flex;justify-content:space-between"><span>${lbl}</span><span>${fmt(v)}</span></div>` : '';
+  const _reconHtml = _rc
+    ? (_rcRow('הקפה חדשה (מכירה בלי כסף)', _rc.acct) + _rcRow('פירעון חוב הקפה (כסף בלי מכירה)', _rc.debt) + _rcRow('זיכויים', _rc.cred) + _rcRow('החזרות (כסף שיצא)', _rc.ret) + `<div style="margin-top:4px;color:var(--navy)"><b>ההפרש</b> = (פירעון + החזרות) − (הקפה + זיכויים) = ${fmt((_rc.debt + _rc.ret) - (_rc.acct + _rc.cred))}</div>`)
+    : '&quot;מכירות&quot; = כמה סחורה <b>נמכרה</b>. &quot;תשלום&quot; = כמה <b>כסף נכנס</b> לקופה. שונים כשיש הקפה (מכירה בלי כסף), פירעון חובות (כסף בלי מכירה), והחזרות. תקין ותואם ל-ARNET.';
   const gapLine = (payTotal > 0 && Math.abs(_gap) >= 1)
     ? `<div style="margin-top:10px;padding:9px 11px;background:#f8fafc;border:1px dashed var(--border);border-radius:9px;font-size:12px">
          <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600"><span>סה"כ תשלומים</span><span>${fmt(payTotal)}</span></div>
          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;color:${_gap>0?'#2563eb':'#b45309'}"><span>הפרש מהמכירות</span><span>${_gap>0?'+':''}${fmt(_gap)}</span></div>
-         <details style="margin-top:5px"><summary style="cursor:pointer;color:var(--muted)">למה שונה מ&quot;סה&quot;כ מכירות&quot;?</summary>
-           <div style="color:var(--muted);margin-top:4px;line-height:1.6">&quot;מכירות&quot; = כמה סחורה <b>נמכרה</b>. &quot;תשלום&quot; = כמה <b>כסף נכנס</b> לקופה. הם שונים כשיש:<br>• <b>הקפה</b> — קנייה על חשבון (מכירה בלי כסף היום).<br>• <b>פירעון חוב</b> — לקוח משלם חוב ישן (כסף בלי מכירה חדשה).<br>• <b>החזרות / זיכויים</b> — נספרים אחרת בכל צד.<br>תקין ותואם בדיוק ל-ARNET.</div>
+         <details style="margin-top:5px"><summary style="cursor:pointer;color:var(--muted)">מה מרכיב את ההפרש?</summary>
+           <div style="color:var(--muted);margin-top:4px;line-height:1.7">${_reconHtml}</div>
          </details>
        </div>`
     : '';
