@@ -5537,32 +5537,35 @@ function _smQClass(q){ return q<0 ? 'sm-neg' : (q===0 ? 'sm-zero' : 'sm-low'); }
 
 function _smBuildList(){
   const thr=_smThreshold;
+  // מסנני שורה (בלי סף) — הסף מחושב על הסכום המאוחד של המידה
   const rows=(ALL_REPORT_DATA||[]).filter(i=>{
     if(!i.sz) return false;
     if(SM_EXCLUDE_DEPTS.has(i.dept)) return false;
     if(_smDept && i.dept!==_smDept) return false;
     if(_smGroup && i.g!==_smGroup) return false;
     if(_smSearch && (i.n||'').indexOf(_smSearch)<0) return false;
-    const q=i.q||0;
-    if(q>=thr) return false;
-    if(_smOnlyNeg && q>=0) return false;
     return true;
   });
+  // קיבוץ למוצר, ואיחוד כל הדגמים של אותה מידה לשורה אחת (סכום כמות + סכום לכל סניף)
   const prods={};
   rows.forEach(i=>{
     const key=i.dept+'||'+i.g+'||'+i.n;
-    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,sizes:[],mcs:new Set()});
-    p.sizes.push({sz:i.sz, mc:i.mc, q:Math.round(i.q||0), s:i.s||{}});
-    if(i.mc) p.mcs.add(i.mc);
+    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,szmap:{}});
+    const e=p.szmap[i.sz]||(p.szmap[i.sz]={sz:i.sz, q:0, s:{}});
+    e.q += (i.q||0);
+    const s=i.s||{};
+    for(const st in s) e.s[st]=(e.s[st]||0)+(s[st]||0);
   });
-  const list=Object.values(prods);
-  list.forEach(p=>{
-    p.sizes.sort(_smSortSizes);
-    p.negCount=p.sizes.filter(x=>x.q<0).length;
-    p.hasNeg=p.negCount>0;
-    p.units=p.sizes.reduce((a,x)=>a+x.q,0);
-    p.count=p.sizes.length;
-    p.multiMc=p.mcs.size>1;
+  const list=[];
+  Object.values(prods).forEach(p=>{
+    let sizes=Object.values(p.szmap).map(e=>({sz:e.sz, q:Math.round(e.q), s:e.s}));
+    sizes=sizes.filter(x=> x.q < thr && (!_smOnlyNeg || x.q < 0));   // סף על הסכום המאוחד
+    if(!sizes.length) return;
+    sizes.sort(_smSortSizes);
+    const negCount=sizes.filter(x=>x.q<0).length;
+    list.push({key:p.key, dept:p.dept, g:p.g, n:p.n, sizes,
+      negCount, hasNeg:negCount>0, count:sizes.length,
+      units:sizes.reduce((a,x)=>a+x.q,0)});
   });
   list.sort((a,b)=> (b.negCount-a.negCount) || (b.count-a.count) || String(a.n).localeCompare(String(b.n),'he'));
   return list;
@@ -5615,12 +5618,11 @@ function _smCard(p,i){
 
 function _smDetail(p){
   const stores=[...new Set(p.sizes.flatMap(x=>Object.keys(x.s)))];
-  const head='<tr><th>מידה</th>'+(p.multiMc?'<th>דגם</th>':'')+'<th>סה"כ</th>'
+  const head='<tr><th>מידה</th><th>סה"כ</th>'
     + stores.map(s=>'<th>'+s+'</th>').join('')+'</tr>';
   const body=p.sizes.map(x=>{
     const qc = x.q<0?'q-neg':(x.q===0?'q-zero':'q-low');
     return '<tr><td class="sm-sz">'+x.sz+'</td>'
-      + (p.multiMc?'<td class="sm-mc">'+(x.mc||'')+'</td>':'')
       + '<td class="'+qc+'">'+x.q.toLocaleString()+'</td>'
       + stores.map(s=>{const v=Math.round(x.s[s]||0);return '<td'+(v<0?' class="q-neg"':'')+'>'+v.toLocaleString()+'</td>';}).join('')
       + '</tr>';
@@ -5651,10 +5653,10 @@ function _smExportRows(){
 function smExportCSV(){
   const list=_smExportRows();
   const stores=[...new Set(list.flatMap(p=>p.sizes.flatMap(x=>Object.keys(x.s))))];
-  const head=['מוצר','מחלקה','קבוצה','מידה','דגם','סה"כ'].concat(stores);
+  const head=['מוצר','מחלקה','קבוצה','מידה','סה"כ'].concat(stores);
   const lines=[head];
   list.forEach(p=>p.sizes.forEach(x=>{
-    lines.push([p.n,p.dept,p.g,x.sz,x.mc||'',x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
+    lines.push([p.n,p.dept,p.g,x.sz,x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
   }));
   const csv='﻿'+lines.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -5666,11 +5668,11 @@ function smPrint(){
   let html='<h2>דוח חוסרים לפי מידה — פחות מ־'+_smThreshold+' יחידות</h2>';
   if(!list.length) html+='<p>אין נתונים.</p>';
   list.forEach(p=>{
-    html+='<h3>'+p.n+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>דגם</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
+    html+='<h3>'+p.n+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
     p.sizes.forEach(x=>{
       const col=x.q<0?'color:#dc2626;font-weight:bold':(x.q===0?'color:#ea580c':'');
       const det=Object.keys(x.s).map(st=>st+': '+Math.round(x.s[st]||0)).join(' · ');
-      html+='<tr><td>'+x.sz+'</td><td>'+(x.mc||'')+'</td><td style="'+col+'">'+x.q+'</td><td>'+det+'</td></tr>';
+      html+='<tr><td>'+x.sz+'</td><td style="'+col+'">'+x.q+'</td><td>'+det+'</td></tr>';
     });
     html+='</table>';
   });
