@@ -978,28 +978,27 @@ body.emp-mode .price-col{display:none!important}
 <div id="page-shortmgr" class="page">
 <div class="container">
 <style>
-#page-shortmgr .sm-card{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card);overflow:hidden}
-#page-shortmgr .sm-card-neg{border-color:#fca5a5}
-#page-shortmgr .sm-hd{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
-#page-shortmgr .sm-hd:hover{background:rgba(99,102,241,.06)}
-#page-shortmgr .sm-caret{color:var(--muted);font-size:12px;width:12px;flex:none}
-#page-shortmgr .sm-name{font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-shortmgr .sm-sub{font-size:11px;color:var(--muted)}
-#page-shortmgr .sm-badge{font-size:11px;font-weight:700;background:#eef2ff;color:var(--primary);border-radius:20px;padding:3px 9px;white-space:nowrap;flex:none}
-#page-shortmgr .sm-negb{background:#fee2e2;color:#dc2626}
-#page-shortmgr .sm-body{border-top:1px solid var(--border);padding:8px 12px 10px;display:flex;flex-wrap:wrap;gap:8px}
-#page-shortmgr .sm-size{border:1px solid var(--border);border-radius:8px;padding:7px 10px;min-width:130px;background:rgba(148,163,184,.06)}
-#page-shortmgr .sm-size-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
-#page-shortmgr .sm-sz{font-weight:700;font-size:13px;color:var(--text)}
-#page-shortmgr .sm-mc{font-size:10px;color:var(--muted);margin-inline-start:4px}
-#page-shortmgr .sm-q{font-weight:800;font-size:15px;min-width:26px;text-align:center}
-#page-shortmgr .sm-neg{color:#dc2626}
-#page-shortmgr .sm-zero{color:#ea580c}
-#page-shortmgr .sm-low{color:#ca8a04}
-#page-shortmgr .sm-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-#page-shortmgr .sm-chip{font-size:10px;background:rgba(148,163,184,.18);color:var(--muted);border-radius:6px;padding:2px 6px}
-#page-shortmgr .sm-chip.sm-neg{background:#fee2e2;color:#dc2626;font-weight:700}
-#page-shortmgr .sm-chip.sm-zero{background:#fff7ed;color:#ea580c}
+#page-shortmgr .sm-listbox{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
+#page-shortmgr .sm-row{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px}
+#page-shortmgr .sm-row:last-child{border-bottom:0}
+#page-shortmgr .sm-row:hover{background:rgba(99,102,241,.05)}
+#page-shortmgr .sm-row.open{background:rgba(99,102,241,.06);font-weight:600}
+#page-shortmgr .sm-cx{width:16px;height:16px;cursor:pointer;flex:none}
+#page-shortmgr .sm-car{color:var(--muted);font-size:11px;width:10px;flex:none;text-align:center}
+#page-shortmgr .sm-nm{color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-shortmgr .sm-nm .g{color:var(--muted);font-size:11px;font-weight:400}
+#page-shortmgr .sm-meta{color:var(--muted);font-size:12px;white-space:nowrap;flex:none;font-weight:400}
+#page-shortmgr .sm-meta .neg{color:#dc2626;font-weight:700}
+#page-shortmgr .sm-det{padding:6px 12px 10px 34px;border-bottom:1px solid var(--border);background:rgba(148,163,184,.05);overflow-x:auto}
+#page-shortmgr table.sm-t{border-collapse:collapse;width:100%;font-size:12px}
+#page-shortmgr table.sm-t th{color:var(--muted);font-weight:600;text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);font-size:11px;white-space:nowrap}
+#page-shortmgr table.sm-t td{padding:3px 10px;border-bottom:1px solid rgba(148,163,184,.15);white-space:nowrap}
+#page-shortmgr table.sm-t tr:last-child td{border-bottom:0}
+#page-shortmgr .sm-sz{font-weight:600;color:var(--text)}
+#page-shortmgr .sm-mc{color:var(--muted);font-size:10px}
+#page-shortmgr .q-neg{color:#dc2626;font-weight:700}
+#page-shortmgr .q-zero{color:#ea580c;font-weight:700}
+#page-shortmgr .q-low{color:#ca8a04;font-weight:700}
 #page-shortmgr .sm-inp{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;font-family:Rubik;background:var(--card);color:var(--text)}
 #page-shortmgr .sm-lbl{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px}
 </style>
@@ -5559,12 +5558,13 @@ function _smBuildList(){
   const list=Object.values(prods);
   list.forEach(p=>{
     p.sizes.sort(_smSortSizes);
-    p.hasNeg=p.sizes.some(x=>x.q<0);
+    p.negCount=p.sizes.filter(x=>x.q<0).length;
+    p.hasNeg=p.negCount>0;
     p.units=p.sizes.reduce((a,x)=>a+x.q,0);
     p.count=p.sizes.length;
     p.multiMc=p.mcs.size>1;
   });
-  list.sort((a,b)=> (b.hasNeg-a.hasNeg) || (b.count-a.count) || String(a.n).localeCompare(String(b.n),'he'));
+  list.sort((a,b)=> (b.negCount-a.negCount) || (b.count-a.count) || String(a.n).localeCompare(String(b.n),'he'));
   return list;
 }
 
@@ -5596,34 +5596,36 @@ function renderShortMgr(){
       ? totProd.toLocaleString()+' מוצרים · '+totSizes.toLocaleString()+' מידות מתחת ל־'+_smThreshold+(negSizes?' · <span style="color:#dc2626;font-weight:700">'+negSizes.toLocaleString()+' במינוס</span>':'')
       : 'אין מידות מתחת לסף שנבחר 🎉';
     const wrap=document.getElementById('sm-list');
-    if(wrap) wrap.innerHTML = list.length ? list.map((p,i)=>_smCard(p,i)).join('') : '<div class="section" style="text-align:center;color:var(--muted);padding:30px">אין תוצאות מתחת לסף</div>';
+    if(wrap) wrap.innerHTML = list.length ? '<div class="sm-listbox">'+list.map((p,i)=>_smCard(p,i)).join('')+'</div>' : '<div class="section" style="text-align:center;color:var(--muted);padding:30px">אין תוצאות מתחת לסף</div>';
     _smUpdateSelBar();
   });
 }
 
 function _smCard(p,i){
   const open=_smExpanded.has(p.key), sel=_smSelected.has(p.key);
-  const body= open ? '<div class="sm-body">'+p.sizes.map(x=>_smSizeRow(p,x)).join('')+'</div>' : '';
-  return '<div class="sm-card '+(p.hasNeg?'sm-card-neg':'')+'">'
-    + '<div class="sm-hd" onclick="smToggle('+i+')">'
-    +   '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();smToggleSel('+i+')" style="width:17px;height:17px;cursor:pointer;flex:none">'
-    +   '<span class="sm-caret">'+(open?'▾':'▸')+'</span>'
-    +   '<div style="flex:1;min-width:0"><div class="sm-name">'+p.n+'</div><div class="sm-sub">'+p.dept+' · '+p.g+'</div></div>'
-    +   '<span class="sm-badge">'+p.count+' מידות</span>'
-    +   '<span class="sm-badge '+(p.units<0?'sm-negb':'')+'">'+p.units.toLocaleString()+" יח'</span>"
-    +   (p.hasNeg?'<span class="sm-badge sm-negb">מינוס</span>':'')
-    + '</div>'+body+'</div>';
+  const negTxt = p.negCount ? ' · <span class="neg">'+p.negCount.toLocaleString()+' במינוס</span>' : '';
+  const row='<div class="sm-row'+(open?' open':'')+'" onclick="smToggle('+i+')">'
+    + '<input type="checkbox" class="sm-cx" '+(sel?'checked':'')+' onclick="event.stopPropagation();smToggleSel('+i+')">'
+    + '<span class="sm-car">'+(open?'▾':'▸')+'</span>'
+    + '<span class="sm-nm">'+p.n+' <span class="g">· '+p.g+'</span></span>'
+    + '<span class="sm-meta">'+p.count.toLocaleString()+' מידות'+negTxt+'</span>'
+    + '</div>';
+  return row + (open ? '<div class="sm-det">'+_smDetail(p)+'</div>' : '');
 }
 
-function _smSizeRow(p,x){
-  const chips=Object.keys(x.s).map(st=>{
-    const v=Math.round(x.s[st]||0);
-    return '<span class="sm-chip '+(v<0?'sm-neg':(v===0?'sm-zero':''))+'">'+st+': '+v.toLocaleString()+'</span>';
+function _smDetail(p){
+  const stores=[...new Set(p.sizes.flatMap(x=>Object.keys(x.s)))];
+  const head='<tr><th>מידה</th>'+(p.multiMc?'<th>דגם</th>':'')+'<th>סה"כ</th>'
+    + stores.map(s=>'<th>'+s+'</th>').join('')+'</tr>';
+  const body=p.sizes.map(x=>{
+    const qc = x.q<0?'q-neg':(x.q===0?'q-zero':'q-low');
+    return '<tr><td class="sm-sz">'+x.sz+'</td>'
+      + (p.multiMc?'<td class="sm-mc">'+(x.mc||'')+'</td>':'')
+      + '<td class="'+qc+'">'+x.q.toLocaleString()+'</td>'
+      + stores.map(s=>{const v=Math.round(x.s[s]||0);return '<td'+(v<0?' class="q-neg"':'')+'>'+v.toLocaleString()+'</td>';}).join('')
+      + '</tr>';
   }).join('');
-  const mcTag=(p.multiMc && x.mc)?'<span class="sm-mc">דגם '+x.mc+'</span>':'';
-  return '<div class="sm-size"><div class="sm-size-h"><span><span class="sm-sz">'+x.sz+'</span>'+mcTag+'</span>'
-    + '<span class="sm-q '+_smQClass(x.q)+'">'+x.q.toLocaleString()+'</span></div>'
-    + '<div class="sm-chips">'+(chips||'<span class="sm-chip sm-zero">אין מלאי</span>')+'</div></div>';
+  return '<table class="sm-t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
 }
 
 function smToggle(i){ const p=_smList[i]; if(!p) return; if(_smExpanded.has(p.key)) _smExpanded.delete(p.key); else _smExpanded.add(p.key); renderShortMgr(); }
