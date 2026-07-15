@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-06-28-24';
+  var APP_VERSION = '2026-06-28-25';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -512,7 +512,6 @@ body.emp-mode .price-col{display:none!important}
   <button class="nav-btn" onclick="showPage('departments')">📂 מחלקות</button>
   <button class="nav-btn" onclick="showPage('lowstock')">⚠️ חוסרים</button>
   <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
-  <button class="nav-btn" onclick="showPage('shortmgr')">📉 חוסרים לפי מידה</button>
   <button class="nav-btn" onclick="showPage('sales')">📈 מכירות</button>
   <button class="nav-btn" onclick="showPage('bestsellers')">🏆 נמכרים ביותר</button>
   <button class="nav-btn" onclick="showPage('today')">🏪 קופות יומי</button>
@@ -528,7 +527,6 @@ body.emp-mode .price-col{display:none!important}
   <button class="bnav-btn" onclick="showPage('departments')"><span class="bnav-icon">📂</span>מחלקות</button>
   <button class="bnav-btn" onclick="showPage('lowstock')"><span class="bnav-icon">⚠️</span>חוסרים</button>
   <button class="bnav-btn" onclick="showPage('reports')"><span class="bnav-icon">📋</span>דוחות</button>
-  <button class="bnav-btn" onclick="showPage('shortmgr')"><span class="bnav-icon">📉</span>מידות</button>
   <button class="bnav-btn" onclick="showPage('sales')"><span class="bnav-icon">📈</span>מכירות</button>
   <button class="bnav-btn" onclick="showPage('bestsellers')"><span class="bnav-icon">🏆</span>נמכרים</button>
   <button class="bnav-btn" onclick="showPage('today')"><span class="bnav-icon">🏪</span>קופות</button>
@@ -974,84 +972,6 @@ body.emp-mode .price-col{display:none!important}
 </div>
 </div>
 
-<!-- PAGE: SHORTMGR (דוח חוסרים לפי מידה — מנהל בלבד) -->
-<div id="page-shortmgr" class="page">
-<div class="container">
-<style>
-#page-shortmgr .sm-listbox{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
-#page-shortmgr .sm-row{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px}
-#page-shortmgr .sm-row:last-child{border-bottom:0}
-#page-shortmgr .sm-row:hover{background:rgba(99,102,241,.05)}
-#page-shortmgr .sm-row.open{background:rgba(99,102,241,.06);font-weight:600}
-#page-shortmgr .sm-cx{width:16px;height:16px;cursor:pointer;flex:none}
-#page-shortmgr .sm-car{color:var(--muted);font-size:11px;width:10px;flex:none;text-align:center}
-#page-shortmgr .sm-nm{color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-shortmgr .sm-nm .g{color:var(--muted);font-size:11px;font-weight:400}
-#page-shortmgr .sm-meta{color:var(--muted);font-size:12px;white-space:nowrap;flex:none;font-weight:400}
-#page-shortmgr .sm-meta .neg{color:#dc2626;font-weight:700}
-#page-shortmgr .sm-det{padding:6px 12px 10px 34px;border-bottom:1px solid var(--border);background:rgba(148,163,184,.05);overflow-x:auto}
-#page-shortmgr table.sm-t{border-collapse:collapse;width:100%;font-size:12px}
-#page-shortmgr table.sm-t th{color:var(--muted);font-weight:600;text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);font-size:11px;white-space:nowrap}
-#page-shortmgr table.sm-t td{padding:3px 10px;border-bottom:1px solid rgba(148,163,184,.15);white-space:nowrap}
-#page-shortmgr table.sm-t tr:last-child td{border-bottom:0}
-#page-shortmgr .sm-sz{font-weight:600;color:var(--text)}
-#page-shortmgr .sm-mc{color:var(--muted);font-size:10px}
-#page-shortmgr .q-neg{color:#dc2626;font-weight:700}
-#page-shortmgr .q-zero{color:#ea580c;font-weight:700}
-#page-shortmgr .q-low{color:#ca8a04;font-weight:700}
-#page-shortmgr .sm-inp{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;font-family:Rubik;background:var(--card);color:var(--text)}
-#page-shortmgr .sm-lbl{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px}
-</style>
-
-  <div style="margin-bottom:12px">
-    <h2 style="font-size:20px;color:var(--text);margin:0">📉 חוסרים לפי מידה</h2>
-    <p style="color:var(--muted);font-size:13px;margin:4px 0 0">דוח מנהלים: כל מוצר ומידה שיש בה פחות מהסף. <b style="color:#dc2626">מינוס</b> = נמכר יותר מהקיים במלאי. בחר מוצרים לייצוא/הדפסה, ולחץ על מוצר כדי לרדת לפירוט לפי סניף.</p>
-  </div>
-
-  <div id="sm-loading" style="display:none;text-align:center;padding:40px;color:var(--muted)">טוען…</div>
-
-  <div class="section" style="margin-bottom:14px">
-    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">
-      <div>
-        <label class="sm-lbl">סף — פחות מ־</label>
-        <input type="number" id="sm-thr" class="sm-inp" value="10" min="1" max="999" style="width:82px" onchange="smSetThreshold(this.value)">
-      </div>
-      <div>
-        <label class="sm-lbl">מחלקה</label>
-        <select id="sm-dept" class="sm-inp" onchange="smSetFilter()"><option value="">כל המחלקות</option></select>
-      </div>
-      <div>
-        <label class="sm-lbl">קבוצה</label>
-        <select id="sm-group" class="sm-inp" onchange="smSetFilter()"><option value="">כל הקבוצות</option></select>
-      </div>
-      <div style="flex:1;min-width:150px">
-        <label class="sm-lbl">חיפוש מוצר</label>
-        <input type="text" id="sm-search" class="sm-inp" oninput="smSetFilter()" placeholder="שם מוצר…" style="width:100%">
-      </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;user-select:none;padding-bottom:6px">
-        <input type="checkbox" id="sm-onlyneg" onchange="smSetFilter()" style="width:16px;height:16px"> רק מינוס
-      </label>
-    </div>
-    <div id="sm-summary" style="margin-top:10px;font-size:13px;color:var(--muted);font-weight:600"></div>
-    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-      <button class="btn" onclick="smExpandAll(true)">➕ פתח הכל</button>
-      <button class="btn" onclick="smExpandAll(false)">➖ כווץ הכל</button>
-      <button class="btn" onclick="smSelectAll()">☑️ בחר הכל</button>
-    </div>
-  </div>
-
-  <div id="sm-selbar" style="display:none;position:sticky;top:8px;z-index:5;background:var(--primary);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:var(--shadow-md);align-items:center;gap:10px;flex-wrap:wrap">
-    <span id="sm-selcount" style="font-weight:700"></span>
-    <button class="btn" onclick="smToggleSelectedOnly()" id="sm-selonly-btn" style="background:#fff;color:var(--primary)">👁️ הצג נבחרים בלבד</button>
-    <button class="btn" onclick="smExportCSV()" style="background:#fff;color:var(--primary)">⬇️ ייצוא CSV</button>
-    <button class="btn" onclick="smPrint()" style="background:#fff;color:var(--primary)">🖨️ הדפסה</button>
-    <button class="btn" onclick="smClearSel()" style="background:rgba(255,255,255,.2);color:#fff">✖ בטל בחירה</button>
-  </div>
-
-  <div id="sm-list"></div>
-</div>
-</div>
-
 <!-- PAGE: BESTSELLERS (הנמכרים ביותר) -->
 <div id="page-bestsellers" class="page">
 <div class="container">
@@ -1068,12 +988,15 @@ body.emp-mode .price-col{display:none!important}
           <button class="pill" onclick="setBsPeriod('12',this)">שנה</button>
           <button class="pill" onclick="setBsPeriod('custom',this)">מותאם</button>
         </div>
-        <div id="bs-custom" style="display:none;margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="date" id="bs-from" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:Rubik">
+        <div id="bs-custom" style="display:none;margin-top:8px;gap:8px;align-items:center">
+          <input type="month" id="bs-from" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
           <span style="color:var(--muted)">עד</span>
-          <input type="date" id="bs-to" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:Rubik">
-          <span style="font-size:11px;color:var(--muted);width:100%">* הנתונים נשמרים ברמת חודש — טווח הימים שנבחר כולל את החודשים המלאים שנוגעים בו</span>
+          <input type="month" id="bs-to" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
         </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">שנה:</div>
+        <select id="bs-year" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:Rubik"><option value="">כל השנים</option></select>
       </div>
       <div>
         <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">מחלקה:</div>
@@ -1967,9 +1890,6 @@ function todayPickDate(val) {
   _renderTodayContent();
 }
 
-let _payStore = 'all';   // סינון אמצעי תשלום לפי סניף (all = כל הסניפים מסוכמים)
-function setPayStore(s) { _payStore = s; _renderTodayContent(); }
-
 function _renderTodayContent() {
   if (!TODAY_DATA) return;
   const data = TODAY_DATA;
@@ -2003,9 +1923,8 @@ function _renderTodayContent() {
               || (isToday ? data.simply_net : null);
   if (_snDay) {
     simplyStale = _snDay.sessionOk === false || !!_snDay.stale;
-    // חסידים סנטר בלבד — בלי fallback ל-total (שכולל חסידיש + גלית מן וגורם להצגת סימפלי של עסקים אחרים)
-    const cs = (_snDay.byStore || {})['חסידים סנטר'];
-    const info = (cs && cs.gross > 0) ? cs : null;
+    const cs = (_snDay.byStore || {})['חסידים סנטר'], t = _snDay.total;
+    const info = (cs && cs.gross > 0) ? cs : ((t && t.gross > 0) ? t : null);
     if (info) simplyInfo = { gross: info.gross, net: info.net, pct: info.gross > 0 ? (100 - info.net / info.gross * 100) : 0 };
   }
 
@@ -2025,11 +1944,6 @@ function _renderTodayContent() {
       <div class="kpi-label" style="font-weight:700">סה"כ מכירות</div>
       <div class="kpi-value" style="color:var(--navy);font-size:21px">${fmt(totSales)}</div>
       <div class="kpi-sub">${totTrans} עסקאות</div>
-    </div>` : '') +
-    (totSales > 0 && simplyInfo && simplyInfo.net > 0 ? `<div class="kpi-card" style="border:2px solid #6366f1;background:linear-gradient(135deg,#eef2ff,#faf5ff)">
-      <div class="kpi-label" style="font-weight:700;color:#6366f1">סה"כ כולל סימפלי</div>
-      <div class="kpi-value" style="color:#6366f1;font-size:21px">${fmt(totSales + simplyInfo.net)}</div>
-      <div class="kpi-sub">מכירות + סימפלי נטו (אחרי הנחה)</div>
     </div>` : '');
 
   // מחלקות
@@ -2054,18 +1968,9 @@ function _renderTodayContent() {
         </div>`).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
 
-  // אמצעי תשלום — בדיוק כמו ARNET (טנדרים בלבד; סימפלי מוצג בשורת-מידע נפרדת מתחת), עם אפשרות פיצול לפי סניף.
-  const paysRaw = dayData.payments || [];
-  const payStores = [...new Set(paysRaw.map(p => p.StoreName).filter(Boolean))].sort();
-  const paysF = (_payStore === 'all') ? paysRaw : paysRaw.filter(p => p.StoreName === _payStore);
-  const _payAgg = {};
-  paysF.forEach(p => { const k = p.PayMethod; if (!_payAgg[k]) _payAgg[k] = { PayMethod: k, TotalAmount: 0, Cnt: 0 }; _payAgg[k].TotalAmount += p.TotalAmount; _payAgg[k].Cnt += (p.Cnt || 0); });
-  const pays = Object.values(_payAgg).sort((a, b) => b.TotalAmount - a.TotalAmount);
+  // אמצעי תשלום — בדיוק כמו ARNET (טנדרים בלבד; סימפלי מוצג בשורת-מידע נפרדת מתחת).
+  const pays = dayData.payments || [];
   const payTotal = pays.reduce((s,r) => s + r.TotalAmount, 0);
-  const _pbtn = (id, lbl) => `<button class="btn" onclick="setPayStore('${id.replace(/'/g, "\\'")}')" style="padding:3px 9px;font-size:11px${_payStore === id ? ';background:var(--navy);color:#fff' : ''}">${lbl}</button>`;
-  const payFilter = payStores.length > 1
-    ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">${_pbtn('all', 'הכל')}${payStores.map(s => _pbtn(s, s)).join('')}</div>`
-    : '';
   const payHtml = pays.length
     ? pays.map(r => {
         const pct = payTotal > 0 ? (r.TotalAmount / payTotal * 100).toFixed(1) : 0;
@@ -2087,40 +1992,17 @@ function _renderTodayContent() {
         </div>`;
       }).join('')
     : '<div style="color:var(--muted);padding:12px">אין נתונים</div>';
-  // שורת-מידע נפרדת: מומש בגיפטקארד סימפלי (נטו). במצב 'הכל' = כל הרשת (byStore); במצב סניף = מ-byBranch (בני ברק/ירושלים).
-  let paySimply = simplyInfo;
-  if (_payStore !== 'all') {
-    const _bb = (_snDay && _snDay.byBranch) || {};
-    const _bk = Object.keys(_bb).find(k => k === _payStore || _payStore.includes(k) || k.includes(_payStore));
-    const _src = _bk ? _bb[_bk] : null;
-    paySimply = (_src && _src.gross > 0) ? { gross: _src.gross, net: _src.net, pct: _src.gross > 0 ? (100 - _src.net / _src.gross * 100) : 0 } : null;
-  }
-  const simplyLine = (paySimply && paySimply.gross > 0)
+  // שורת-מידע נפרדת: מומש בגיפטקארד סימפלי (נטו) — לא נספר באמצעי התשלום, תוספת מהפורטל
+  const simplyLine = (simplyInfo && simplyInfo.gross > 0)
     ? `<div style="margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #e0e7ff;border-radius:10px">
          <div style="display:flex;justify-content:space-between;align-items:center">
-           <span style="font-weight:700;color:#6366f1">🎁 מומש בגיפטקארד סימפלי (נטו)${_payStore !== 'all' ? ' · ' + _payStore : ''}</span>
-           <span style="font-weight:800;color:#6366f1;font-size:14px">${fmt(paySimply.net)}</span>
+           <span style="font-weight:700;color:#6366f1">🎁 מומש בגיפטקארד סימפלי (נטו)</span>
+           <span style="font-weight:800;color:#6366f1;font-size:14px">${fmt(simplyInfo.net)}</span>
          </div>
-         <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(paySimply.gross)} · הנחה ${paySimply.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
+         <div style="font-size:11px;color:var(--muted);margin-top:2px">ברוטו ${fmt(simplyInfo.gross)} · הנחה ${simplyInfo.pct.toFixed(1)}%${simplyStale ? ' · <span style="color:#b45309">מהמטמון</span>' : ''} · לא נכלל בסך אמצעי התשלום</div>
        </div>`
     : '';
-  // הסבר + פירוק ההפרש בין מכירות לתשלומים (הקפה / פירעון / זיכוי / החזרה)
-  const _gap = payTotal - totSales;
-  const _rc = dayData.recon;
-  const _rcRow = (lbl, v) => (v && Math.abs(v) >= 1) ? `<div style="display:flex;justify-content:space-between"><span>${lbl}</span><span>${fmt(v)}</span></div>` : '';
-  const _reconHtml = _rc
-    ? (_rcRow('הקפה חדשה (מכירה בלי כסף)', _rc.acct) + _rcRow('פירעון חוב הקפה (כסף בלי מכירה)', _rc.debt) + _rcRow('זיכויים', _rc.cred) + _rcRow('החזרות (כסף שיצא)', _rc.ret) + `<div style="margin-top:4px;color:var(--navy)"><b>ההפרש</b> = (פירעון + החזרות) − (הקפה + זיכויים) = ${fmt((_rc.debt + _rc.ret) - (_rc.acct + _rc.cred))}</div>`)
-    : '&quot;מכירות&quot; = כמה סחורה <b>נמכרה</b>. &quot;תשלום&quot; = כמה <b>כסף נכנס</b> לקופה. שונים כשיש הקפה (מכירה בלי כסף), פירעון חובות (כסף בלי מכירה), והחזרות. תקין ותואם ל-ARNET.';
-  const gapLine = (payTotal > 0 && Math.abs(_gap) >= 1)
-    ? `<div style="margin-top:10px;padding:9px 11px;background:#f8fafc;border:1px dashed var(--border);border-radius:9px;font-size:12px">
-         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600"><span>סה"כ תשלומים</span><span>${fmt(payTotal)}</span></div>
-         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;color:${_gap>0?'#2563eb':'#b45309'}"><span>הפרש מהמכירות</span><span>${_gap>0?'+':''}${fmt(_gap)}</span></div>
-         <details style="margin-top:5px"><summary style="cursor:pointer;color:var(--muted)">מה מרכיב את ההפרש?</summary>
-           <div style="color:var(--muted);margin-top:4px;line-height:1.7">${_reconHtml}</div>
-         </details>
-       </div>`
-    : '';
-  document.getElementById('today-payment-list').innerHTML = payFilter + payHtml + (_payStore === 'all' ? gapLine : '') + simplyLine;
+  document.getElementById('today-payment-list').innerHTML = payHtml + simplyLine;
 
   // גרף
   _renderTodayChart();
@@ -2741,7 +2623,7 @@ function renderComparison() {
 
 /* ========== AUTH ========== */
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
-const ALL_PAGES = ['overview','search','departments','lowstock','reports','shortmgr','sales','bestsellers','today','orders','planner','promos','calls'];
+const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','bestsellers','today','orders','planner','promos','calls'];
 
 // ── שנים דינמיות (מתעדכנות לבד לפי השנה הנוכחית) ──
 const _CUR_YEAR = new Date().getFullYear();
@@ -2988,7 +2870,6 @@ function showPage(id) {
   if (id === 'departments') renderDepartments();
   if (id === 'lowstock') renderLowStock();
   if (id === 'reports')  renderReports();
-  if (id === 'shortmgr') renderShortMgr();
   if (id === 'sales')    renderSales();
   if (id === 'bestsellers') renderBestsellers();
   if (id === 'today')    renderToday();
@@ -5457,7 +5338,6 @@ function exportOrderExcel(){
 
 /* ========== REPORTS ========== */
 let REPORT_DATA = null;
-let ALL_REPORT_DATA = null;   // נתוני דוח מלאים (כולל אפס/מינוס) — לדוח חוסרי מידות (מנהל)
 let reportLoaded = false;
 let activeReportDept = null;
 let activeReportItem = null;
@@ -5502,7 +5382,6 @@ function loadReportsData(cb) {
   document.getElementById('report-loading').style.display = 'block';
   loadEnc('reports.json')
     .then(items => {
-      ALL_REPORT_DATA = items;                 // כולל אפסים ומינוס — לדוח חוסרי מידות
       REPORT_DATA = items.filter(i => i.q > 0);
       reportLoaded = true;
       document.getElementById('report-loading').style.display = 'none';
@@ -5511,178 +5390,6 @@ function loadReportsData(cb) {
     .catch(() => {
       document.getElementById('report-loading').innerHTML = '❌ שגיאה בטעינת דוחות';
     });
-}
-
-/* ========== SHORTAGES BY SIZE (מנהל בלבד) — דוח חוסרי מידות ========== */
-let _smThreshold = 10, _smDept = '', _smGroup = '', _smSearch = '', _smOnlyNeg = false;
-let _smSelected = new Set(), _smExpanded = new Set(), _smSelectedOnly = false, _smFilledDepts = false;
-let _smList = [];
-const SM_EXCLUDE_DEPTS = new Set(['ללא מחלקה', 'תיקונים']);
-
-function smSetThreshold(v){ _smThreshold = Math.min(999, Math.max(1, parseInt(v,10)||10)); renderShortMgr(); }
-function smSetFilter(){
-  _smDept    = (document.getElementById('sm-dept')||{}).value || '';
-  _smGroup   = (document.getElementById('sm-group')||{}).value || '';
-  _smSearch  = (((document.getElementById('sm-search')||{}).value)||'').trim();
-  _smOnlyNeg = !!((document.getElementById('sm-onlyneg')||{}).checked);
-  _smSelectedOnly = false;
-  renderShortMgr();
-}
-function _smSortSizes(a,b){
-  const ma=String(a.sz).match(/(\d+)/), mb=String(b.sz).match(/(\d+)/);
-  if(ma&&mb && +ma[1]!==+mb[1]) return +ma[1]-+mb[1];
-  return String(a.sz).localeCompare(String(b.sz),'he');
-}
-function _smQClass(q){ return q<0 ? 'sm-neg' : (q===0 ? 'sm-zero' : 'sm-low'); }
-
-function _smBuildList(){
-  const thr=_smThreshold;
-  // מסנני שורה (בלי סף) — הסף מחושב על הסכום המאוחד של המידה
-  const rows=(ALL_REPORT_DATA||[]).filter(i=>{
-    if(!i.sz) return false;
-    if(SM_EXCLUDE_DEPTS.has(i.dept)) return false;
-    if(_smDept && i.dept!==_smDept) return false;
-    if(_smGroup && i.g!==_smGroup) return false;
-    if(_smSearch && (i.n||'').indexOf(_smSearch)<0) return false;
-    return true;
-  });
-  // קיבוץ למוצר, ואיחוד כל הדגמים של אותה מידה לשורה אחת (סכום כמות + סכום לכל סניף)
-  const prods={};
-  rows.forEach(i=>{
-    const key=i.dept+'||'+i.g+'||'+i.n;
-    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,szmap:{}});
-    const e=p.szmap[i.sz]||(p.szmap[i.sz]={sz:i.sz, q:0, s:{}});
-    e.q += (i.q||0);
-    const s=i.s||{};
-    for(const st in s) e.s[st]=(e.s[st]||0)+(s[st]||0);
-  });
-  const list=[];
-  Object.values(prods).forEach(p=>{
-    let sizes=Object.values(p.szmap).map(e=>({sz:e.sz, q:Math.round(e.q), s:e.s}));
-    sizes=sizes.filter(x=> x.q < thr && (!_smOnlyNeg || x.q < 0));   // סף על הסכום המאוחד
-    if(!sizes.length) return;
-    sizes.sort(_smSortSizes);
-    const negCount=sizes.filter(x=>x.q<0).length;
-    list.push({key:p.key, dept:p.dept, g:p.g, n:p.n, sizes,
-      negCount, hasNeg:negCount>0, count:sizes.length,
-      units:sizes.reduce((a,x)=>a+x.q,0)});
-  });
-  list.sort((a,b)=> (b.negCount-a.negCount) || (b.count-a.count) || String(a.n).localeCompare(String(b.n),'he'));
-  return list;
-}
-
-function renderShortMgr(){
-  loadReportsData(()=>{
-    // מילוי בורר מחלקות (פעם אחת)
-    if(!_smFilledDepts){
-      const depts=[...new Set((ALL_REPORT_DATA||[]).filter(i=>i.sz && !SM_EXCLUDE_DEPTS.has(i.dept)).map(i=>i.dept))].sort((a,b)=>String(a).localeCompare(b,'he'));
-      const dsel=document.getElementById('sm-dept');
-      if(dsel) dsel.innerHTML='<option value="">כל המחלקות</option>'+depts.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
-      _smFilledDepts=true;
-    }
-    // בורר קבוצות תלוי-מחלקה
-    const gsel=document.getElementById('sm-group');
-    if(gsel){
-      const groups=[...new Set((ALL_REPORT_DATA||[]).filter(i=>i.sz && !SM_EXCLUDE_DEPTS.has(i.dept) && (!_smDept||i.dept===_smDept)).map(i=>i.g))].sort((a,b)=>String(a).localeCompare(b,'he'));
-      if(_smGroup && !groups.includes(_smGroup)) _smGroup='';
-      gsel.innerHTML='<option value="">כל הקבוצות</option>'+groups.map(g=>'<option value="'+g+'"'+(g===_smGroup?' selected':'')+'>'+g+'</option>').join('');
-    }
-    let list=_smBuildList();
-    if(_smSelectedOnly) list=list.filter(p=>_smSelected.has(p.key));
-    _smList=list;
-    // סיכום
-    const totProd=list.length;
-    const totSizes=list.reduce((a,p)=>a+p.count,0);
-    const negSizes=list.reduce((a,p)=>a+p.sizes.filter(x=>x.q<0).length,0);
-    const sm=document.getElementById('sm-summary');
-    if(sm) sm.innerHTML = totProd
-      ? totProd.toLocaleString()+' מוצרים · '+totSizes.toLocaleString()+' מידות מתחת ל־'+_smThreshold+(negSizes?' · <span style="color:#dc2626;font-weight:700">'+negSizes.toLocaleString()+' במינוס</span>':'')
-      : 'אין מידות מתחת לסף שנבחר 🎉';
-    const wrap=document.getElementById('sm-list');
-    if(wrap) wrap.innerHTML = list.length ? '<div class="sm-listbox">'+list.map((p,i)=>_smCard(p,i)).join('')+'</div>' : '<div class="section" style="text-align:center;color:var(--muted);padding:30px">אין תוצאות מתחת לסף</div>';
-    _smUpdateSelBar();
-  });
-}
-
-function _smCard(p,i){
-  const open=_smExpanded.has(p.key), sel=_smSelected.has(p.key);
-  const negTxt = p.negCount ? ' · <span class="neg">'+p.negCount.toLocaleString()+' במינוס</span>' : '';
-  const row='<div class="sm-row'+(open?' open':'')+'" onclick="smToggle('+i+')">'
-    + '<input type="checkbox" class="sm-cx" '+(sel?'checked':'')+' onclick="event.stopPropagation();smToggleSel('+i+')">'
-    + '<span class="sm-car">'+(open?'▾':'▸')+'</span>'
-    + '<span class="sm-nm">'+p.n+' <span class="g">· '+p.g+'</span></span>'
-    + '<span class="sm-meta">'+p.count.toLocaleString()+' מידות'+negTxt+'</span>'
-    + '</div>';
-  return row + (open ? '<div class="sm-det">'+_smDetail(p)+'</div>' : '');
-}
-
-function _smDetail(p){
-  const stores=[...new Set(p.sizes.flatMap(x=>Object.keys(x.s)))];
-  const head='<tr><th>מידה</th><th>סה"כ</th>'
-    + stores.map(s=>'<th>'+s+'</th>').join('')+'</tr>';
-  const body=p.sizes.map(x=>{
-    const qc = x.q<0?'q-neg':(x.q===0?'q-zero':'q-low');
-    return '<tr><td class="sm-sz">'+x.sz+'</td>'
-      + '<td class="'+qc+'">'+x.q.toLocaleString()+'</td>'
-      + stores.map(s=>{const v=Math.round(x.s[s]||0);return '<td'+(v<0?' class="q-neg"':'')+'>'+v.toLocaleString()+'</td>';}).join('')
-      + '</tr>';
-  }).join('');
-  return '<table class="sm-t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
-}
-
-function smToggle(i){ const p=_smList[i]; if(!p) return; if(_smExpanded.has(p.key)) _smExpanded.delete(p.key); else _smExpanded.add(p.key); renderShortMgr(); }
-function smToggleSel(i){ const p=_smList[i]; if(!p) return; if(_smSelected.has(p.key)) _smSelected.delete(p.key); else _smSelected.add(p.key); renderShortMgr(); }
-function smExpandAll(open){ if(open) _smList.forEach(p=>_smExpanded.add(p.key)); else _smExpanded.clear(); renderShortMgr(); }
-function smSelectAll(){ _smList.forEach(p=>_smSelected.add(p.key)); renderShortMgr(); }
-function smClearSel(){ _smSelected.clear(); _smSelectedOnly=false; renderShortMgr(); }
-function smToggleSelectedOnly(){ _smSelectedOnly=!_smSelectedOnly; renderShortMgr(); }
-function _smUpdateSelBar(){
-  const bar=document.getElementById('sm-selbar'); if(!bar) return;
-  const n=_smSelected.size;
-  bar.style.display = n ? 'flex' : 'none';
-  const c=document.getElementById('sm-selcount'); if(c) c.textContent='נבחרו '+n+' מוצרים';
-  const b=document.getElementById('sm-selonly-btn'); if(b) b.textContent = _smSelectedOnly ? '↩️ הצג הכל' : '👁️ הצג נבחרים בלבד';
-}
-
-function _smExportRows(){
-  const useSel=_smSelected.size>0;
-  // בונה מחדש ללא סינון "נבחרים בלבד" כדי לייצא את כל הנבחרים
-  const base=_smSelectedOnly ? (function(){ const s=_smSelectedOnly; _smSelectedOnly=false; const l=_smBuildList(); _smSelectedOnly=s; return l; })() : _smList;
-  return base.filter(p=>!useSel || _smSelected.has(p.key));
-}
-function smExportCSV(){
-  const list=_smExportRows();
-  const stores=[...new Set(list.flatMap(p=>p.sizes.flatMap(x=>Object.keys(x.s))))];
-  const head=['מוצר','מחלקה','קבוצה','מידה','סה"כ'].concat(stores);
-  const lines=[head];
-  list.forEach(p=>p.sizes.forEach(x=>{
-    lines.push([p.n,p.dept,p.g,x.sz,x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
-  }));
-  const csv='﻿'+lines.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='חוסרים_לפי_מידה.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-}
-function smPrint(){
-  const list=_smExportRows();
-  let html='<h2>דוח חוסרים לפי מידה — פחות מ־'+_smThreshold+' יחידות</h2>';
-  if(!list.length) html+='<p>אין נתונים.</p>';
-  list.forEach(p=>{
-    html+='<h3>'+p.n+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
-    p.sizes.forEach(x=>{
-      const col=x.q<0?'color:#dc2626;font-weight:bold':(x.q===0?'color:#ea580c':'');
-      const det=Object.keys(x.s).map(st=>st+': '+Math.round(x.s[st]||0)).join(' · ');
-      html+='<tr><td>'+x.sz+'</td><td style="'+col+'">'+x.q+'</td><td>'+det+'</td></tr>';
-    });
-    html+='</table>';
-  });
-  const w=window.open('','_blank');
-  if(!w) return;
-  w.document.write('<html dir="rtl" lang="he"><head><meta charset="utf-8"><title>דוח חוסרים לפי מידה</title>'
-    +'<style>body{font-family:Arial,sans-serif;padding:18px;color:#111}h2{margin:0 0 10px}h3{margin:14px 0 4px;font-size:14px}small{color:#666;font-weight:normal}'
-    +'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid #ccc;padding:4px 8px;font-size:12px;text-align:right}th{background:#f1f5f9}</style></head><body>'
-    +html+'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print()},200)}</scr'+'ipt></body></html>');
-  w.document.close();
 }
 
 function renderReports() {
@@ -7386,12 +7093,6 @@ function setBsPeriod(p, btn){
   document.querySelectorAll('#page-bestsellers .pill').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('bs-custom').style.display = (p==='custom') ? 'flex' : 'none';
-  if(p==='custom'){
-    const n=new Date(), pad=x=>String(x).padStart(2,'0');
-    const f=document.getElementById('bs-from'), t=document.getElementById('bs-to');
-    if(f && !f.value) f.value = n.getFullYear()+'-'+pad(n.getMonth()+1)+'-01';
-    if(t && !t.value) t.value = n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());
-  }
   renderBestsellers();
 }
 function _bsAllowed(){
@@ -7400,7 +7101,7 @@ function _bsAllowed(){
   const back=(n)=>{ const a=[]; let y=cy,m=cm; for(let i=0;i<n;i++){ a.push(ym(y,m)); m--; if(m<1){m=12;y--;} } return new Set(a); };
   if(_bsPeriod==='cur')  return new Set([ym(cy,cm)]);
   if(_bsPeriod==='prev'){ let y=cy,m=cm-1; if(m<1){m=12;y--;} return new Set([ym(y,m)]); }
-  if(_bsPeriod==='custom'){ const f=(((document.getElementById('bs-from')||{}).value)||'').slice(0,7)||'0000-00', t=(((document.getElementById('bs-to')||{}).value)||'').slice(0,7)||'9999-99'; return {custom:true, from:f, to:t}; }
+  if(_bsPeriod==='custom'){ const f=(document.getElementById('bs-from')||{}).value||'0000-00', t=(document.getElementById('bs-to')||{}).value||'9999-99'; return {custom:true, from:f, to:t}; }
   return back(parseInt(_bsPeriod,10)||1);
 }
 function renderBestsellers(){
@@ -7410,11 +7111,20 @@ function renderBestsellers(){
       const depts=[...new Set(SALES_DATA.map(i=>i.dept))].filter(d=>!BS_EXCLUDE_DEPTS.has(d)).sort();
       sel.innerHTML='<option value="">כל המחלקות</option>'+depts.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
     }
+    const ysel=document.getElementById('bs-year');
+    if(ysel && ysel.options.length<=1){
+      const yrs=[...new Set(SALES_DATA.map(i=>(i.ym||'').slice(0,4)).filter(Boolean))].sort().reverse();
+      ysel.innerHTML='<option value="">כל השנים</option>'+yrs.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+    }
     document.getElementById('bs-content').style.display='block';
     const allowed=_bsAllowed();
     const dept=(document.getElementById('bs-dept')||{}).value||'';
     const term=(((document.getElementById('bs-search')||{}).value)||'').trim();
-    const inP = allowed.custom ? (y => y>=allowed.from && y<=allowed.to) : (y => allowed.has(y));
+    const bsYear=(document.getElementById('bs-year')||{}).value||'';
+    // שנה שנבחרה גוברת על התקופה — מציגה את כל אותה שנה קלנדרית
+    const inP = bsYear ? (y => (y||'').slice(0,4)===bsYear)
+              : allowed.custom ? (y => y>=allowed.from && y<=allowed.to)
+              : (y => allowed.has(y));
     const agg={}; let totalQ=0;
     SALES_DATA.forEach(r=>{
       if(!inP(r.ym)) return;
