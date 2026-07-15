@@ -512,6 +512,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="nav-btn" onclick="showPage('departments')">📂 מחלקות</button>
   <button class="nav-btn" onclick="showPage('lowstock')">⚠️ חוסרים</button>
   <button class="nav-btn" onclick="showPage('reports')">📋 דוחות מלאי</button>
+  <button class="nav-btn" onclick="showPage('shortmgr')">📉 חוסרים לפי מידה</button>
   <button class="nav-btn" onclick="showPage('sales')">📈 מכירות</button>
   <button class="nav-btn" onclick="showPage('bestsellers')">🏆 נמכרים ביותר</button>
   <button class="nav-btn" onclick="showPage('today')">🏪 קופות יומי</button>
@@ -527,6 +528,7 @@ body.emp-mode .price-col{display:none!important}
   <button class="bnav-btn" onclick="showPage('departments')"><span class="bnav-icon">📂</span>מחלקות</button>
   <button class="bnav-btn" onclick="showPage('lowstock')"><span class="bnav-icon">⚠️</span>חוסרים</button>
   <button class="bnav-btn" onclick="showPage('reports')"><span class="bnav-icon">📋</span>דוחות</button>
+  <button class="bnav-btn" onclick="showPage('shortmgr')"><span class="bnav-icon">📉</span>מידות</button>
   <button class="bnav-btn" onclick="showPage('sales')"><span class="bnav-icon">📈</span>מכירות</button>
   <button class="bnav-btn" onclick="showPage('bestsellers')"><span class="bnav-icon">🏆</span>נמכרים</button>
   <button class="bnav-btn" onclick="showPage('today')"><span class="bnav-icon">🏪</span>קופות</button>
@@ -969,6 +971,85 @@ body.emp-mode .price-col{display:none!important}
     </div>
   </div>
 
+</div>
+</div>
+
+<!-- PAGE: SHORTMGR (דוח חוסרים לפי מידה — מנהל בלבד) -->
+<div id="page-shortmgr" class="page">
+<div class="container">
+<style>
+#page-shortmgr .sm-card{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card);overflow:hidden}
+#page-shortmgr .sm-card-neg{border-color:#fca5a5}
+#page-shortmgr .sm-hd{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
+#page-shortmgr .sm-hd:hover{background:rgba(99,102,241,.06)}
+#page-shortmgr .sm-caret{color:var(--muted);font-size:12px;width:12px;flex:none}
+#page-shortmgr .sm-name{font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-shortmgr .sm-sub{font-size:11px;color:var(--muted)}
+#page-shortmgr .sm-badge{font-size:11px;font-weight:700;background:#eef2ff;color:var(--primary);border-radius:20px;padding:3px 9px;white-space:nowrap;flex:none}
+#page-shortmgr .sm-negb{background:#fee2e2;color:#dc2626}
+#page-shortmgr .sm-body{border-top:1px solid var(--border);padding:8px 12px 10px;display:flex;flex-wrap:wrap;gap:8px}
+#page-shortmgr .sm-size{border:1px solid var(--border);border-radius:8px;padding:7px 10px;min-width:130px;background:rgba(148,163,184,.06)}
+#page-shortmgr .sm-size-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+#page-shortmgr .sm-sz{font-weight:700;font-size:13px;color:var(--text)}
+#page-shortmgr .sm-mc{font-size:10px;color:var(--muted);margin-inline-start:4px}
+#page-shortmgr .sm-q{font-weight:800;font-size:15px;min-width:26px;text-align:center}
+#page-shortmgr .sm-neg{color:#dc2626}
+#page-shortmgr .sm-zero{color:#ea580c}
+#page-shortmgr .sm-low{color:#ca8a04}
+#page-shortmgr .sm-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+#page-shortmgr .sm-chip{font-size:10px;background:rgba(148,163,184,.18);color:var(--muted);border-radius:6px;padding:2px 6px}
+#page-shortmgr .sm-chip.sm-neg{background:#fee2e2;color:#dc2626;font-weight:700}
+#page-shortmgr .sm-chip.sm-zero{background:#fff7ed;color:#ea580c}
+#page-shortmgr .sm-inp{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;font-family:Rubik;background:var(--card);color:var(--text)}
+#page-shortmgr .sm-lbl{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px}
+</style>
+
+  <div style="margin-bottom:12px">
+    <h2 style="font-size:20px;color:var(--text);margin:0">📉 חוסרים לפי מידה</h2>
+    <p style="color:var(--muted);font-size:13px;margin:4px 0 0">דוח מנהלים: כל מוצר ומידה שיש בה פחות מהסף. <b style="color:#dc2626">מינוס</b> = נמכר יותר מהקיים במלאי. בחר מוצרים לייצוא/הדפסה, ולחץ על מוצר כדי לרדת לפירוט לפי סניף.</p>
+  </div>
+
+  <div id="sm-loading" style="display:none;text-align:center;padding:40px;color:var(--muted)">טוען…</div>
+
+  <div class="section" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">
+      <div>
+        <label class="sm-lbl">סף — פחות מ־</label>
+        <input type="number" id="sm-thr" class="sm-inp" value="10" min="1" max="999" style="width:82px" onchange="smSetThreshold(this.value)">
+      </div>
+      <div>
+        <label class="sm-lbl">מחלקה</label>
+        <select id="sm-dept" class="sm-inp" onchange="smSetFilter()"><option value="">כל המחלקות</option></select>
+      </div>
+      <div>
+        <label class="sm-lbl">קבוצה</label>
+        <select id="sm-group" class="sm-inp" onchange="smSetFilter()"><option value="">כל הקבוצות</option></select>
+      </div>
+      <div style="flex:1;min-width:150px">
+        <label class="sm-lbl">חיפוש מוצר</label>
+        <input type="text" id="sm-search" class="sm-inp" oninput="smSetFilter()" placeholder="שם מוצר…" style="width:100%">
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;user-select:none;padding-bottom:6px">
+        <input type="checkbox" id="sm-onlyneg" onchange="smSetFilter()" style="width:16px;height:16px"> רק מינוס
+      </label>
+    </div>
+    <div id="sm-summary" style="margin-top:10px;font-size:13px;color:var(--muted);font-weight:600"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn" onclick="smExpandAll(true)">➕ פתח הכל</button>
+      <button class="btn" onclick="smExpandAll(false)">➖ כווץ הכל</button>
+      <button class="btn" onclick="smSelectAll()">☑️ בחר הכל</button>
+    </div>
+  </div>
+
+  <div id="sm-selbar" style="display:none;position:sticky;top:8px;z-index:5;background:var(--primary);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:var(--shadow-md);align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="sm-selcount" style="font-weight:700"></span>
+    <button class="btn" onclick="smToggleSelectedOnly()" id="sm-selonly-btn" style="background:#fff;color:var(--primary)">👁️ הצג נבחרים בלבד</button>
+    <button class="btn" onclick="smExportCSV()" style="background:#fff;color:var(--primary)">⬇️ ייצוא CSV</button>
+    <button class="btn" onclick="smPrint()" style="background:#fff;color:var(--primary)">🖨️ הדפסה</button>
+    <button class="btn" onclick="smClearSel()" style="background:rgba(255,255,255,.2);color:#fff">✖ בטל בחירה</button>
+  </div>
+
+  <div id="sm-list"></div>
 </div>
 </div>
 
@@ -2661,7 +2742,7 @@ function renderComparison() {
 
 /* ========== AUTH ========== */
 const EMP_PAGES = new Set(['search', 'lowstock', 'orders']);
-const ALL_PAGES = ['overview','search','departments','lowstock','reports','sales','bestsellers','today','orders','planner','promos','calls'];
+const ALL_PAGES = ['overview','search','departments','lowstock','reports','shortmgr','sales','bestsellers','today','orders','planner','promos','calls'];
 
 // ── שנים דינמיות (מתעדכנות לבד לפי השנה הנוכחית) ──
 const _CUR_YEAR = new Date().getFullYear();
@@ -2908,6 +2989,7 @@ function showPage(id) {
   if (id === 'departments') renderDepartments();
   if (id === 'lowstock') renderLowStock();
   if (id === 'reports')  renderReports();
+  if (id === 'shortmgr') renderShortMgr();
   if (id === 'sales')    renderSales();
   if (id === 'bestsellers') renderBestsellers();
   if (id === 'today')    renderToday();
@@ -5376,6 +5458,7 @@ function exportOrderExcel(){
 
 /* ========== REPORTS ========== */
 let REPORT_DATA = null;
+let ALL_REPORT_DATA = null;   // נתוני דוח מלאים (כולל אפס/מינוס) — לדוח חוסרי מידות (מנהל)
 let reportLoaded = false;
 let activeReportDept = null;
 let activeReportItem = null;
@@ -5420,6 +5503,7 @@ function loadReportsData(cb) {
   document.getElementById('report-loading').style.display = 'block';
   loadEnc('reports.json')
     .then(items => {
+      ALL_REPORT_DATA = items;                 // כולל אפסים ומינוס — לדוח חוסרי מידות
       REPORT_DATA = items.filter(i => i.q > 0);
       reportLoaded = true;
       document.getElementById('report-loading').style.display = 'none';
@@ -5428,6 +5512,173 @@ function loadReportsData(cb) {
     .catch(() => {
       document.getElementById('report-loading').innerHTML = '❌ שגיאה בטעינת דוחות';
     });
+}
+
+/* ========== SHORTAGES BY SIZE (מנהל בלבד) — דוח חוסרי מידות ========== */
+let _smThreshold = 10, _smDept = '', _smGroup = '', _smSearch = '', _smOnlyNeg = false;
+let _smSelected = new Set(), _smExpanded = new Set(), _smSelectedOnly = false, _smFilledDepts = false;
+let _smList = [];
+const SM_EXCLUDE_DEPTS = new Set(['ללא מחלקה', 'תיקונים']);
+
+function smSetThreshold(v){ _smThreshold = Math.min(999, Math.max(1, parseInt(v,10)||10)); renderShortMgr(); }
+function smSetFilter(){
+  _smDept    = (document.getElementById('sm-dept')||{}).value || '';
+  _smGroup   = (document.getElementById('sm-group')||{}).value || '';
+  _smSearch  = (((document.getElementById('sm-search')||{}).value)||'').trim();
+  _smOnlyNeg = !!((document.getElementById('sm-onlyneg')||{}).checked);
+  _smSelectedOnly = false;
+  renderShortMgr();
+}
+function _smSortSizes(a,b){
+  const ma=String(a.sz).match(/(\d+)/), mb=String(b.sz).match(/(\d+)/);
+  if(ma&&mb && +ma[1]!==+mb[1]) return +ma[1]-+mb[1];
+  return String(a.sz).localeCompare(String(b.sz),'he');
+}
+function _smQClass(q){ return q<0 ? 'sm-neg' : (q===0 ? 'sm-zero' : 'sm-low'); }
+
+function _smBuildList(){
+  const thr=_smThreshold;
+  const rows=(ALL_REPORT_DATA||[]).filter(i=>{
+    if(!i.sz) return false;
+    if(SM_EXCLUDE_DEPTS.has(i.dept)) return false;
+    if(_smDept && i.dept!==_smDept) return false;
+    if(_smGroup && i.g!==_smGroup) return false;
+    if(_smSearch && (i.n||'').indexOf(_smSearch)<0) return false;
+    const q=i.q||0;
+    if(q>=thr) return false;
+    if(_smOnlyNeg && q>=0) return false;
+    return true;
+  });
+  const prods={};
+  rows.forEach(i=>{
+    const key=i.dept+'||'+i.g+'||'+i.n;
+    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,sizes:[],mcs:new Set()});
+    p.sizes.push({sz:i.sz, mc:i.mc, q:Math.round(i.q||0), s:i.s||{}});
+    if(i.mc) p.mcs.add(i.mc);
+  });
+  const list=Object.values(prods);
+  list.forEach(p=>{
+    p.sizes.sort(_smSortSizes);
+    p.hasNeg=p.sizes.some(x=>x.q<0);
+    p.units=p.sizes.reduce((a,x)=>a+x.q,0);
+    p.count=p.sizes.length;
+    p.multiMc=p.mcs.size>1;
+  });
+  list.sort((a,b)=> (b.hasNeg-a.hasNeg) || (b.count-a.count) || String(a.n).localeCompare(String(b.n),'he'));
+  return list;
+}
+
+function renderShortMgr(){
+  loadReportsData(()=>{
+    // מילוי בורר מחלקות (פעם אחת)
+    if(!_smFilledDepts){
+      const depts=[...new Set((ALL_REPORT_DATA||[]).filter(i=>i.sz && !SM_EXCLUDE_DEPTS.has(i.dept)).map(i=>i.dept))].sort((a,b)=>String(a).localeCompare(b,'he'));
+      const dsel=document.getElementById('sm-dept');
+      if(dsel) dsel.innerHTML='<option value="">כל המחלקות</option>'+depts.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
+      _smFilledDepts=true;
+    }
+    // בורר קבוצות תלוי-מחלקה
+    const gsel=document.getElementById('sm-group');
+    if(gsel){
+      const groups=[...new Set((ALL_REPORT_DATA||[]).filter(i=>i.sz && !SM_EXCLUDE_DEPTS.has(i.dept) && (!_smDept||i.dept===_smDept)).map(i=>i.g))].sort((a,b)=>String(a).localeCompare(b,'he'));
+      if(_smGroup && !groups.includes(_smGroup)) _smGroup='';
+      gsel.innerHTML='<option value="">כל הקבוצות</option>'+groups.map(g=>'<option value="'+g+'"'+(g===_smGroup?' selected':'')+'>'+g+'</option>').join('');
+    }
+    let list=_smBuildList();
+    if(_smSelectedOnly) list=list.filter(p=>_smSelected.has(p.key));
+    _smList=list;
+    // סיכום
+    const totProd=list.length;
+    const totSizes=list.reduce((a,p)=>a+p.count,0);
+    const negSizes=list.reduce((a,p)=>a+p.sizes.filter(x=>x.q<0).length,0);
+    const sm=document.getElementById('sm-summary');
+    if(sm) sm.innerHTML = totProd
+      ? totProd.toLocaleString()+' מוצרים · '+totSizes.toLocaleString()+' מידות מתחת ל־'+_smThreshold+(negSizes?' · <span style="color:#dc2626;font-weight:700">'+negSizes.toLocaleString()+' במינוס</span>':'')
+      : 'אין מידות מתחת לסף שנבחר 🎉';
+    const wrap=document.getElementById('sm-list');
+    if(wrap) wrap.innerHTML = list.length ? list.map((p,i)=>_smCard(p,i)).join('') : '<div class="section" style="text-align:center;color:var(--muted);padding:30px">אין תוצאות מתחת לסף</div>';
+    _smUpdateSelBar();
+  });
+}
+
+function _smCard(p,i){
+  const open=_smExpanded.has(p.key), sel=_smSelected.has(p.key);
+  const body= open ? '<div class="sm-body">'+p.sizes.map(x=>_smSizeRow(p,x)).join('')+'</div>' : '';
+  return '<div class="sm-card '+(p.hasNeg?'sm-card-neg':'')+'">'
+    + '<div class="sm-hd" onclick="smToggle('+i+')">'
+    +   '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();smToggleSel('+i+')" style="width:17px;height:17px;cursor:pointer;flex:none">'
+    +   '<span class="sm-caret">'+(open?'▾':'▸')+'</span>'
+    +   '<div style="flex:1;min-width:0"><div class="sm-name">'+p.n+'</div><div class="sm-sub">'+p.dept+' · '+p.g+'</div></div>'
+    +   '<span class="sm-badge">'+p.count+' מידות</span>'
+    +   '<span class="sm-badge '+(p.units<0?'sm-negb':'')+'">'+p.units.toLocaleString()+" יח'</span>"
+    +   (p.hasNeg?'<span class="sm-badge sm-negb">מינוס</span>':'')
+    + '</div>'+body+'</div>';
+}
+
+function _smSizeRow(p,x){
+  const chips=Object.keys(x.s).map(st=>{
+    const v=Math.round(x.s[st]||0);
+    return '<span class="sm-chip '+(v<0?'sm-neg':(v===0?'sm-zero':''))+'">'+st+': '+v.toLocaleString()+'</span>';
+  }).join('');
+  const mcTag=(p.multiMc && x.mc)?'<span class="sm-mc">דגם '+x.mc+'</span>':'';
+  return '<div class="sm-size"><div class="sm-size-h"><span><span class="sm-sz">'+x.sz+'</span>'+mcTag+'</span>'
+    + '<span class="sm-q '+_smQClass(x.q)+'">'+x.q.toLocaleString()+'</span></div>'
+    + '<div class="sm-chips">'+(chips||'<span class="sm-chip sm-zero">אין מלאי</span>')+'</div></div>';
+}
+
+function smToggle(i){ const p=_smList[i]; if(!p) return; if(_smExpanded.has(p.key)) _smExpanded.delete(p.key); else _smExpanded.add(p.key); renderShortMgr(); }
+function smToggleSel(i){ const p=_smList[i]; if(!p) return; if(_smSelected.has(p.key)) _smSelected.delete(p.key); else _smSelected.add(p.key); renderShortMgr(); }
+function smExpandAll(open){ if(open) _smList.forEach(p=>_smExpanded.add(p.key)); else _smExpanded.clear(); renderShortMgr(); }
+function smSelectAll(){ _smList.forEach(p=>_smSelected.add(p.key)); renderShortMgr(); }
+function smClearSel(){ _smSelected.clear(); _smSelectedOnly=false; renderShortMgr(); }
+function smToggleSelectedOnly(){ _smSelectedOnly=!_smSelectedOnly; renderShortMgr(); }
+function _smUpdateSelBar(){
+  const bar=document.getElementById('sm-selbar'); if(!bar) return;
+  const n=_smSelected.size;
+  bar.style.display = n ? 'flex' : 'none';
+  const c=document.getElementById('sm-selcount'); if(c) c.textContent='נבחרו '+n+' מוצרים';
+  const b=document.getElementById('sm-selonly-btn'); if(b) b.textContent = _smSelectedOnly ? '↩️ הצג הכל' : '👁️ הצג נבחרים בלבד';
+}
+
+function _smExportRows(){
+  const useSel=_smSelected.size>0;
+  // בונה מחדש ללא סינון "נבחרים בלבד" כדי לייצא את כל הנבחרים
+  const base=_smSelectedOnly ? (function(){ const s=_smSelectedOnly; _smSelectedOnly=false; const l=_smBuildList(); _smSelectedOnly=s; return l; })() : _smList;
+  return base.filter(p=>!useSel || _smSelected.has(p.key));
+}
+function smExportCSV(){
+  const list=_smExportRows();
+  const stores=[...new Set(list.flatMap(p=>p.sizes.flatMap(x=>Object.keys(x.s))))];
+  const head=['מוצר','מחלקה','קבוצה','מידה','דגם','סה"כ'].concat(stores);
+  const lines=[head];
+  list.forEach(p=>p.sizes.forEach(x=>{
+    lines.push([p.n,p.dept,p.g,x.sz,x.mc||'',x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
+  }));
+  const csv='﻿'+lines.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='חוסרים_לפי_מידה.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+function smPrint(){
+  const list=_smExportRows();
+  let html='<h2>דוח חוסרים לפי מידה — פחות מ־'+_smThreshold+' יחידות</h2>';
+  if(!list.length) html+='<p>אין נתונים.</p>';
+  list.forEach(p=>{
+    html+='<h3>'+p.n+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>דגם</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
+    p.sizes.forEach(x=>{
+      const col=x.q<0?'color:#dc2626;font-weight:bold':(x.q===0?'color:#ea580c':'');
+      const det=Object.keys(x.s).map(st=>st+': '+Math.round(x.s[st]||0)).join(' · ');
+      html+='<tr><td>'+x.sz+'</td><td>'+(x.mc||'')+'</td><td style="'+col+'">'+x.q+'</td><td>'+det+'</td></tr>';
+    });
+    html+='</table>';
+  });
+  const w=window.open('','_blank');
+  if(!w) return;
+  w.document.write('<html dir="rtl" lang="he"><head><meta charset="utf-8"><title>דוח חוסרים לפי מידה</title>'
+    +'<style>body{font-family:Arial,sans-serif;padding:18px;color:#111}h2{margin:0 0 10px}h3{margin:14px 0 4px;font-size:14px}small{color:#666;font-weight:normal}'
+    +'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid #ccc;padding:4px 8px;font-size:12px;text-align:right}th{background:#f1f5f9}</style></head><body>'
+    +html+'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print()},200)}</scr'+'ipt></body></html>');
+  w.document.close();
 }
 
 function renderReports() {
