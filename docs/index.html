@@ -1076,8 +1076,8 @@ body.emp-mode .price-col{display:none!important}
         </div>
       </div>
       <div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">שנה:</div>
-        <select id="bs-year" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:Rubik"><option value="">כל השנים</option></select>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">שנת הפריט:</div>
+        <div id="bs-year-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">מחלקה:</div>
@@ -7407,6 +7407,33 @@ function _bsAllowed(){
   if(_bsPeriod==='custom'){ const f=(((document.getElementById('bs-from')||{}).value)||'').slice(0,7)||'0000-00', t=(((document.getElementById('bs-to')||{}).value)||'').slice(0,7)||'9999-99'; return {custom:true, from:f, to:t}; }
   return back(parseInt(_bsPeriod,10)||1);
 }
+// ── סינון לפי שנת הפריט (שנת הברקוד/דגם) — כמו בדוחות מלאי ומכירות. רב-בחירה; ריק = כל השנים ──
+let _bsYears = new Set();
+const BS_YEAR_BTNS = _YEAR_FILTER_OPTS.map(o => [o.v, o.lbl]);
+function _isBsYearActive(v){ return v==='all' ? _bsYears.size===0 : _bsYears.has(v); }
+function buildBsYearButtons(){
+  const el=document.getElementById('bs-year-btns'); if(!el) return;
+  el.innerHTML = BS_YEAR_BTNS.map(([v,lbl])=>
+    '<button class="pill '+(_isBsYearActive(v)?'active':'')+'" onclick="toggleBsYear(\''+v+'\')">'+lbl+'</button>').join('');
+}
+function toggleBsYear(v){
+  if(v==='all'){ _bsYears.clear(); }
+  else if(_bsYears.has(v)){ _bsYears.delete(v); }
+  else { _bsYears.add(v); }
+  buildBsYearButtons();
+  renderBestsellers();
+}
+// כמות מתוך רשומת מכירה לפי השנים שנבחרו (משתמש ב-yrs = פילוח לפי שנת הברקוד). ריק = הכמות המלאה.
+function qOfBs(r){
+  if(_bsYears.size===0) return r.q||0;
+  const y=r.yrs||{}; let s=0;
+  _bsYears.forEach(key=>{
+    if(key.indexOf('le')===0){ const th=+key.slice(2); for(const k in y){ if(+k<=th) s+=y[k]; } }
+    else s+=(y[key]||0);
+  });
+  return s;
+}
+
 function renderBestsellers(){
   loadSalesData(() => {
     const sel=document.getElementById('bs-dept');
@@ -7414,20 +7441,12 @@ function renderBestsellers(){
       const depts=[...new Set(SALES_DATA.map(i=>i.dept))].filter(d=>!BS_EXCLUDE_DEPTS.has(d)).sort();
       sel.innerHTML='<option value="">כל המחלקות</option>'+depts.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
     }
-    const ysel=document.getElementById('bs-year');
-    if(ysel && ysel.options.length<=1){
-      const yrs=[...new Set(SALES_DATA.map(i=>(i.ym||'').slice(0,4)).filter(Boolean))].sort().reverse();
-      ysel.innerHTML='<option value="">כל השנים</option>'+yrs.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-    }
+    buildBsYearButtons();
     document.getElementById('bs-content').style.display='block';
     const allowed=_bsAllowed();
     const dept=(document.getElementById('bs-dept')||{}).value||'';
     const term=(((document.getElementById('bs-search')||{}).value)||'').trim();
-    const bsYear=(document.getElementById('bs-year')||{}).value||'';
-    // שנה שנבחרה גוברת על התקופה — מציגה את כל אותה שנה קלנדרית
-    const inP = bsYear ? (y => (y||'').slice(0,4)===bsYear)
-              : allowed.custom ? (y => y>=allowed.from && y<=allowed.to)
-              : (y => allowed.has(y));
+    const inP = allowed.custom ? (y => y>=allowed.from && y<=allowed.to) : (y => allowed.has(y));
     const agg={}; let totalQ=0;
     SALES_DATA.forEach(r=>{
       if(!inP(r.ym)) return;
@@ -7435,9 +7454,11 @@ function renderBestsellers(){
       if((r.n||'').indexOf('הנחה')>-1) return;   // שורות הנחה — לא מוצר
       if(dept && r.dept!==dept) return;
       if(term && (r.n||'').indexOf(term)===-1) return;
+      const qv=qOfBs(r);                          // כמות לפי שנת-הפריט הנבחרת (yrs); ריק = כל השנים
+      if(qv<=0) return;
       const k=r.n+'|'+r.dept;
       const g=agg[k]||(agg[k]={n:r.n,dept:r.dept,q:0});
-      g.q+=(r.q||0); totalQ+=(r.q||0);
+      g.q+=qv; totalQ+=qv;
     });
     const rows=Object.values(agg).filter(x=>x.q>0).sort((a,b)=>b.q-a.q);
     document.getElementById('bs-summary').textContent='סה"כ '+rows.length+' פריטים · '+Math.round(totalQ).toLocaleString()+' יחידות נמכרו';
