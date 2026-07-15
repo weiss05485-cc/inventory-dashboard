@@ -979,16 +979,22 @@ body.emp-mode .price-col{display:none!important}
 <div class="container">
 <style>
 #page-shortmgr .sm-listbox{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
-#page-shortmgr .sm-row{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px}
+#page-shortmgr .sm-row{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--border);border-inline-start:3px solid transparent;cursor:pointer;font-size:13px}
 #page-shortmgr .sm-row:last-child{border-bottom:0}
-#page-shortmgr .sm-row:hover{background:rgba(99,102,241,.05)}
-#page-shortmgr .sm-row.open{background:rgba(99,102,241,.06);font-weight:600}
+#page-shortmgr .sm-row.alt{background:rgba(148,163,184,.045)}
+#page-shortmgr .sm-row:hover{background:rgba(99,102,241,.07)}
+#page-shortmgr .sm-row.open{background:rgba(99,102,241,.09)}
+#page-shortmgr .sm-row.hasneg{border-inline-start-color:#f87171}
 #page-shortmgr .sm-cx{width:16px;height:16px;cursor:pointer;flex:none}
 #page-shortmgr .sm-car{color:var(--muted);font-size:11px;width:10px;flex:none;text-align:center}
-#page-shortmgr .sm-nm{color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-shortmgr .sm-nm .g{color:var(--muted);font-size:11px;font-weight:400}
-#page-shortmgr .sm-meta{color:var(--muted);font-size:12px;white-space:nowrap;flex:none;font-weight:400}
-#page-shortmgr .sm-meta .neg{color:#dc2626;font-weight:700}
+#page-shortmgr .sm-nm{color:var(--text);font-weight:600;flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-shortmgr .sm-spacer{flex:1 1 auto}
+#page-shortmgr .sm-tag{font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;flex:none;font-weight:600}
+#page-shortmgr .sm-tag.grp{background:rgba(148,163,184,.16);color:var(--muted);font-weight:400}
+#page-shortmgr .sm-tag.sh1{background:rgba(124,58,237,.13);color:#7c3aed}
+#page-shortmgr .sm-tag.sh2{background:rgba(79,70,229,.13);color:#4f46e5}
+#page-shortmgr .sm-count{font-size:12px;color:var(--muted);white-space:nowrap;flex:none;font-weight:600}
+#page-shortmgr .sm-count.neg{color:#dc2626;margin-inline-start:8px}
 #page-shortmgr .sm-det{padding:6px 12px 10px 34px;border-bottom:1px solid var(--border);background:rgba(148,163,184,.05);overflow-x:auto}
 #page-shortmgr table.sm-t{border-collapse:collapse;width:100%;font-size:12px}
 #page-shortmgr table.sm-t th{color:var(--muted);font-weight:600;text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);font-size:11px;white-space:nowrap}
@@ -5550,11 +5556,12 @@ function _smBuildList(){
     if(_smSearch && (i.n||'').indexOf(_smSearch)<0) return false;
     return true;
   });
-  // קיבוץ למוצר, ואיחוד כל הדגמים של אותה מידה לשורה אחת (סכום כמות + סכום לכל סניף)
+  // קיבוץ למוצר — נפרד לפי שורות (שורה אחת / שתי שורות = מוצר אחר), ואיחוד דגמים של אותה מידה לשורה אחת
   const prods={};
   rows.forEach(i=>{
-    const key=i.dept+'||'+i.g+'||'+i.n;
-    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,szmap:{}});
+    const sh=getShorot(i.mc)||'';                 // '1'=שורה אחת, '2'=שתי שורות, ''=לא רלוונטי
+    const key=i.dept+'||'+i.g+'||'+i.n+'||'+sh;
+    const p=prods[key]||(prods[key]={key,dept:i.dept,g:i.g,n:i.n,sh,szmap:{}});
     const e=p.szmap[i.sz]||(p.szmap[i.sz]={sz:i.sz, q:0, s:{}});
     e.q += (i.q||0);
     const s=i.s||{};
@@ -5567,7 +5574,7 @@ function _smBuildList(){
     if(!sizes.length) return;
     sizes.sort(_smSortSizes);
     const negCount=sizes.filter(x=>x.q<0).length;
-    list.push({key:p.key, dept:p.dept, g:p.g, n:p.n, sizes,
+    list.push({key:p.key, dept:p.dept, g:p.g, n:p.n, sh:p.sh, sizes,
       negCount, hasNeg:negCount>0, count:sizes.length,
       units:sizes.reduce((a,x)=>a+x.q,0)});
   });
@@ -5608,14 +5615,20 @@ function renderShortMgr(){
   });
 }
 
+function _smShLabel(sh){ return sh==='2' ? 'שתי שורות' : sh==='1' ? 'שורה אחת' : ''; }
 function _smCard(p,i){
   const open=_smExpanded.has(p.key), sel=_smSelected.has(p.key);
-  const negTxt = p.negCount ? ' · <span class="neg">'+p.negCount.toLocaleString()+' במינוס</span>' : '';
-  const row='<div class="sm-row'+(open?' open':'')+'" onclick="smToggle('+i+')">'
+  const shTag = p.sh==='2' ? '<span class="sm-tag sh2">🔷 שתי שורות</span>'
+              : p.sh==='1' ? '<span class="sm-tag sh1">🔹 שורה אחת</span>' : '';
+  const negTxt = p.negCount ? '<span class="sm-count neg">'+p.negCount.toLocaleString()+' במינוס</span>' : '';
+  const cls='sm-row'+(open?' open':'')+(p.hasNeg?' hasneg':'')+(i%2?' alt':'');
+  const row='<div class="'+cls+'" onclick="smToggle('+i+')">'
     + '<input type="checkbox" class="sm-cx" '+(sel?'checked':'')+' onclick="event.stopPropagation();smToggleSel('+i+')">'
     + '<span class="sm-car">'+(open?'▾':'▸')+'</span>'
-    + '<span class="sm-nm">'+p.n+' <span class="g">· '+p.g+'</span></span>'
-    + '<span class="sm-meta">'+p.count.toLocaleString()+' מידות'+negTxt+'</span>'
+    + '<span class="sm-nm">'+p.n+'</span>'
+    + '<span class="sm-tag grp">'+p.g+'</span>'+shTag
+    + '<span class="sm-spacer"></span>'
+    + '<span class="sm-count">'+p.count.toLocaleString()+' מידות</span>'+negTxt
     + '</div>';
   return row + (open ? '<div class="sm-det">'+_smDetail(p)+'</div>' : '');
 }
@@ -5657,10 +5670,10 @@ function _smExportRows(){
 function smExportCSV(){
   const list=_smExportRows();
   const stores=[...new Set(list.flatMap(p=>p.sizes.flatMap(x=>Object.keys(x.s))))];
-  const head=['מוצר','מחלקה','קבוצה','מידה','סה"כ'].concat(stores);
+  const head=['מוצר','שורות','מחלקה','קבוצה','מידה','סה"כ'].concat(stores);
   const lines=[head];
   list.forEach(p=>p.sizes.forEach(x=>{
-    lines.push([p.n,p.dept,p.g,x.sz,x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
+    lines.push([p.n,_smShLabel(p.sh),p.dept,p.g,x.sz,x.q].concat(stores.map(st=>Math.round(x.s[st]||0))));
   }));
   const csv='﻿'+lines.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -5672,7 +5685,8 @@ function smPrint(){
   let html='<h2>דוח חוסרים לפי מידה — פחות מ־'+_smThreshold+' יחידות</h2>';
   if(!list.length) html+='<p>אין נתונים.</p>';
   list.forEach(p=>{
-    html+='<h3>'+p.n+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
+    const shl=_smShLabel(p.sh);
+    html+='<h3>'+p.n+(shl?' — '+shl:'')+' <small>('+p.dept+' · '+p.g+")</small></h3><table><tr><th>מידה</th><th>סה\"כ</th><th>פירוט לפי סניף</th></tr>";
     p.sizes.forEach(x=>{
       const col=x.q<0?'color:#dc2626;font-weight:bold':(x.q===0?'color:#ea580c':'');
       const det=Object.keys(x.s).map(st=>st+': '+Math.round(x.s[st]||0)).join(' · ');
