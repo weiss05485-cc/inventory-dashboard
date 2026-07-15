@@ -988,10 +988,11 @@ body.emp-mode .price-col{display:none!important}
           <button class="pill" onclick="setBsPeriod('12',this)">שנה</button>
           <button class="pill" onclick="setBsPeriod('custom',this)">מותאם</button>
         </div>
-        <div id="bs-custom" style="display:none;margin-top:8px;gap:8px;align-items:center">
-          <input type="month" id="bs-from" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
+        <div id="bs-custom" style="display:none;margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="bs-from" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:Rubik">
           <span style="color:var(--muted)">עד</span>
-          <input type="month" id="bs-to" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px">
+          <input type="date" id="bs-to" onchange="renderBestsellers()" style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:Rubik">
+          <span style="font-size:11px;color:var(--muted);width:100%">* הנתונים נשמרים ברמת חודש — טווח הימים שנבחר כולל את החודשים המלאים שנוגעים בו</span>
         </div>
       </div>
       <div>
@@ -7130,6 +7131,12 @@ function setBsPeriod(p, btn){
   document.querySelectorAll('#page-bestsellers .pill').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('bs-custom').style.display = (p==='custom') ? 'flex' : 'none';
+  if(p==='custom'){
+    const n=new Date(), pad=x=>String(x).padStart(2,'0');
+    const f=document.getElementById('bs-from'), t=document.getElementById('bs-to');
+    if(f && !f.value) f.value = n.getFullYear()+'-'+pad(n.getMonth()+1)+'-01';
+    if(t && !t.value) t.value = n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());
+  }
   renderBestsellers();
 }
 function _bsAllowed(){
@@ -7138,7 +7145,7 @@ function _bsAllowed(){
   const back=(n)=>{ const a=[]; let y=cy,m=cm; for(let i=0;i<n;i++){ a.push(ym(y,m)); m--; if(m<1){m=12;y--;} } return new Set(a); };
   if(_bsPeriod==='cur')  return new Set([ym(cy,cm)]);
   if(_bsPeriod==='prev'){ let y=cy,m=cm-1; if(m<1){m=12;y--;} return new Set([ym(y,m)]); }
-  if(_bsPeriod==='custom'){ const f=(document.getElementById('bs-from')||{}).value||'0000-00', t=(document.getElementById('bs-to')||{}).value||'9999-99'; return {custom:true, from:f, to:t}; }
+  if(_bsPeriod==='custom'){ const f=(((document.getElementById('bs-from')||{}).value)||'').slice(0,7)||'0000-00', t=(((document.getElementById('bs-to')||{}).value)||'').slice(0,7)||'9999-99'; return {custom:true, from:f, to:t}; }
   return back(parseInt(_bsPeriod,10)||1);
 }
 function renderBestsellers(){
