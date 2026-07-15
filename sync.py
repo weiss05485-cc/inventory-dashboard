@@ -497,7 +497,7 @@ def main():
             FROM ItemToGroup WHERE Status = 1
         ) itg ON itg.ItemID = im.ItemID AND itg.rn = 1
         LEFT JOIN ItemGroup ig ON ig.ItemGroupID = itg.ItemGroupID AND ig.Status = 1
-        WHERE oh.Qty >= 0
+        WHERE 1 = 1   -- כולל מלאי שלילי (חוסרים אמיתיים) לדוח חוסרי-מידות למנהל; אפסים ממילא נכללו
           AND ISNULL(d.Name, '') NOT IN (N'כללי')
           AND im.Name NOT LIKE N'%כללי%'
           AND im.BarcodeNumber NOT IN ('180','240')
