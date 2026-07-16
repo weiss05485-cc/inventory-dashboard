@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-07-16-1';
+  var APP_VERSION = '2026-07-16-2';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -2969,6 +2969,7 @@ function applyRole(role, userInfo) {
   if (clearBtn) clearBtn.style.display = isMgmt ? 'inline-block' : 'none';
   const actTh = document.getElementById('orders-actions-th');
   if (actTh) actTh.style.display = isMgmt ? '' : 'none';
+  if (typeof layoutTopBars === 'function') { layoutTopBars(); setTimeout(layoutTopBars, 100); }
 }
 
 function doLogout() {
@@ -7485,6 +7486,29 @@ function renderBestsellers(){
     }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">אין מכירות בתקופה שנבחרה</td></tr>';
   });
 }
+
+// ── התאמת ריווח עליון לגובה האמיתי של הסרגלים הקבועים (status/header/nav) ──
+// מונע מצב שבו ראש התוכן נחבא מאחורי הסרגלים במסכים/רזולוציות/זום שונים (כמו שקרה לבערל).
+function layoutTopBars(){
+  try{
+    var s=document.getElementById('status-strip'), h=document.querySelector('header'), n=document.querySelector('nav');
+    if(!h) return;
+    var sh = s ? s.offsetHeight : 0;
+    h.style.top = sh + 'px';
+    var below = sh + h.offsetHeight;
+    if (n && getComputedStyle(n).display !== 'none') {
+      n.style.top = below + 'px';
+      document.body.style.paddingTop = (below + n.offsetHeight) + 'px';
+    } else {
+      document.body.style.paddingTop = below + 'px';
+    }
+  }catch(e){}
+}
+window.addEventListener('load', layoutTopBars);
+window.addEventListener('resize', layoutTopBars);
+window.addEventListener('orientationchange', layoutTopBars);
+setTimeout(layoutTopBars, 300);    // אחרי החלפת הגופן
+setTimeout(layoutTopBars, 1200);
 
 // ── אתחול: בודק התחברות וטוען (אחרי שכל ההגדרות מוכנות) ──
 checkAuth();
