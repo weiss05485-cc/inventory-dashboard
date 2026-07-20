@@ -7,7 +7,7 @@
 <script>
 // ── עדכון אוטומטי: אם המכשיר מריץ גרסה ישנה מהמטמון — טוען לבד את העדכנית (סוף ל-"תעשה Ctrl+F5") ──
 (function(){
-  var APP_VERSION = '2026-07-16-3';
+  var APP_VERSION = '2026-07-16-4';
   window.__APP_VERSION = APP_VERSION;
   try {
     fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -7516,6 +7516,11 @@ window.addEventListener('resize', layoutTopBars);
 window.addEventListener('orientationchange', layoutTopBars);
 setTimeout(layoutTopBars, 300);    // אחרי החלפת הגופן
 setTimeout(layoutTopBars, 1200);
+
+// רישום service worker — מאפשר התקנה כאפליקציה אמיתית (WebAPK) באנדרואיד Chrome (אייקון משלה בסוויצ'ר)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
 
 // ── אתחול: בודק התחברות וטוען (אחרי שכל ההגדרות מוכנות) ──
 checkAuth();
