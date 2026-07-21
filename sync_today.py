@@ -3,6 +3,34 @@ from datetime import datetime
 from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8')
 
+# ── הגנה מפני נפילת ARNET זמנית בכל שלב (חיבור *או* שאילתה) — מדלג בשקט בלי מייל-כושל ──
+# הכשל שהפיל את הריצה היה תוך-כדי שאילתה (שלב לא מוגן). excepthook תופס כל חריגה לא-מטופלת,
+# ואם זו שגיאת DB/רשת זמנית מול ARNET — יוצא בקוד 0 (בלי מייל) במקום לקרוס. today.json נכתב רק
+# בסוף הסקריפט, אז דילוג משאיר את הנתונים הקודמים הטובים ללא שינוי.
+import time as _time
+_DB_HINTS = ('20009', '20047', '20003', 'connect', 'timed out', 'timeout',
+             'unavailable', 'does not exist', 'operationalerror', 'dbprocess',
+             'is dead', 'not connected', 'adaptive server', 'interfaceerror',
+             'login', 'network')
+def _is_db_err(msg):
+    m = (msg or '').lower()
+    return any(h in m for h in _DB_HINTS)
+def _today_excepthook(exc_type, exc, tb):
+    err = str(exc)
+    if _is_db_err(err):
+        data_file = 'docs/today.json'
+        age = ((_time.time() - os.path.getmtime(data_file)) / 3600) if os.path.exists(data_file) else 0.0
+        # מתריעים במייל *פעם אחת* — בחלון ~10 דק' אחרי חציית 2 השעות; אחר-כך מדלגים בשקט לכל אורך הנפילה.
+        if 2.0 <= age < 2.17:
+            print(f"[ALERT] ARNET לא זמין כבר {age:.1f} שעות — שולח התראה חד-פעמית.")
+            sys.stdout.flush(); os._exit(1)
+        print(f"[SKIP] ARNET לא זמין (גיל נתונים {age:.1f}ש') — מדלג בשקט, ללא מייל. {err[:120]}")
+        print("Sync-today skipped. today.json unchanged. Exiting 0.")
+        sys.stdout.flush(); os._exit(0)
+    sys.__excepthook__(exc_type, exc, tb)
+    sys.stdout.flush(); os._exit(1)
+sys.excepthook = _today_excepthook
+
 # credentials מ-config.py (מקומי) או environment variables (GitHub Actions)
 try:
     from config import DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
