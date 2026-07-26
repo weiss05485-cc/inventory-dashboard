@@ -23,6 +23,7 @@ TARGETS = [
     "data.json", "today.json", "search.json", "reports.json",
     "sales.json", "users.json", "promos.json",
     "historical_today.json", "historical_sales.json",
+    "staff_reports.json",
 ]
 
 
