@@ -3,10 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>חסידים סנטר | BI v2.1</title>
+<title>חסידים סנטר | BI</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<link rel="icon" type="image/png" href="favicon-gb.png?v=3">
+<link rel="apple-touch-icon" href="favicon-gb.png?v=3">
+<script>
+// ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
+(function(){
+  var BI_VERSION = '2026-07-26-1';
+  window.__BI_VERSION = BI_VERSION;
+  try {
+    fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (j && j.v && j.v !== BI_VERSION && sessionStorage.getItem('bi_reloaded_for') !== j.v) {
+          sessionStorage.setItem('bi_reloaded_for', j.v);
+          location.replace(location.pathname + '?v=' + encodeURIComponent(j.v));
+        }
+      })
+      .catch(function(){});
+  } catch(e){}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -14,27 +34,29 @@
   --primary:#4f46e5;--primary2:#7c3aed;--primary-dark:#312e81;
   --bg:#f0f2f8;--card:#fff;--border:#e4e8f4;
   --text:#1e2233;--muted:#8492a6;
+  --grid:#f0f3f9;--th-bg:#f8f9ff;--row-hover:#f8f9ff;--chip:#f8fafc;--rank-bg:#f1f5f9;
   --green:#10b981;--red:#ef4444;--orange:#f59e0b;--blue:#3b82f6;--purple:#8b5cf6;
   --radius:14px;--shadow:0 2px 16px rgba(0,0,0,.07);--shadow-md:0 6px 28px rgba(0,0,0,.12);
+}
+/* ── DARK THEME (מעוצב מכוון — משטח כהה משלו) ── */
+:root[data-theme="dark"]{
+  --bg:#0f1117;--card:#1a1d29;--border:#2a2f3e;
+  --text:#e6e9f0;--muted:#8b93a7;
+  --grid:rgba(255,255,255,.07);--th-bg:#20242f;--row-hover:#20242f;--chip:#20242f;--rank-bg:#2a2f3e;
+  --shadow:0 2px 16px rgba(0,0,0,.35);--shadow-md:0 6px 28px rgba(0,0,0,.5);
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1117;--card:#1a1d29;--border:#2a2f3e;
+    --text:#e6e9f0;--muted:#8b93a7;
+    --grid:rgba(255,255,255,.07);--th-bg:#20242f;--row-hover:#20242f;--chip:#20242f;--rank-bg:#2a2f3e;
+    --shadow:0 2px 16px rgba(0,0,0,.35);--shadow-md:0 6px 28px rgba(0,0,0,.5);
+  }
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Rubik',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 @keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* ── PIN ── */
-#pin-screen{position:fixed;inset:0;background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
-.pin-box{background:rgba(255,255,255,.13);backdrop-filter:blur(16px);border-radius:24px;padding:40px 36px;display:flex;flex-direction:column;align-items:center;gap:22px;box-shadow:0 16px 48px rgba(0,0,0,.35);width:320px}
-.pin-logo{font-size:42px}.pin-title{color:#fff;font-size:20px;font-weight:800}
-.pin-sub{color:rgba(255,255,255,.55);font-size:12px;margin-top:-14px}
-.pin-dots{display:flex;gap:12px}
-.pin-dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
-.pin-dot.filled{background:#a5f3fc;box-shadow:0 0 8px #a5f3fc}
-.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
-.pin-btn{height:64px;border-radius:14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif}
-.pin-btn:hover{background:rgba(255,255,255,.28);transform:scale(1.04)}
-.pin-btn:active{transform:scale(.96)}
-.pin-error{color:#fca5a5;font-size:13px;font-weight:600;min-height:18px}
 
 /* ── LAYOUT ── */
 #main{display:none;min-height:100vh;padding-top:104px}
@@ -56,7 +78,9 @@ nav{position:fixed;top:96px;right:0;left:0;z-index:99;background:var(--card);bor
 nav::-webkit-scrollbar{display:none}
 .nbtn{flex:none;padding:9px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:.2s;font-family:'Rubik',sans-serif}
 .nbtn.active{color:var(--primary);border-color:var(--primary);font-weight:700}
-.nbtn:hover:not(.active){color:var(--text);background:#f8f9fc}
+.nbtn:hover:not(.active){color:var(--text);background:var(--row-hover)}
+.nav-grp{flex:none;display:inline-flex;align-items:center;padding:0 10px 0 4px;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;opacity:.75;white-space:nowrap;align-self:center}
+.nav-sep{flex:none;width:1px;align-self:stretch;background:var(--border);margin:6px 2px}
 
 /* ── PAGE ── */
 .tab-page{display:none}.tab-page.active{display:block}
@@ -85,12 +109,12 @@ nav::-webkit-scrollbar{display:none}
 /* ── TABLE ── */
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#f8f9ff;padding:9px 12px;text-align:right;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
-td{padding:9px 12px;border-bottom:1px solid #f0f3f9;color:var(--text);vertical-align:middle}
+th{background:var(--th-bg);padding:9px 12px;text-align:right;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:9px 12px;border-bottom:1px solid var(--grid);color:var(--text);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#f8f9ff}
+tr:hover td{background:var(--row-hover)}
 .num{font-weight:700;color:var(--primary)}.pct{font-weight:700}
-.rank{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;background:#f1f5f9;color:var(--muted)}
+.rank{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;background:var(--rank-bg);color:var(--muted)}
 .rank.top{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff}
 
 /* ── STORE CARDS ── */
@@ -104,7 +128,7 @@ tr:hover td{background:#f8f9ff}
 
 /* ── DEPT PILLS ── */
 .pill-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.pill{padding:5px 14px;border-radius:20px;border:2px solid var(--border);background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif;color:var(--muted)}
+.pill{padding:5px 14px;border-radius:20px;border:2px solid var(--border);background:var(--card);font-size:12px;font-weight:600;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif;color:var(--muted)}
 .pill.active{background:var(--primary);border-color:var(--primary);color:#fff}
 
 /* ── PAY BADGES ── */
@@ -123,7 +147,7 @@ tr:hover td{background:#f8f9ff}
 .ak-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .ak-val{font-size:22px;font-weight:800;color:var(--text)}
 .ak-sub{font-size:11px;margin-top:5px}
-.ytab{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:.15s;font-family:'Rubik',sans-serif}
+.ytab{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:.15s;font-family:'Rubik',sans-serif}
 .ytab.active{background:var(--primary);border-color:var(--primary);color:#fff}
 
 /* ── QUARTERLY ── */
@@ -145,47 +169,21 @@ tr:hover td{background:#f8f9ff}
 /* ── MOBILE ── */
 @media(max-width:600px){
   .kpi-val{font-size:18px}.sc-val{font-size:20px}
-  .pin-pad{grid-template-columns:repeat(3,62px);gap:8px}
-  .pin-btn{height:56px;font-size:20px}
-  .pin-box{width:290px;padding:28px 20px}
   .hdr-title{font-size:14px}
 }
 </style>
 </head>
 <body>
 
-<!-- ══ PIN ══════════════════════════════════════════════════════════════ -->
-<div id="pin-screen">
-  <div class="pin-box">
-    <div class="pin-logo">📊</div>
-    <div class="pin-title">חסידים סנטר BI</div>
-    <div class="pin-sub">הכנס קוד גישה</div>
-    <div class="pin-dots" id="pdots">
-      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
-      <div class="pin-dot" id="d4"></div><div class="pin-dot" id="d5"></div>
-      <div class="pin-dot" id="d6"></div><div class="pin-dot" id="d7"></div>
-    </div>
-    <div class="pin-pad">
-      <button class="pin-btn" onclick="pk('1')">1</button><button class="pin-btn" onclick="pk('2')">2</button><button class="pin-btn" onclick="pk('3')">3</button>
-      <button class="pin-btn" onclick="pk('4')">4</button><button class="pin-btn" onclick="pk('5')">5</button><button class="pin-btn" onclick="pk('6')">6</button>
-      <button class="pin-btn" onclick="pk('7')">7</button><button class="pin-btn" onclick="pk('8')">8</button><button class="pin-btn" onclick="pk('9')">9</button>
-      <button class="pin-btn" style="font-size:16px" onclick="pclr()">⌫</button>
-      <button class="pin-btn" onclick="pk('0')">0</button>
-      <button class="pin-btn" style="opacity:.3;cursor:default"></button>
-    </div>
-    <div class="pin-error" id="pin-err"></div>
-  </div>
-</div>
-
 <!-- ══ MAIN ══════════════════════════════════════════════════════════════ -->
 <div id="main">
   <header>
     <div class="hdr-top">
       <div>
-        <div class="hdr-title">📊 חסידים סנטר — BI Dashboard</div>
+        <div class="hdr-title"><img src="favicon-gb.png?v=3" alt="GB" style="height:26px;width:26px;border-radius:6px;vertical-align:middle;margin-left:8px">חסידים סנטר — BI</div>
       </div>
       <div class="hdr-right">
+        <button class="btn-export" id="theme-toggle" onclick="toggleTheme()" title="מצב כהה / בהיר" style="min-width:34px">🌙</button>
         <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
         <div class="hdr-badge" id="hdr-synced">טוען...</div>
       </div>
@@ -202,13 +200,19 @@ tr:hover td{background:#f8f9ff}
   </header>
 
   <nav>
+    <span class="nav-grp">🛒 קופות</span>
     <button class="nbtn active" onclick="showTab('overview')">📊 סקירה</button>
     <button class="nbtn" onclick="showTab('stores')">🏪 סניפים</button>
     <button class="nbtn" onclick="showTab('depts')">📂 מחלקות</button>
     <button class="nbtn" onclick="showTab('sellers')">👥 מוכרים</button>
     <button class="nbtn" onclick="showTab('payments')">💳 תשלומים</button>
+    <span class="nav-sep"></span>
+    <span class="nav-grp">💰 הנהלת חשבונות</span>
+    <button class="nbtn" onclick="showTab('accounting')">📋 רווחית</button>
+    <button class="nbtn" onclick="showTab('suppliers')">🏭 ספקים</button>
+    <span class="nav-sep"></span>
+    <span class="nav-grp">📦 מלאי</span>
     <button class="nbtn" onclick="showTab('inventory')">📦 מלאי</button>
-    <button class="nbtn" onclick="showTab('accounting')">📋 חשבונאות</button>
   </nav>
 
   <!-- ── OVERVIEW ── -->
@@ -228,6 +232,10 @@ tr:hover td{background:#f8f9ff}
       <div class="chart-card">
         <div class="cc-hdr"><span class="cc-title">השוואה שנתית</span><span class="cc-sub">לפי חודש</span></div>
         <div class="chart-wrap h260"><canvas id="ch-yoy"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="cc-hdr"><span class="cc-title">🕐 שעות פעילות</span><span class="cc-sub" id="ov-hours-sub">מכירות לפי שעה · 90 יום אחרונים</span></div>
+        <div class="chart-wrap h260"><canvas id="ch-hours"></canvas></div>
       </div>
     </div>
   </div>
@@ -352,32 +360,66 @@ tr:hover td{background:#f8f9ff}
     </div>
   </div>
 
+  <!-- ── SUPPLIERS ── -->
+  <div id="tab-suppliers" class="tab-page">
+    <div class="page">
+      <div class="kpi-row" id="sup-kpis"></div>
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="cc-hdr"><span class="cc-title">TOP ספקים — רכישות מול החזרות</span><span class="cc-sub" id="sup-chart-sub"></span></div>
+          <div class="chart-wrap h300"><canvas id="ch-sup-bar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="cc-hdr"><span class="cc-title">חלוקת רכישות לפי ספק</span></div>
+          <div class="chart-wrap h300"><canvas id="ch-sup-pie"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="cc-hdr"><span class="cc-title">מגמת רכישות — חודשי</span></div>
+        <div class="chart-wrap h260"><canvas id="ch-sup-trend"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="cc-hdr">
+          <span class="cc-title">חשבוניות ספקים <span class="cc-sub" id="sup-tbl-count"></span></span>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="sup-filter-name" onchange="renderSupplierTable()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px;max-width:220px">
+              <option value="">כל הספקים</option>
+            </select>
+            <select id="sup-filter-type" onchange="renderSupplierTable()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px">
+              <option value="">כל הסוגים</option>
+              <option value="חשבון">חשבון</option>
+              <option value="חיוב">חיוב</option>
+              <option value="החזרה">החזרה</option>
+              <option value="זיכוי">זיכוי</option>
+            </select>
+            <button class="btn-export" onclick="exportSupplierCSV()">⬇ CSV</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table id="sup-docs-tbl">
+            <thead><tr>
+              <th onclick="sortSupTbl('DocDate')" style="cursor:pointer">תאריך ⇅</th>
+              <th onclick="sortSupTbl('SupplierName')" style="cursor:pointer">ספק ⇅</th>
+              <th>מספר</th>
+              <th>סוג</th>
+              <th>סניף</th>
+              <th onclick="sortSupTbl('LineCount')" style="cursor:pointer">פריטים ⇅</th>
+              <th onclick="sortSupTbl('TotalQty')" style="cursor:pointer">יחידות ⇅</th>
+              <th onclick="sortSupTbl('TotalAmount')" style="cursor:pointer" class="num">סכום ⇅</th>
+            </tr></thead>
+            <tbody id="sup-docs-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <script>
 // ════════════════════════════════════════════
-// PIN
+// BOOT — אין PIN קוסמטי; ההגנה האמיתית היא סיסמת פענוח הנתונים ב-init()
 // ════════════════════════════════════════════
-const CORRECT='41254125';
-let pinVal='';
-function pk(k){if(pinVal.length>=8)return;pinVal+=k;dots();if(pinVal.length===8)chkPin();}
-function pclr(){pinVal=pinVal.slice(0,-1);dots();document.getElementById('pin-err').textContent='';}
-function dots(){for(let i=0;i<8;i++)document.getElementById('d'+i).classList.toggle('filled',i<pinVal.length);}
-function chkPin(){
-  if(pinVal===CORRECT){
-    sessionStorage.setItem('bi_auth','1');
-    document.getElementById('pin-screen').style.display='none';
-    document.getElementById('main').style.display='block';
-    init();
-  } else {
-    document.getElementById('pin-err').textContent='קוד שגוי, נסה שוב';
-    pinVal='';dots();
-    document.getElementById('pin-screen').style.animation='shake .35s';
-    setTimeout(()=>document.getElementById('pin-screen').style.animation='',400);
-  }
-}
-// אין PIN קוסמטי — ההגנה האמיתית היא הצפנת הנתונים (init מבקש את סיסמת הפענוח)
-document.getElementById('pin-screen').style.display='none';
 document.getElementById('main').style.display='block';
 
 // ════════════════════════════════════════════
@@ -397,6 +439,7 @@ const PAYC={
 // STATE
 // ════════════════════════════════════════════
 let dailyData=[], byDate={}, rivhit=[], rivhitInv=[], invData={};
+let hoursByStore=[];
 let supMonthly=[], supDocs=[];
 let supSortCol='DocDate', supSortDir=-1;
 let period='2026';
@@ -515,6 +558,7 @@ async function init(){
       byDate=todayJson.by_date||{};
       rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
       rivhitInv=todayJson.rivhit_invoices||[];
+      hoursByStore=todayJson.hours_by_store||[];
       supMonthly=todayJson.sup_monthly||[];
       supDocs=todayJson.sup_docs||[];
       invData=invJson;
@@ -537,6 +581,7 @@ function renderAll(){
   else if(activeTab==='payments') renderPayments();
   else if(activeTab==='inventory') renderInventory();
   else if(activeTab==='accounting') renderAccounting();
+  else if(activeTab==='suppliers') renderSuppliers();
 }
 
 // ════════════════════════════════════════════
@@ -546,7 +591,7 @@ function showTab(id){
   document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','inventory','accounting'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','accounting','suppliers','inventory'].indexOf(id)].classList.add('active');
   activeTab=id;
   renderAll();
 }
@@ -628,6 +673,34 @@ function renderOverview(){
     type:'line',
     data:{labels:MHE.slice(1),datasets:yoyDatasets},
     options:chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true,spanGaps:true})
+  });
+
+  // Activity hours (90-day snapshot, period-independent)
+  renderHours();
+}
+
+function renderHours(){
+  const el=document.getElementById('ch-hours');
+  if(!el) return;
+  const stNames=[...new Set(hoursByStore.map(h=>h.StoreName))];
+  const hoursRange=[...new Set(hoursByStore.map(h=>h.Hour))].sort((a,b)=>a-b);
+  const hourAgg={};
+  hoursByStore.forEach(h=>{hourAgg[h.Hour]=(hourAgg[h.Hour]||0)+h.TotalSales;});
+  const peak=Object.entries(hourAgg).sort((a,b)=>b[1]-a[1])[0];
+  const sub=document.getElementById('ov-hours-sub');
+  if(sub) sub.textContent=peak?`שעת שיא: ${String(peak[0]).padStart(2,'0')}:00 · ${fmtK(peak[1])} · 90 יום אחרונים`:'מכירות לפי שעה · 90 יום אחרונים';
+  destroyChart('hours');
+  charts.hours=new Chart(el,{
+    type:'bar',
+    data:{labels:hoursRange.map(h=>String(h).padStart(2,'0')+':00'),
+      datasets:stNames.map((sn,i)=>({label:sn,
+        data:hoursRange.map(h=>{const r=hoursByStore.find(x=>x.Hour===h&&x.StoreName===sn);return r?r.TotalSales:0;}),
+        backgroundColor:SCOL[i%SCOL.length]+'cc',borderRadius:3}))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{family:'Rubik',size:11},color:C().muted,boxWidth:12}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Rubik',size:10},color:C().muted}},
+              y:{stacked:true,grid:{color:C().grid},ticks:{callback:v=>fmtK(v),font:{family:'Rubik',size:11},color:C().muted}}}}
   });
 }
 
@@ -1277,9 +1350,9 @@ function renderInvTable(){
     {l:'פתוחות (לגבייה)',v:fmt(open),c:'#f59e0b'},
     {l:'זיכויים',v:fmt(Math.abs(credit)),c:'#ef4444'},
     {l:'מספר מסמכים',v:rows.length,c:'#10b981'}
-  ].map(k=>`<div style="flex:1;min-width:130px;background:#f8fafc;border-radius:10px;padding:10px 14px;border-right:3px solid ${k.c}">
-    <div style="font-size:11px;color:#8492a6">${k.l}</div>
-    <div style="font-size:18px;font-weight:700;color:#1e2d3d">${typeof k.v==='number'?k.v.toLocaleString():k.v}</div>
+  ].map(k=>`<div style="flex:1;min-width:130px;background:var(--chip);border-radius:10px;padding:10px 14px;border-right:3px solid ${k.c}">
+    <div style="font-size:11px;color:var(--muted)">${k.l}</div>
+    <div style="font-size:18px;font-weight:700;color:var(--text)">${typeof k.v==='number'?k.v.toLocaleString():k.v}</div>
   </div>`).join('');
 
   const TYPE_BADGE={1:'<span style="background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:20px;font-size:11px">חשבונית מס</span>',
@@ -1353,19 +1426,30 @@ function renderCustTable(){
 // ════════════════════════════════════════════
 // CHART DEFAULTS
 // ════════════════════════════════════════════
+// ── צבעים מודעי-תמה לגרפים (נקראים מ-CSS variables) ──
+function C(){
+  const s=getComputedStyle(document.documentElement);
+  const g=n=>s.getPropertyValue(n).trim();
+  return {text:g('--text')||'#1e2233', muted:g('--muted')||'#8492a6', grid:g('--grid')||'#f0f3f9', card:g('--card')||'#fff'};
+}
+function applyChartTheme(){
+  if(window.Chart){ const c=C(); Chart.defaults.color=c.muted; Chart.defaults.borderColor=c.grid; }
+}
+
 function chartOpts({y={},legend=false,stacked=false,spanGaps=false}={}){
+  const c=C();
   return{
     responsive:true,maintainAspectRatio:false,spanGaps,
     plugins:{
-      legend:legend?{position:'top',labels:{font:{family:'Rubik',size:11},color:'#8492a6',boxWidth:12}}:{display:false},
+      legend:legend?{position:'top',labels:{font:{family:'Rubik',size:11},color:c.muted,boxWidth:12}}:{display:false},
       tooltip:{callbacks:{label:ctx=>{
         const v=ctx.parsed?.y??ctx.parsed;
         return typeof v==='number'?ctx.dataset.label+': '+fmt(v):undefined;
       }}}
     },
     scales:{
-      y:{grid:{color:'#f0f3f9'},...y,ticks:{...(y.ticks||{}),font:{family:'Rubik',size:11},color:'#8492a6'}},
-      x:{grid:{display:false},ticks:{font:{family:'Rubik',size:11},color:'#8492a6'}}
+      y:{grid:{color:c.grid},...y,ticks:{...(y.ticks||{}),font:{family:'Rubik',size:11},color:c.muted}},
+      x:{grid:{display:false},ticks:{font:{family:'Rubik',size:11},color:c.muted}}
     }
   };
 }
@@ -1387,8 +1471,30 @@ function exportCSV(){
 }
 
 // ════════════════════════════════════════════
+// THEME (מצב כהה/בהיר)
+// ════════════════════════════════════════════
+function currentTheme(){
+  const t=localStorage.getItem('bi_theme');
+  if(t==='dark'||t==='light') return t;
+  return matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('bi_theme',t);
+  const btn=document.getElementById('theme-toggle');
+  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
+  applyChartTheme();
+}
+function toggleTheme(){
+  const t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  applyTheme(t);
+  renderAll();
+}
+
+// ════════════════════════════════════════════
 // BOOT
 // ════════════════════════════════════════════
+applyTheme(currentTheme());
 init();
 </script>
 </body>
