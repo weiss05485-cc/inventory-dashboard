@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-1';
+  var BI_VERSION = '2026-07-26-2';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -210,6 +210,7 @@ tr:hover td{background:var(--row-hover)}
     <span class="nav-grp">💰 הנהלת חשבונות</span>
     <button class="nbtn" onclick="showTab('accounting')">📋 רווחית</button>
     <button class="nbtn" onclick="showTab('suppliers')">🏭 ספקים</button>
+    <button class="nbtn" onclick="showTab('divuchim')">📥 דיווחים</button>
     <span class="nav-sep"></span>
     <span class="nav-grp">📦 מלאי</span>
     <button class="nbtn" onclick="showTab('inventory')">📦 מלאי</button>
@@ -414,6 +415,54 @@ tr:hover td{background:var(--row-hover)}
     </div>
   </div>
 
+  <!-- ── DIVUCHIM (דיווחי עובדים) ── -->
+  <div id="tab-divuchim" class="tab-page">
+    <div class="page">
+      <div id="div-empty" class="empty" style="display:none">
+        <div class="empty-icon">📥</div>
+        <div class="empty-title">אין דיווחים עדיין</div>
+        <div class="empty-sub">דיווחי העובדים מ-divuchim.chasidim-center.co.il יופיעו כאן אוטומטית.<br>הוסף שמות עובדים בעמוד הניהול ושלח להם את הקישור.</div>
+      </div>
+      <div id="div-content">
+        <div class="kpi-row" id="div-kpis"></div>
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="cc-hdr"><span class="cc-title">הוצאות לפי קטגוריה</span></div>
+            <div class="chart-wrap h260"><canvas id="ch-div-cat"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="cc-hdr"><span class="cc-title">הוצאות לפי עובד</span></div>
+            <div class="chart-wrap h260"><canvas id="ch-div-emp"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="cc-hdr"><span class="cc-title">מגמת דיווחים — חודשי</span></div>
+          <div class="chart-wrap h260"><canvas id="ch-div-trend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="cc-hdr">
+            <span class="cc-title">כל הדיווחים <span class="cc-sub" id="div-count"></span></span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <select id="div-f-kind" onchange="renderDivuchim()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px">
+                <option value="">כל הסוגים</option><option value="expense">הוצאה</option><option value="petty_cash">קופה קטנה</option><option value="issue">תקלה/הערה</option>
+              </select>
+              <select id="div-f-status" onchange="renderDivuchim()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px">
+                <option value="">כל הסטטוסים</option><option value="new">ממתין</option><option value="approved">מאושר</option>
+              </select>
+              <button class="btn-export" onclick="exportDivuchimCSV()">⬇ CSV</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table id="div-tbl">
+              <thead><tr><th>תאריך</th><th>סוג</th><th>עובד</th><th>סניף</th><th>קטגוריה</th><th class="num">סכום</th><th>תיאור</th><th>סטטוס</th></tr></thead>
+              <tbody id="div-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <script>
@@ -440,6 +489,7 @@ const PAYC={
 // ════════════════════════════════════════════
 let dailyData=[], byDate={}, rivhit=[], rivhitInv=[], invData={};
 let hoursByStore=[];
+let staffReports=[];
 let supMonthly=[], supDocs=[];
 let supSortCol='DocDate', supSortDir=-1;
 let period='2026';
@@ -562,6 +612,7 @@ async function init(){
       supMonthly=todayJson.sup_monthly||[];
       supDocs=todayJson.sup_docs||[];
       invData=invJson;
+      try { const sr = await loadEnc('staff_reports.json', pw); staffReports = sr.reports||[]; } catch(e){ staffReports=[]; }
       document.getElementById('hdr-synced').textContent='עודכן: '+(todayJson.synced||'');
 
       renderAll();
@@ -582,6 +633,7 @@ function renderAll(){
   else if(activeTab==='inventory') renderInventory();
   else if(activeTab==='accounting') renderAccounting();
   else if(activeTab==='suppliers') renderSuppliers();
+  else if(activeTab==='divuchim') renderDivuchim();
 }
 
 // ════════════════════════════════════════════
@@ -591,7 +643,7 @@ function showTab(id){
   document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','accounting','suppliers','inventory'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.nbtn')[['overview','stores','depts','sellers','payments','accounting','suppliers','divuchim','inventory'].indexOf(id)].classList.add('active');
   activeTab=id;
   renderAll();
 }
@@ -1048,6 +1100,90 @@ function exportSupplierCSV(){
   docs.forEach(d=>rows.push(`${d.DocDate},"${d.SupplierName}","${d.DocNumber||''}",${d.DocType},"${d.StoreName||''}",${d.LineCount},${d.TotalQty},${d.TotalAmount}`));
   const blob=new Blob(['﻿'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='suppliers_export.csv';a.click();
+}
+
+// ════════════════════════════════════════════
+// DIVUCHIM (דיווחי עובדים)
+// ════════════════════════════════════════════
+const DKIND={expense:'הוצאה',petty_cash:'קופה קטנה',issue:'תקלה/הערה'};
+const DKINDC={expense:'#4f46e5',petty_cash:'#10b981',issue:'#f59e0b'};
+const DSTAT={new:['ממתין','#f59e0b'],approved:['מאושר','#10b981'],rejected:['נדחה','#ef4444']};
+function getDivFiltered(){
+  const fk=document.getElementById('div-f-kind')?.value||'';
+  const fs=document.getElementById('div-f-status')?.value||'';
+  return staffReports.filter(r=>(!fk||r.kind===fk)&&(!fs||r.status===fs));
+}
+function renderDivuchim(){
+  const has=staffReports.length>0;
+  document.getElementById('div-empty').style.display=has?'none':'block';
+  document.getElementById('div-content').style.display=has?'block':'none';
+  if(!has) return;
+
+  const rows=getDivFiltered();
+  const sum=(pred)=>staffReports.filter(pred).reduce((s,r)=>s+Number(r.amount||0),0);
+  const cnt=(pred)=>staffReports.filter(pred).length;
+
+  document.getElementById('div-kpis').innerHTML=[
+    {label:'הוצאות מאושרות',val:fmtM(sum(r=>r.kind==='expense'&&r.status==='approved')),sub:cnt(r=>r.kind==='expense')+' דיווחי הוצאה',accent:'#4f46e5'},
+    {label:'קופה קטנה',val:fmtM(sum(r=>r.kind==='petty_cash')),sub:cnt(r=>r.kind==='petty_cash')+' דיווחים',accent:'#10b981'},
+    {label:'ממתין לאישור',val:cnt(r=>r.status==='new'),sub:'דיווחים חדשים',accent:'#f59e0b'},
+    {label:'תקלות / הערות',val:cnt(r=>r.kind==='issue'),sub:'פתוחות לטיפול',accent:'#ef4444'},
+  ].map(c=>`<div class="kpi"><div class="kpi-accent" style="background:${c.accent}"></div>
+    <div class="kpi-label">${c.label}</div><div class="kpi-val">${c.val}</div>
+    ${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}</div>`).join('');
+
+  // הוצאות (expense+petty) לפי קטגוריה
+  const money=staffReports.filter(r=>r.kind==='expense'||r.kind==='petty_cash');
+  const byCat={}; money.forEach(r=>{const k=r.category||'ללא קטגוריה'; byCat[k]=(byCat[k]||0)+Number(r.amount||0);});
+  const catArr=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  destroyChart('divcat');
+  charts.divcat=new Chart(document.getElementById('ch-div-cat'),{type:'bar',
+    data:{labels:catArr.map(x=>x[0]),datasets:[{label:'סכום',data:catArr.map(x=>x[1]),backgroundColor:catArr.map((_,i)=>SCOL[i%SCOL.length]+'cc'),borderRadius:4}]},
+    options:{...chartOpts({y:{ticks:{callback:v=>fmtK(v)}}}),indexAxis:'y'}});
+
+  // לפי עובד
+  const byEmp={}; money.forEach(r=>{byEmp[r.employee_name]=(byEmp[r.employee_name]||0)+Number(r.amount||0);});
+  const empArr=Object.entries(byEmp).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  destroyChart('divemp');
+  charts.divemp=new Chart(document.getElementById('ch-div-emp'),{type:'bar',
+    data:{labels:empArr.map(x=>x[0]),datasets:[{label:'סכום',data:empArr.map(x=>x[1]),backgroundColor:'#7c3aedcc',borderRadius:4}]},
+    options:{...chartOpts({y:{ticks:{callback:v=>fmtK(v)}}}),indexAxis:'y'}});
+
+  // מגמה חודשית לפי סוג
+  const ym={};
+  staffReports.forEach(r=>{const m=(r.created_at||'').slice(0,7); if(!m)return; ym[m]=ym[m]||{expense:0,petty_cash:0,issue:0}; ym[m][r.kind]=(ym[m][r.kind]||0)+(r.kind==='issue'?1:Number(r.amount||0));});
+  const months=Object.keys(ym).sort();
+  destroyChart('divtrend');
+  charts.divtrend=new Chart(document.getElementById('ch-div-trend'),{type:'bar',
+    data:{labels:months.map(m=>MHE[+m.slice(5,7)]+' '+m.slice(0,4)),datasets:[
+      {label:'הוצאות',data:months.map(m=>ym[m].expense),backgroundColor:'#4f46e5cc',borderRadius:4},
+      {label:'קופה קטנה',data:months.map(m=>ym[m].petty_cash),backgroundColor:'#10b981cc',borderRadius:4},
+    ]},options:chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true})});
+
+  // טבלה
+  document.getElementById('div-count').textContent='('+rows.length+')';
+  document.getElementById('div-body').innerHTML=rows.map(r=>{
+    const st=DSTAT[r.status]||[r.status,'#94a3b8'];
+    const d=new Date(r.created_at); const ds=isNaN(d)?'':d.toLocaleDateString('he-IL');
+    return `<tr>
+      <td class="muted" style="white-space:nowrap">${ds}</td>
+      <td><span class="pay-badge" style="background:${DKINDC[r.kind]||'#94a3b8'}22;color:${DKINDC[r.kind]||'#64748b'}">${DKIND[r.kind]||r.kind}</span></td>
+      <td><strong>${r.employee_name||''}</strong></td>
+      <td>${r.store||'—'}</td>
+      <td>${r.category||'—'}</td>
+      <td class="num">${r.amount!=null?fmt(r.amount):'—'}</td>
+      <td style="max-width:240px">${r.description||'—'}</td>
+      <td><span style="color:${st[1]};font-weight:700;font-size:12px">${st[0]}</span></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:30px" class="muted">אין דיווחים בסינון זה</td></tr>';
+}
+function exportDivuchimCSV(){
+  const rows=getDivFiltered();
+  if(!rows.length){alert('אין נתונים לייצוא');return;}
+  let out=['תאריך,סוג,עובד,סניף,קטגוריה,סכום,תיאור,סטטוס'];
+  rows.forEach(r=>out.push(`${(r.created_at||'').slice(0,10)},${DKIND[r.kind]||r.kind},"${r.employee_name||''}","${r.store||''}","${r.category||''}",${r.amount||''},"${(r.description||'').replace(/"/g,'""')}",${(DSTAT[r.status]||[r.status])[0]}`));
+  const blob=new Blob(['﻿'+out.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='divuchim.csv';a.click();
 }
 
 // ════════════════════════════════════════════
