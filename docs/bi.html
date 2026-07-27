@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-7';
+  var BI_VERSION = '2026-07-26-8';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -1233,6 +1233,12 @@ async function divToggleActive(table,id){
 async function divSetStatus(id,status){
   try{ await divApi('/api/report/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}); await divLoadLive(); renderDivuchim(); }catch(e){}
 }
+function divDelete(id,el){
+  if(el && el.dataset.armed==='1'){ divDeleteDo(id); return; }
+  if(el){ el.dataset.armed='1'; el.textContent='מחק?'; el.style.background='#ef4444'; el.style.color='#fff';
+    setTimeout(()=>{ try{ el.dataset.armed=''; el.textContent='🗑'; el.style.background='var(--rank-bg)'; el.style.color='var(--muted)'; }catch(e){} },3000); }
+}
+async function divDeleteDo(id){ try{ await divApi('/api/report/'+id,{method:'DELETE'}); await divLoadLive(); renderDivuchim(); }catch(e){} }
 function divRenderLists(){
   const bizTag=x=>x.business==='ch'?' <span style="opacity:.55;font-size:10px">חסידיש</span>':' <span style="opacity:.55;font-size:10px">ח.סנטר</span>';
   const chip=(t,x)=>`<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-size:12px;font-weight:600;background:${x.active?'var(--chip)':'transparent'};border:1px solid var(--border);opacity:${x.active?1:.5}">${x.name}${t==='stores'?bizTag(x):''}<span onclick="divToggleActive('${t}',${x.id})" style="cursor:pointer;color:var(--muted)" title="${x.active?'הסתר':'הצג'}">${x.active?'✕':'↺'}</span></span>`;
@@ -1329,7 +1335,7 @@ function renderDivuchim(){
       <td>${r.category||'—'}</td>
       <td class="num">${r.amount!=null?fmt(r.amount):'—'}${r.kind==='discount'&&r.discount_percent?`<div style="font-size:10px;color:var(--muted);font-weight:400">${r.discount_percent}% מ-${fmt(r.purchase_amount)}</div>`:''}</td>
       <td style="max-width:240px">${r.description||'—'}</td>
-      <td><span style="color:${st[1]};font-weight:700;font-size:12px">${st[0]}</span>${managed?`<span style="display:inline-flex;gap:4px;margin-right:6px">${r.status!=='approved'?`<button onclick="divSetStatus(${r.id},'approved')" title="אשר" style="border:none;border-radius:6px;background:#dcfce7;color:#166534;cursor:pointer;font-weight:700;padding:2px 7px">✓</button>`:''}${r.status!=='rejected'?`<button onclick="divSetStatus(${r.id},'rejected')" title="דחה" style="border:none;border-radius:6px;background:#fee2e2;color:#991b1b;cursor:pointer;font-weight:700;padding:2px 7px">✕</button>`:''}</span>`:''}</td>
+      <td><span style="color:${st[1]};font-weight:700;font-size:12px">${st[0]}</span>${managed?`<span style="display:inline-flex;gap:4px;margin-right:6px">${r.status!=='approved'?`<button onclick="divSetStatus(${r.id},'approved')" title="אשר" style="border:none;border-radius:6px;background:#dcfce7;color:#166534;cursor:pointer;font-weight:700;padding:2px 7px">✓</button>`:''}${r.status!=='rejected'?`<button onclick="divSetStatus(${r.id},'rejected')" title="דחה" style="border:none;border-radius:6px;background:#fee2e2;color:#991b1b;cursor:pointer;font-weight:700;padding:2px 7px">✕</button>`:''}<button onclick="divDelete(${r.id},this)" title="מחק" style="border:none;border-radius:6px;background:var(--rank-bg);color:var(--muted);cursor:pointer;font-weight:700;padding:2px 7px">🗑</button></span>`:''}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;padding:30px" class="muted">אין דיווחים בסינון זה</td></tr>';
 }
