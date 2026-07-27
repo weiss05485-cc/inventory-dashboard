@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-5';
+  var BI_VERSION = '2026-07-26-6';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -460,7 +460,7 @@ tr:hover td{background:var(--row-hover)}
             <div class="chart-wrap h260"><canvas id="ch-div-cat"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="cc-hdr"><span class="cc-title">הוצאות לפי עובד</span></div>
+            <div class="cc-hdr"><span class="cc-title">סכומים לפי עובד</span></div>
             <div class="chart-wrap h260"><canvas id="ch-div-emp"></canvas></div>
           </div>
         </div>
@@ -473,7 +473,7 @@ tr:hover td{background:var(--row-hover)}
             <span class="cc-title">כל הדיווחים <span class="cc-sub" id="div-count"></span></span>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <select id="div-f-kind" onchange="renderDivuchim()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px">
-                <option value="">כל הסוגים</option><option value="expense">הוצאה</option><option value="petty_cash">קופה קטנה</option><option value="issue">תקלה/הערה</option>
+                <option value="">כל הסוגים</option><option value="shabbat">שבת קודש</option><option value="discount">הנחה</option><option value="expense">הוצאה</option>
               </select>
               <select id="div-f-status" onchange="renderDivuchim()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:Rubik;font-size:13px">
                 <option value="">כל הסטטוסים</option><option value="new">ממתין</option><option value="approved">מאושר</option>
@@ -1168,8 +1168,8 @@ function exportSupplierCSV(){
 // ════════════════════════════════════════════
 // DIVUCHIM (דיווחי עובדים)
 // ════════════════════════════════════════════
-const DKIND={expense:'הוצאה',petty_cash:'קופה קטנה',issue:'תקלה/הערה'};
-const DKINDC={expense:'#4f46e5',petty_cash:'#10b981',issue:'#f59e0b'};
+const DKIND={shabbat:'שבת קודש',discount:'הנחה',expense:'הוצאה'};
+const DKINDC={shabbat:'#8b5cf6',discount:'#f59e0b',expense:'#4f46e5'};
 const DSTAT={new:['ממתין','#f59e0b'],approved:['מאושר','#10b981'],rejected:['נדחה','#ef4444']};
 
 // ── ניהול חי מול שרת הדיווחים (אימות Bearer; נכנס פעם אחת עם סיסמת ניהול) ──
@@ -1248,25 +1248,25 @@ function renderDivuchim(){
   const cnt=(pred)=>src.filter(pred).length;
 
   document.getElementById('div-kpis').innerHTML=[
-    {label:'הוצאות מאושרות',val:fmtM(sum(r=>r.kind==='expense'&&r.status==='approved')),sub:cnt(r=>r.kind==='expense')+' דיווחי הוצאה',accent:'#4f46e5'},
-    {label:'קופה קטנה',val:fmtM(sum(r=>r.kind==='petty_cash')),sub:cnt(r=>r.kind==='petty_cash')+' דיווחים',accent:'#10b981'},
-    {label:'ממתין לאישור',val:cnt(r=>r.status==='new'),sub:'דיווחים חדשים',accent:'#f59e0b'},
-    {label:'תקלות / הערות',val:cnt(r=>r.kind==='issue'),sub:'פתוחות לטיפול',accent:'#ef4444'},
+    {label:'🕯️ שבת קודש',val:fmtM(sum(r=>r.kind==='shabbat')),sub:cnt(r=>r.kind==='shabbat')+' דיווחים · '+cnt(r=>r.kind==='shabbat'&&r.status==='new')+' ממתין',accent:'#8b5cf6'},
+    {label:'🏷️ הנחות',val:fmtM(sum(r=>r.kind==='discount')),sub:cnt(r=>r.kind==='discount')+' הנחות',accent:'#f59e0b'},
+    {label:'💸 הוצאות',val:fmtM(sum(r=>r.kind==='expense')),sub:cnt(r=>r.kind==='expense')+' הוצאות',accent:'#4f46e5'},
+    {label:'ממתין לאישור',val:cnt(r=>r.status==='new'),sub:'דיווחים חדשים',accent:'#10b981'},
   ].map(c=>`<div class="kpi"><div class="kpi-accent" style="background:${c.accent}"></div>
     <div class="kpi-label">${c.label}</div><div class="kpi-val">${c.val}</div>
     ${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}</div>`).join('');
 
-  // הוצאות (expense+petty) לפי קטגוריה
-  const money=staffReports.filter(r=>r.kind==='expense'||r.kind==='petty_cash');
-  const byCat={}; money.forEach(r=>{const k=r.category||'ללא קטגוריה'; byCat[k]=(byCat[k]||0)+Number(r.amount||0);});
+  // הוצאות לפי קטגוריה (רק סוג "הוצאה")
+  const exp=src.filter(r=>r.kind==='expense');
+  const byCat={}; exp.forEach(r=>{const k=r.category||'ללא קטגוריה'; byCat[k]=(byCat[k]||0)+Number(r.amount||0);});
   const catArr=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   destroyChart('divcat');
   charts.divcat=new Chart(document.getElementById('ch-div-cat'),{type:'bar',
     data:{labels:catArr.map(x=>x[0]),datasets:[{label:'סכום',data:catArr.map(x=>x[1]),backgroundColor:catArr.map((_,i)=>SCOL[i%SCOL.length]+'cc'),borderRadius:4}]},
     options:{...chartOpts({y:{ticks:{callback:v=>fmtK(v)}}}),indexAxis:'y'}});
 
-  // לפי עובד
-  const byEmp={}; money.forEach(r=>{byEmp[r.employee_name]=(byEmp[r.employee_name]||0)+Number(r.amount||0);});
+  // לפי עובד (כל הסוגים)
+  const byEmp={}; src.forEach(r=>{byEmp[r.employee_name]=(byEmp[r.employee_name]||0)+Number(r.amount||0);});
   const empArr=Object.entries(byEmp).sort((a,b)=>b[1]-a[1]).slice(0,12);
   destroyChart('divemp');
   charts.divemp=new Chart(document.getElementById('ch-div-emp'),{type:'bar',
@@ -1275,13 +1275,14 @@ function renderDivuchim(){
 
   // מגמה חודשית לפי סוג
   const ym={};
-  staffReports.forEach(r=>{const m=(r.created_at||'').slice(0,7); if(!m)return; ym[m]=ym[m]||{expense:0,petty_cash:0,issue:0}; ym[m][r.kind]=(ym[m][r.kind]||0)+(r.kind==='issue'?1:Number(r.amount||0));});
+  src.forEach(r=>{const m=(r.created_at||'').slice(0,7); if(!m)return; ym[m]=ym[m]||{shabbat:0,discount:0,expense:0}; ym[m][r.kind]=(ym[m][r.kind]||0)+Number(r.amount||0);});
   const months=Object.keys(ym).sort();
   destroyChart('divtrend');
   charts.divtrend=new Chart(document.getElementById('ch-div-trend'),{type:'bar',
     data:{labels:months.map(m=>MHE[+m.slice(5,7)]+' '+m.slice(0,4)),datasets:[
+      {label:'שבת קודש',data:months.map(m=>ym[m].shabbat),backgroundColor:'#8b5cf6cc',borderRadius:4},
+      {label:'הנחות',data:months.map(m=>ym[m].discount),backgroundColor:'#f59e0bcc',borderRadius:4},
       {label:'הוצאות',data:months.map(m=>ym[m].expense),backgroundColor:'#4f46e5cc',borderRadius:4},
-      {label:'קופה קטנה',data:months.map(m=>ym[m].petty_cash),backgroundColor:'#10b981cc',borderRadius:4},
     ]},options:chartOpts({y:{ticks:{callback:v=>fmtK(v)}},legend:true})});
 
   // טבלה
