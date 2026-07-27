@@ -2,8 +2,8 @@ name: Sync Sales Data
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # כל 5 דקות
-  workflow_dispatch:        # כפתור הפעלה ידנית
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -39,6 +39,17 @@ jobs:
           python sync.py
           python sync_today.py
 
+      - name: Fetch employee reports (divuchim)
+        env:
+          DIVUACH_EXPORT_KEY: ${{ secrets.DIVUACH_EXPORT_KEY }}
+        run: |
+          if curl -sf "https://divuchim.chasidim-center.co.il/api/export?key=$DIVUACH_EXPORT_KEY" -o docs/staff_reports.json.tmp \
+             && python -c "import json; json.load(open('docs/staff_reports.json.tmp'))"; then
+            mv docs/staff_reports.json.tmp docs/staff_reports.json
+          else
+            echo "fetch failed — keeping previous"; rm -f docs/staff_reports.json.tmp
+          fi
+
       - name: Encrypt data files
         env:
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
@@ -49,12 +60,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
           git add docs/*.enc
-          git diff --staged --quiet && echo "אין שינויים — מדלג" && exit 0
+          git diff --staged --quiet && echo "no changes" && exit 0
           git commit -m "Auto-sync $(date +'%d/%m/%Y %H:%M')"
-          # push עמיד להתנגשויות: בקונפליקט מעדיפים את הנתונים הטריים (-X theirs), עם ניסיון חוזר על מירוץ בין ריצות
           for i in 1 2 3 4 5; do
             git pull --rebase -X theirs origin master && git push && exit 0
-            echo "ניסיון $i נכשל (קונפליקט/מירוץ) — מנסה שוב..."
             sleep 3
           done
-          echo "ה-push נכשל אחרי 5 ניסיונות" && exit 1
+          exit 1
