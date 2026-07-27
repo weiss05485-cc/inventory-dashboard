@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-4';
+  var BI_VERSION = '2026-07-26-5';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -180,7 +180,7 @@ tr:hover td{background:var(--row-hover)}
   <header>
     <div class="hdr-top">
       <div>
-        <div class="hdr-title"><img src="favicon-gb.png?v=3" alt="GB" style="height:26px;width:26px;border-radius:6px;vertical-align:middle;margin-left:8px">חסידים סנטר — BI</div>
+        <div class="hdr-title"><img src="favicon-gb.png?v=3" alt="GB" style="height:36px;width:36px;border-radius:10px;background:#fff;padding:3px;vertical-align:middle;margin-left:10px;box-shadow:0 2px 8px rgba(0,0,0,.28)">חסידים סנטר — BI</div>
       </div>
       <div class="hdr-right">
         <select id="biz-switch" onchange="switchBiz(this.value)" title="בחירת עסק" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:5px 10px;border-radius:18px;font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;cursor:pointer">
