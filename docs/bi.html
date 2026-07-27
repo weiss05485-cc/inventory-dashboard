@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-3';
+  var BI_VERSION = '2026-07-26-4';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -183,6 +183,10 @@ tr:hover td{background:var(--row-hover)}
         <div class="hdr-title"><img src="favicon-gb.png?v=3" alt="GB" style="height:26px;width:26px;border-radius:6px;vertical-align:middle;margin-left:8px">חסידים סנטר — BI</div>
       </div>
       <div class="hdr-right">
+        <select id="biz-switch" onchange="switchBiz(this.value)" title="בחירת עסק" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:5px 10px;border-radius:18px;font-family:'Rubik',sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+          <option value="cc" style="color:#1e2233">🏢 חסידים סנטר</option>
+          <option value="ch" style="color:#1e2233">🏢 חסידיש</option>
+        </select>
         <button class="btn-export" id="theme-toggle" onclick="toggleTheme()" title="מצב כהה / בהיר" style="min-width:34px">🌙</button>
         <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
         <div class="hdr-badge" id="hdr-synced">טוען...</div>
@@ -515,6 +519,8 @@ const PAYC={
 let dailyData=[], byDate={}, rivhit=[], rivhitInv=[], invData={};
 let hoursByStore=[];
 let staffReports=[];
+let ccData=null, chData=null, biz='cc';   // מתג עסק: cc=חסידים סנטר, ch=חסידיש
+const CHASIDISH_URL='https://chasidish.chasidim-center.co.il';
 let supMonthly=[], supDocs=[];
 let supSortCol='DocDate', supSortDir=-1;
 let period='2026';
@@ -629,16 +635,10 @@ async function init(){
       ]);
       sessionStorage.setItem('cc_pass', pw);
 
-      dailyData=todayJson.daily||[];
-      byDate=todayJson.by_date||{};
-      rivhit=(todayJson.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
-      rivhitInv=todayJson.rivhit_invoices||[];
-      hoursByStore=todayJson.hours_by_store||[];
-      supMonthly=todayJson.sup_monthly||[];
-      supDocs=todayJson.sup_docs||[];
-      invData=invJson;
+      ccData={td:todayJson, inv:invJson};
+      applyDataset(todayJson, invJson);
       try { const sr = await loadEnc('staff_reports.json', pw); staffReports = sr.reports||[]; } catch(e){ staffReports=[]; }
-      document.getElementById('hdr-synced').textContent='עודכן: '+(todayJson.synced||'');
+      biz='cc'; updateSyncedLabel();
 
       renderAll();
       return;
@@ -659,6 +659,44 @@ function renderAll(){
   else if(activeTab==='accounting') renderAccounting();
   else if(activeTab==='suppliers') renderSuppliers();
   else if(activeTab==='divuchim') renderDivuchim();
+}
+
+// ── מתג עסק: החלת מקור נתונים (חסידים סנטר / חסידיש) ──
+function applyDataset(td, inv){
+  dailyData=td.daily||[];
+  byDate=td.by_date||{};
+  rivhit=(td.rivhit||[]).filter(r=>r.Total>0&&r.Year>=2022);
+  rivhitInv=td.rivhit_invoices||[];
+  hoursByStore=td.hours_by_store||[];
+  supMonthly=td.sup_monthly||[];
+  supDocs=td.sup_docs||[];
+  invData=inv||{};
+}
+function updateSyncedLabel(){
+  const src = biz==='ch' ? chData : ccData;
+  const el=document.getElementById('hdr-synced');
+  if(el) el.textContent=(biz==='ch'?'חסידיש · ':'')+'עודכן: '+((src&&src.td.synced)||'');
+}
+async function switchBiz(b){
+  if(b===biz) return;
+  if(b==='ch'){
+    if(!chData){
+      const el=document.getElementById('hdr-synced'); if(el) el.textContent='טוען חסידיש…';
+      try{
+        const [t,i]=await Promise.all([
+          fetch(CHASIDISH_URL+'/today.json?t='+Date.now()).then(r=>r.json()),
+          fetch(CHASIDISH_URL+'/data.json?t='+Date.now()).then(r=>r.json())
+        ]);
+        chData={td:t, inv:i};
+      }catch(e){ alert('שגיאה בטעינת נתוני חסידיש'); document.getElementById('biz-switch').value=biz; updateSyncedLabel(); return; }
+    }
+    biz='ch'; applyDataset(chData.td, chData.inv); staffReports=[];   // אין דיווחי עובדים לחסידיש
+  } else {
+    biz='cc'; applyDataset(ccData.td, ccData.inv);
+    try{ const sr=await loadEnc('staff_reports.json', sessionStorage.getItem('cc_pass')); staffReports=sr.reports||[]; }catch(e){ staffReports=[]; }
+  }
+  updateSyncedLabel();
+  renderAll();
 }
 
 // ════════════════════════════════════════════
