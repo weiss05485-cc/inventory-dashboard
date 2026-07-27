@@ -12,7 +12,7 @@
 <script>
 // ── עדכון אוטומטי: מכשיר עם גרסה ישנה מהמטמון טוען לבד את העדכנית (סוף ל-Ctrl+F5) ──
 (function(){
-  var BI_VERSION = '2026-07-26-2';
+  var BI_VERSION = '2026-07-26-3';
   window.__BI_VERSION = BI_VERSION;
   try {
     fetch('bi-version.json?cb=' + Date.now(), { cache: 'no-store' })
@@ -418,6 +418,31 @@ tr:hover td{background:var(--row-hover)}
   <!-- ── DIVUCHIM (דיווחי עובדים) ── -->
   <div id="tab-divuchim" class="tab-page">
     <div class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <span class="cc-sub" id="div-manage-status">מצב צפייה — הנתונים מתעדכנים אוטומטית כל ~5 דק'</span>
+        <button class="btn-export" id="div-manage-btn" onclick="divToggleManage()">🔓 ניהול</button>
+      </div>
+      <div id="div-manage-bar" class="chart-card" style="display:none">
+        <div class="cc-hdr"><span class="cc-title">⚙️ ניהול רשימות</span><span class="cc-sub">שמות עובדים וסניפים לטופס הדיווח</span></div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">👥 עובדים</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <input id="div-add-emp" placeholder="שם עובד חדש" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:Rubik;font-size:14px">
+              <button class="btn-export" onclick="divAddList('employees','div-add-emp')">הוסף</button>
+            </div>
+            <div id="div-emp-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <div style="flex:1;min-width:220px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">🏪 סניפים</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <input id="div-add-store" placeholder="שם סניף חדש" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-family:Rubik;font-size:14px">
+              <button class="btn-export" onclick="divAddList('stores','div-add-store')">הוסף</button>
+            </div>
+            <div id="div-store-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+        </div>
+      </div>
       <div id="div-empty" class="empty" style="display:none">
         <div class="empty-icon">📥</div>
         <div class="empty-title">אין דיווחים עדיין</div>
@@ -1108,20 +1133,81 @@ function exportSupplierCSV(){
 const DKIND={expense:'הוצאה',petty_cash:'קופה קטנה',issue:'תקלה/הערה'};
 const DKINDC={expense:'#4f46e5',petty_cash:'#10b981',issue:'#f59e0b'};
 const DSTAT={new:['ממתין','#f59e0b'],approved:['מאושר','#10b981'],rejected:['נדחה','#ef4444']};
+
+// ── ניהול חי מול שרת הדיווחים (אימות Bearer; נכנס פעם אחת עם סיסמת ניהול) ──
+const DIV_API='https://divuchim.chasidim-center.co.il';
+let divTok=sessionStorage.getItem('div_admin_tok')||'';
+let divLive=null;   // דיווחים חיים (במצב ניהול)
+let divCfg=null;    // רשימות חיות (במצב ניהול)
+function divSource(){ return divTok ? (divLive||[]) : staffReports; }
+async function divApi(path,opt={}){
+  opt.headers=Object.assign({'Authorization':'Bearer '+divTok},opt.headers||{});
+  const r=await fetch(DIV_API+path,opt);
+  if(r.status===401){ divTok=''; sessionStorage.removeItem('div_admin_tok'); throw new Error('auth'); }
+  return r;
+}
+async function divToggleManage(){
+  if(divTok){ // כבר במצב ניהול → נעילה
+    divTok=''; sessionStorage.removeItem('div_admin_tok'); divLive=null; divCfg=null; renderDivuchim(); return;
+  }
+  const pw=prompt('סיסמת ניהול (לעריכת עובדים/סניפים ואישור דיווחים):');
+  if(!pw) return;
+  try{
+    const r=await fetch(DIV_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'admin',password:pw})});
+    const j=await r.json();
+    if(!r.ok||!j.token){ alert(j.error||'סיסמה שגויה'); return; }
+    divTok=j.token; sessionStorage.setItem('div_admin_tok',divTok);
+    await divLoadLive(); renderDivuchim();
+  }catch(e){ alert('שגיאת התחברות לשרת הדיווחים'); }
+}
+async function divLoadLive(){
+  try{
+    divLive=(await (await divApi('/api/reports')).json()).reports||[];
+    divCfg=await (await divApi('/api/admin/config')).json();
+  }catch(e){ divLive=divLive||[]; }
+}
+async function divAddList(table,inputId){
+  const el=document.getElementById(inputId); const v=(el.value||'').trim();
+  if(!v) return;
+  try{ await divApi('/api/admin/list/'+table,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:v})}); el.value=''; await divLoadLive(); renderDivuchim(); }
+  catch(e){ alert('שגיאה בהוספה'); }
+}
+async function divToggleActive(table,id){
+  try{ await divApi('/api/admin/list/'+table+'/'+id+'/toggle',{method:'POST'}); await divLoadLive(); renderDivuchim(); }catch(e){}
+}
+async function divSetStatus(id,status){
+  try{ await divApi('/api/report/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}); await divLoadLive(); renderDivuchim(); }catch(e){}
+}
+function divRenderLists(){
+  const chip=(t,x)=>`<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-size:12px;font-weight:600;background:${x.active?'var(--chip)':'transparent'};border:1px solid var(--border);opacity:${x.active?1:.5}">${x.name}<span onclick="divToggleActive('${t}',${x.id})" style="cursor:pointer;color:var(--muted)" title="${x.active?'הסתר':'הצג'}">${x.active?'✕':'↺'}</span></span>`;
+  const emps=(divCfg?.employees||[]), stores=(divCfg?.stores||[]);
+  const eEl=document.getElementById('div-emp-list'), sEl=document.getElementById('div-store-list');
+  if(eEl) eEl.innerHTML=emps.map(x=>chip('employees',x)).join('')||'<span class="muted" style="font-size:12px">אין עובדים — הוסף/י</span>';
+  if(sEl) sEl.innerHTML=stores.map(x=>chip('stores',x)).join('');
+}
+
 function getDivFiltered(){
   const fk=document.getElementById('div-f-kind')?.value||'';
   const fs=document.getElementById('div-f-status')?.value||'';
-  return staffReports.filter(r=>(!fk||r.kind===fk)&&(!fs||r.status===fs));
+  return divSource().filter(r=>(!fk||r.kind===fk)&&(!fs||r.status===fs));
 }
 function renderDivuchim(){
-  const has=staffReports.length>0;
+  const managed=!!divTok;
+  if(managed && divLive===null){ divLoadLive().then(renderDivuchim); }
+  const src=divSource();
+  document.getElementById('div-manage-bar').style.display=managed?'block':'none';
+  const mbtn=document.getElementById('div-manage-btn'); if(mbtn) mbtn.textContent=managed?'🔒 נעילת ניהול':'🔓 ניהול';
+  const mst=document.getElementById('div-manage-status'); if(mst) mst.textContent=managed?'מצב ניהול — עריכה חיה (מחובר)':"מצב צפייה — מתעדכן אוטומטית כל ~5 דק'";
+  if(managed) divRenderLists();
+
+  const has=src.length>0;
   document.getElementById('div-empty').style.display=has?'none':'block';
   document.getElementById('div-content').style.display=has?'block':'none';
   if(!has) return;
 
   const rows=getDivFiltered();
-  const sum=(pred)=>staffReports.filter(pred).reduce((s,r)=>s+Number(r.amount||0),0);
-  const cnt=(pred)=>staffReports.filter(pred).length;
+  const sum=(pred)=>src.filter(pred).reduce((s,r)=>s+Number(r.amount||0),0);
+  const cnt=(pred)=>src.filter(pred).length;
 
   document.getElementById('div-kpis').innerHTML=[
     {label:'הוצאות מאושרות',val:fmtM(sum(r=>r.kind==='expense'&&r.status==='approved')),sub:cnt(r=>r.kind==='expense')+' דיווחי הוצאה',accent:'#4f46e5'},
@@ -1173,7 +1259,7 @@ function renderDivuchim(){
       <td>${r.category||'—'}</td>
       <td class="num">${r.amount!=null?fmt(r.amount):'—'}</td>
       <td style="max-width:240px">${r.description||'—'}</td>
-      <td><span style="color:${st[1]};font-weight:700;font-size:12px">${st[0]}</span></td>
+      <td><span style="color:${st[1]};font-weight:700;font-size:12px">${st[0]}</span>${managed?`<span style="display:inline-flex;gap:4px;margin-right:6px">${r.status!=='approved'?`<button onclick="divSetStatus(${r.id},'approved')" title="אשר" style="border:none;border-radius:6px;background:#dcfce7;color:#166534;cursor:pointer;font-weight:700;padding:2px 7px">✓</button>`:''}${r.status!=='rejected'?`<button onclick="divSetStatus(${r.id},'rejected')" title="דחה" style="border:none;border-radius:6px;background:#fee2e2;color:#991b1b;cursor:pointer;font-weight:700;padding:2px 7px">✕</button>`:''}</span>`:''}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;padding:30px" class="muted">אין דיווחים בסינון זה</td></tr>';
 }
